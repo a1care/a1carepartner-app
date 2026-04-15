@@ -1,0 +1,79 @@
+{
+  "expo": {
+    "name": "A1Care Partner",
+    "slug": "a1care-partner",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.jpeg",
+    "newArchEnabled": false,
+    "userInterfaceStyle": "light",
+    "scheme": "a1care-partner",
+    "splash": {
+      "image": "./assets/splash-icon.jpeg",
+      "resizeMode": "contain",
+      "backgroundColor": "#EBF5FB"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.a1care.partner"
+    },
+    "android": {
+      "usesCleartextTraffic": true,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.jpeg",
+        "backgroundColor": "#EBF5FB"
+      },
+      "package": "com.a1care.partner",
+      "googleServicesFile": "./google-services.json",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyCQp47kwCVpsPbgSWB-c9HrlsqyiLwe06o"
+        }
+      },
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "POST_NOTIFICATIONS"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "A1Care Partner needs your location to match you with nearby service requests."
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "minSdkVersion": 24,
+            "kotlinVersion": "2.1.20",
+            "packagingOptions": {
+              "pickFirst": [
+                "lib/x86/libc++_shared.so",
+                "lib/x86_64/libc++_shared.so",
+                "lib/armeabi-v7a/libc++_shared.so",
+                "lib/arm64-v8a/libc++_shared.so"
+              ]
+            }
+          }
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
