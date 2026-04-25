@@ -58,6 +58,11 @@ bin/
 *.zip
 *.cjs
 app.zip
+google-services.json
+.idea/
+.vscode/
+*.log
+key.properties
 
 # TypeScript/Generated
 **/*.js.map

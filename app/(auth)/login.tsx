@@ -231,9 +231,12 @@ const LoginScreen = () => {
                                 placeholder="0 0 0 0 0 0"
                                 keyboardType="number-pad"
                                 value={otp}
-                                onChangeText={setOtp}
+                                onChangeText={(value) => setOtp(value.replace(/\D/g, '').slice(0, 6))}
                                 maxLength={6}
                                 placeholderTextColor="#9CB3C4"
+                                textContentType="oneTimeCode"
+                                autoComplete={Platform.OS === 'android' ? 'sms-otp' : 'one-time-code'}
+                                importantForAutofill="yes"
                                 autoFocus
                             />
                         </View>
