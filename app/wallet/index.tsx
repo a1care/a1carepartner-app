@@ -7,16 +7,22 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api } from "../lib/api";
+import { api } from "../../lib/api";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeInUp, FadeInRight } from "react-native-reanimated";
-import { Toast } from "../components/CustomToast";
+import { Toast } from "../../components/CustomToast";
+import { useAuthStore } from "../../stores/auth";
 
 const { width } = Dimensions.get("window");
 
-export default function WalletScreen() {
+const WalletScreen = () => {
+    const { user } = useAuthStore();
     const router = useRouter();
     const queryClient = useQueryClient();
+    
+    const rawRole = typeof user?.role === 'string' ? user.role : (user?.role as any)?.name;
+    const role = rawRole?.toLowerCase();
+    const rolePath = role === 'nurse' ? 'nurse' : role === 'ambulance' ? 'ambulance' : 'doctor';
     const [activeTab, setActiveTab] = useState<"Added" | "Withdrawn">("Added");
     const [showTopUp, setShowTopUp] = useState(false);
     const [showWithdraw, setShowWithdraw] = useState(false);
@@ -26,7 +32,7 @@ export default function WalletScreen() {
     const { data: summary, isLoading: loadingSummary } = useQuery({
         queryKey: ['staff_earnings'],
         queryFn: async () => {
-            const res = await api.get('/doctor/earnings/summary');
+            const res = await api.get(`/${rolePath}/earnings/summary`);
             return res.data.data;
         }
     });
@@ -35,14 +41,14 @@ export default function WalletScreen() {
     const { data: payouts, isLoading: loadingPayouts } = useQuery({
         queryKey: ['staff_payouts'],
         queryFn: async () => {
-            const res = await api.get('/doctor/earnings/payouts');
+            const res = await api.get(`/${rolePath}/earnings/payouts`);
             return res.data.data;
         }
     });
 
     const withdrawMutation = useMutation({
         mutationFn: async (withdrawAmount: number) => {
-            return await api.post('/doctor/earnings/withdraw', { amount: withdrawAmount });
+            return await api.post(`/${rolePath}/earnings/withdraw`, { amount: withdrawAmount });
         },
         onSuccess: () => {
             Alert.alert("Request Submitted", "Your withdrawal request is being processed. Payments are typically settled every Thursday.");
@@ -309,3 +315,5 @@ const styles = StyleSheet.create({
     quickAmtBtn: { flex: 1, height: 44, backgroundColor: '#F8FAFC', borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
     quickAmtText: { color: '#64748B', fontWeight: '800', fontSize: 13 }
 });
+
+export default WalletScreen;

@@ -38,6 +38,18 @@ export default function ProfileScreen() {
         }
     });
 
+    const rawRole = typeof user?.role === 'string' ? user.role : (user?.role as any)?.name;
+    const role = rawRole?.toLowerCase();
+    const rolePath = role === 'nurse' ? 'nurse' : role === 'ambulance' ? 'ambulance' : 'doctor';
+    const { data: earningsSummary } = useQuery({
+        queryKey: ['profile_earnings_summary'],
+        queryFn: async () => {
+            const res = await api.get(`/${rolePath}/earnings/summary`);
+            return res.data.data;
+        },
+        enabled: !!user
+    });
+
     const pendingCount = bookings.filter((b: any) => b.status === "Pending").length;
     const confirmedCount = bookings.filter((b: any) => b.status === "Confirmed" || b.status === "Active").length;
     const upcomingCount = bookings.filter((b: any) => ["Pending", "Confirmed", "Active"].includes(b.status)).length;
@@ -88,7 +100,7 @@ export default function ProfileScreen() {
         } else if (path === "profile") {
             router.push("/profile_edit");
         } else if (path === "subscriptions") {
-            router.push("/subscriptions");
+            router.replace("/subscriptions" as any);
         } else if (path === "bank") {
             router.push("/bank_details");
         } else if (path === "raise-ticket") {
@@ -102,6 +114,18 @@ export default function ProfileScreen() {
         }
     };
 
+    const ROLE_LABELS: Record<string, string> = {
+        doctor: "Doctor",
+        nurse: "Nurse",
+        ambulance: "Ambulance",
+        rental: "Medical Rental",
+    };
+
+    const getRoleName = () => {
+        const rawRole = String(staffData?.role?.name || staffData?.role || user?.role || "").toLowerCase();
+        return ROLE_LABELS[rawRole] || (rawRole.charAt(0).toUpperCase() + rawRole.slice(1));
+    };
+
     return (
         <SafeAreaView style={styles.container}>
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
@@ -110,7 +134,7 @@ export default function ProfileScreen() {
                     <View style={styles.userInfoText}>
                         <Text style={styles.greetingText}>Hello, {user?.name ?? "Partner"}</Text>
                         <Text style={styles.infoSubText}>Mobile: {user?.mobileNumber ?? "—"}</Text>
-                        <Text style={styles.infoSubText}>{user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) + " A1care Partner" : "A1care Partner"}</Text>
+                        <Text style={styles.infoSubText}>{getRoleName()} A1care Partner</Text>
                     </View>
                     <View style={styles.avatarPlaceholder}>
                         {staffData?.profileImage || user?.profileImage ? (
@@ -139,7 +163,7 @@ export default function ProfileScreen() {
                 ) : null}
 
                 {/* Wallet Card - Matched Gradient to Mockup */}
-                <TouchableOpacity onPress={() => router.push("/wallet_history")}>
+                <TouchableOpacity onPress={() => router.push("/wallet")}>
                     <LinearGradient
                         colors={["#417D77", "#9EBB58"]}
                         start={{ x: 0, y: 0.5 }}
@@ -148,7 +172,7 @@ export default function ProfileScreen() {
                     >
                         <Text style={styles.walletTitle}>A1Care Wallet</Text>
                         <Text style={styles.balanceLabel}>Balance</Text>
-                        <Text style={styles.balanceAmount}>₹{staffData?.walletBalance ?? "0"}</Text>
+                        <Text style={styles.balanceAmount}>₹{earningsSummary?.balance ?? "0"}</Text>
 
                         <View style={styles.walletFooter}>
                             <View>
@@ -163,7 +187,7 @@ export default function ProfileScreen() {
                 {/* Quick Access - Matched Mockup */}
                 <Text style={styles.sectionTitle}>Quick Actions</Text>
                 <View style={styles.quickActionsGrid}>
-                    <TouchableOpacity style={styles.actionCard} onPress={() => router.push({ pathname: "/(tabs)/bookings", params: { status: "Pending" } })}>
+                    <TouchableOpacity style={styles.actionCard} onPress={() => router.push({ pathname: "/bookings", params: { status: "Pending" } })}>
                         <View style={styles.actionIconBg}>
                             <Ionicons name="calendar-outline" size={30} color="#15803D" />
                         </View>

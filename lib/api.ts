@@ -1,6 +1,7 @@
 import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
+import { useAuthStore } from "../stores/auth";
 
 const BASE_URL = process.env.EXPO_PUBLIC_API_URL ??
     (Platform.OS === 'web'
@@ -23,14 +24,15 @@ api.interceptors.request.use(async (config) => {
 api.interceptors.response.use(
     (res) => res,
     async (error) => {
-        const requestUrl = error?.config?.url || "";
-        const isAuthDetailsRequest =
-            typeof requestUrl === "string" &&
-            (requestUrl.includes("/doctor/auth/details") || requestUrl.includes("/doctor/auth/verify-otp"));
-
-        if (error?.response?.status === 401 && isAuthDetailsRequest) {
-            await AsyncStorage.removeItem("partner_token");
-            await AsyncStorage.removeItem("partner_user");
+        // Handle 401 Unauthorized globally
+        if (error?.response?.status === 401) {
+            console.log("[API] 401 Unauthorized detected. Logging out...");
+            try {
+                // Clear state and storage via the store
+                await useAuthStore.getState().logout();
+            } catch (logoutError) {
+                console.error("[API] Error during automatic logout:", logoutError);
+            }
         }
         return Promise.reject(error);
     }

@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Toast } from "../../components/CustomToast";
+import { useAuthStore } from "../../stores/auth";
 
 const StatCard = ({ title, amount, icon, color }: any) => (
     <View style={styles.statCard}>
@@ -17,13 +18,18 @@ const StatCard = ({ title, amount, icon, color }: any) => (
 );
 
 export default function EarningsScreen() {
+    const { user } = useAuthStore();
     const queryClient = useQueryClient();
+    
+    const rawRole = typeof user?.role === 'string' ? user.role : (user?.role as any)?.name;
+    const role = rawRole?.toLowerCase();
+    const rolePath = role === 'nurse' ? 'nurse' : role === 'ambulance' ? 'ambulance' : 'doctor';
     const [refreshing, setRefreshing] = useState(false);
 
     const { data: summary, isLoading, refetch } = useQuery({
         queryKey: ['staff_earnings'],
         queryFn: async () => {
-            const res = await api.get('/doctor/earnings/summary');
+            const res = await api.get(`/${rolePath}/earnings/summary`);
             return res.data.data;
         }
     });
@@ -31,14 +37,14 @@ export default function EarningsScreen() {
     const { data: payouts } = useQuery({
         queryKey: ['staff_payouts'],
         queryFn: async () => {
-            const res = await api.get('/doctor/earnings/payouts');
+            const res = await api.get(`/${rolePath}/earnings/payouts`);
             return res.data.data;
         }
     });
 
     const withdrawMutation = useMutation({
         mutationFn: async (amount: number) => {
-            return await api.post('/doctor/earnings/withdraw', { amount });
+            return await api.post(`/${rolePath}/earnings/withdraw`, { amount });
         },
         onSuccess: () => {
             Alert.alert("Success", "Withdrawal request submitted successfully.");
@@ -69,7 +75,7 @@ export default function EarningsScreen() {
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
-                <Text style={styles.headerTitle}>Financial Overview</Text>
+                <Text style={styles.headerTitle}>Wallet & Earnings</Text>
                 <TouchableOpacity onPress={onRefresh}>
                     <Ionicons name="refresh" size={20} color="#64748B" />
                 </TouchableOpacity>

@@ -33,6 +33,8 @@ const roleLabels: Record<string, string> = {
     rental: "Equipment Provider"
 };
 
+import * as Location from "expo-location";
+
 const LoginScreen = () => {
     const router = useRouter();
     const { role } = useLocalSearchParams<{ role: string }>();
@@ -43,6 +45,14 @@ const LoginScreen = () => {
     const [loading, setLoading] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
     const [verifying, setVerifying] = useState(false);
+
+    const requestLocationPermission = async () => {
+        try {
+            await Location.requestForegroundPermissionsAsync();
+        } catch (e) {
+            console.log("[Location] request failed in login");
+        }
+    };
 
     // Initialize Google Sign-in
     React.useEffect(() => {
@@ -143,16 +153,19 @@ const LoginScreen = () => {
 
             Toast.show({ type: 'success', text1: 'Login Successful' });
 
+            // Request location permission after login
+            await requestLocationPermission();
+
             // Precise navigation if AuthGuard hasn't kicked in yet
             if (userData.isRegistered === false) {
                 router.replace({
                     pathname: "/(auth)/register",
                     params: { role: role ?? "doctor", token: authToken }
                 });
-            } else if (userData.status === "Pending") {
+            } else if (userData.status === "Pending" || userData.status === "Rejected") {
                 router.replace("/(auth)/review-status");
             } else {
-                router.replace("/(tabs)/home");
+                router.replace("/home");
             }
 
         } catch (err: any) {

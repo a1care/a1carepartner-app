@@ -31,10 +31,10 @@ export default function TabsLayout() {
         }, [user?._id, setUser])
     );
 
-    // Lock tabs only when we definitely know the user is unapproved.
-    // While loading (or when flags are absent), keep tabs usable.
-    const isExplicitlyUnapproved = user?.isVerified === false || user?.isRegistered === false;
-    const tabsLocked = isLoading ? false : isExplicitlyUnapproved;
+    // Tabs are fully enabled for approved partners (Active or Inactive/Offline).
+    // Pending/Rejected/Unregistered users keep limited navigation.
+    const isActivePartner = (user?.status === "Active" || user?.status === "Inactive") && user?.isRegistered !== false;
+    const tabsLocked = isLoading ? false : !isActivePartner;
 
     return (
         <Tabs
@@ -53,6 +53,7 @@ export default function TabsLayout() {
                 name="home"
                 options={{
                     title: "Home",
+                    href: tabsLocked ? null : undefined,
                     tabBarIcon: ({ focused, color }) => (
                         <Ionicons name={focused ? "home" : "home-outline"} size={26} color={color} />
                     ),
@@ -62,6 +63,7 @@ export default function TabsLayout() {
                 name="bookings"
                 options={{
                     title: "Bookings",
+                    href: tabsLocked ? null : undefined,
                     tabBarIcon: ({ focused, color }) => (
                         <Ionicons name={focused ? "calendar" : "calendar-outline"} size={26} color={color} />
                     ),
@@ -70,7 +72,8 @@ export default function TabsLayout() {
             <Tabs.Screen
                 name="earnings"
                 options={{
-                    title: "Earnings",
+                    title: "Wallet",
+                    href: tabsLocked ? null : undefined,
                     tabBarIcon: ({ focused, color }) => (
                         <Ionicons name={focused ? "wallet" : "wallet-outline"} size={26} color={color} />
                     ),
@@ -80,6 +83,7 @@ export default function TabsLayout() {
                 name="profile"
                 options={{
                     title: "Menu",
+                    href: tabsLocked ? null : undefined,
                     tabBarIcon: ({ focused, color }) => (
                         <Ionicons name={focused ? "person" : "person-outline"} size={26} color={color} />
                     ),
