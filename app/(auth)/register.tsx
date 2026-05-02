@@ -50,10 +50,10 @@ const fieldLabels: Record<string, string> = {
 };
 
 const ROLE_IDS: Record<string, string> = {
-    doctor: "692c582d17fa4521fcd5a940",
-    nurse: "6968b066a32d6eb67e8b7c74",
-    ambulance: "699946a786e3fd517d046316",
-    rental: "699946a786e3fd517d04631a",
+    doctor: "699a7b66728083eed2ad8f09",
+    nurse: "699a7b66728083eed2ad8f0d",
+    ambulance: "69dabad389c5be26d8e696b3",
+    rental: "69dabad489c5be26d8e696b8",
 };
 
 export default function RegisterScreen() {
@@ -197,6 +197,7 @@ export default function RegisterScreen() {
             const payload = {
                 ...form,
                 roleId: ROLE_IDS[role] || ROLE_IDS.doctor,
+                role: { _id: ROLE_IDS[role] || ROLE_IDS.doctor, name: role },
                 documents: documents.map(d => ({ type: d.type, url: d.url })),
                 profileImage: form.profileImage || selfieDoc?.url,
                 status: "Pending",

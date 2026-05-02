@@ -21,7 +21,7 @@ export default function SubscriptionsScreen() {
 
     useEffect(() => {
         const onBack = () => {
-            router.replace("/(tabs)/profile");
+            router.replace("/profile");
             return true;
         };
 
@@ -75,7 +75,7 @@ export default function SubscriptionsScreen() {
             Alert.alert("Request Sent", "Admin will activate your subscription after manual wallet top-up.");
             queryClient.invalidateQueries({ queryKey: ["myActiveSubscription"] });
             queryClient.invalidateQueries({ queryKey: ["subscriptionHistory"] });
-            router.replace("/(tabs)/profile");
+            router.replace("/profile");
         },
         onError: (error: any) => {
             Alert.alert("Error", error.response?.data?.message || "Failed to request subscription");
@@ -83,7 +83,7 @@ export default function SubscriptionsScreen() {
     });
 
     const handleBack = () => {
-        router.replace("/(tabs)/profile");
+        router.replace("/profile");
     };
 
     // Default back behavior (OS handles stack); no manual override.

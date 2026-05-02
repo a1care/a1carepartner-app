@@ -31,7 +31,9 @@ export default function HomeScreen() {
     const [isOnline, setIsOnline] = useState(user?.status === "Active");
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
     const [locationAddress, setLocationAddress] = useState(cachedLocationText || "...");
-    const role = user?.role ?? "doctor";
+    const rawRole = typeof user?.role === 'string' ? user.role : (user?.role as any)?.name;
+    const role = rawRole?.toLowerCase();
+    const rolePath = role === 'nurse' ? 'nurse' : role === 'ambulance' ? 'ambulance' : 'doctor';
     const primaryColor = "#2D935C";
     const queryClient = useQueryClient();
     const locationWatcherRef = useRef<Location.LocationSubscription | null>(null);
@@ -426,7 +428,15 @@ export default function HomeScreen() {
 
                 <View style={styles.statsGrid}>
                     {stats.map((s, idx) => (
-                        <View key={idx} style={styles.statBox}>
+                        <TouchableOpacity 
+                            key={idx} 
+                            style={styles.statBox} 
+                            activeOpacity={0.7}
+                            onPress={() => {
+                                if (s.label === "Earning") router.push("/earnings");
+                                else if (s.label === "Bookings" || s.label === "Completed") router.push("/bookings");
+                            }}
+                        >
                             <View style={[styles.statIconContainer, { backgroundColor: s.color + '10' }]}>
                                 <Ionicons name={s.icon as any} size={22} color={s.color} />
                             </View>
@@ -434,7 +444,7 @@ export default function HomeScreen() {
                                 <Text style={styles.statValText}>{s.value}</Text>
                                 <Text style={styles.statLabelText}>{s.label}</Text>
                             </View>
-                        </View>
+                        </TouchableOpacity>
                     ))}
                 </View>
 
@@ -455,7 +465,7 @@ export default function HomeScreen() {
                         </LinearGradient>
                         <Text style={styles.actionLabel}>Users</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.actionItem} onPress={() => router.push("/(tabs)/earnings")}>
+                    <TouchableOpacity style={styles.actionItem} onPress={() => router.push("/earnings")}>
                         <LinearGradient colors={["#FFFBEB", "#FEF3C7"]} style={styles.actionIconBox}>
                             <MaterialCommunityIcons name="cash-multiple" size={28} color="#F59E0B" />
                         </LinearGradient>

@@ -5,7 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { NativeModules, View, ActivityIndicator, Alert } from "react-native";
+import { NativeModules, View, ActivityIndicator, Alert, Linking } from "react-native";
+import * as Location from "expo-location";
 import { useAuthStore } from "../stores/auth";
 import { useConfigStore } from "../stores/config.store";
 import { ToastProvider } from '../components/CustomToast';
@@ -28,6 +29,33 @@ function AuthGuard() {
     const segments = useSegments();
     const router = useRouter();
     const [isAppReady, setIsAppReady] = useState(false);
+
+    const requestLocationPermission = async () => {
+        try {
+            const { status: existingStatus } = await Location.getForegroundPermissionsAsync();
+            if (existingStatus === 'granted') return;
+
+            const { status } = await Location.requestForegroundPermissionsAsync();
+            if (status !== 'granted') {
+                Alert.alert(
+                    "Location Access",
+                    "A1Care Partner needs your location to match you with nearby patients. Please enable it in settings.",
+                    [
+                        { text: "Cancel", style: "cancel" },
+                        { text: "Settings", onPress: () => Linking.openSettings() }
+                    ]
+                );
+            }
+        } catch (err) {
+            console.log("[Location] Error requesting permission:", err);
+        }
+    };
+
+    useEffect(() => {
+        if (token && user?.isRegistered) {
+            requestLocationPermission();
+        }
+    }, [token, user?.isRegistered]);
 
     useEffect(() => {
         const init = async () => {
@@ -72,12 +100,14 @@ function AuthGuard() {
         }
 
         if (token && (inOnboarding || (inAuth && !isInReviewStatus && !inRegister))) {
-            if (user?.status === "Pending" || user?.status === "Rejected") {
+            if (user?.isRegistered === false) {
+                router.replace("/(auth)/register" as any);
+            } else if (user?.status === "Pending" || user?.status === "Rejected") {
                 router.replace("/(auth)/review-status" as any);
             } else if (user?.isRegistered === false) {
                 router.replace("/(auth)/register" as any);
             } else {
-                router.replace("/(tabs)/home" as any);
+                router.replace("/home" as any);
             }
             return;
         }

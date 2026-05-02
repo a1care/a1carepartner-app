@@ -31,9 +31,9 @@ export default function TabsLayout() {
         }, [user?._id, setUser])
     );
 
-    // Tabs are fully enabled only for approved/active partners.
-    // Pending/Rejected/Inactive users keep limited navigation.
-    const isActivePartner = user?.status === "Active" && user?.isRegistered !== false;
+    // Tabs are fully enabled for approved partners (Active or Inactive/Offline).
+    // Pending/Rejected/Unregistered users keep limited navigation.
+    const isActivePartner = (user?.status === "Active" || user?.status === "Inactive") && user?.isRegistered !== false;
     const tabsLocked = isLoading ? false : !isActivePartner;
 
     return (
@@ -72,7 +72,7 @@ export default function TabsLayout() {
             <Tabs.Screen
                 name="earnings"
                 options={{
-                    title: "Earnings",
+                    title: "Wallet",
                     href: tabsLocked ? null : undefined,
                     tabBarIcon: ({ focused, color }) => (
                         <Ionicons name={focused ? "wallet" : "wallet-outline"} size={26} color={color} />
