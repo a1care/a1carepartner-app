@@ -144,13 +144,13 @@ const LoginScreen = () => {
             Toast.show({ type: 'success', text1: 'Login Successful' });
 
             // Precise navigation if AuthGuard hasn't kicked in yet
-            if (userData.isRegistered === false) {
+            if (userData.status === "Pending" || userData.status === "Rejected") {
+                router.replace("/(auth)/review-status");
+            } else if (userData.isRegistered === false) {
                 router.replace({
                     pathname: "/(auth)/register",
                     params: { role: role ?? "doctor", token: authToken }
                 });
-            } else if (userData.status === "Pending") {
-                router.replace("/(auth)/review-status");
             } else {
                 router.replace("/(tabs)/home");
             }

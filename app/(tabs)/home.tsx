@@ -27,7 +27,7 @@ let cachedCity = "";
 
 export default function HomeScreen() {
     const router = useRouter();
-    const { user, setUser, token } = useAuthStore() as any;
+    const { user, setUser, token, logout } = useAuthStore() as any;
     const [isOnline, setIsOnline] = useState(user?.status === "Active");
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
     const [locationAddress, setLocationAddress] = useState(cachedLocationText || "...");
@@ -171,11 +171,15 @@ export default function HomeScreen() {
         try {
             const address = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
             if (address && address[0]) {
-                const { city, region, district } = address[0];
+                const { city, region, district, subregion, street, name } = address[0];
+                const areaText = subregion || district || street || name || region || "";
                 const cityText = city || district || region || "Unknown City";
-                setLocationAddress(cityText);
-                cachedLocationText = cityText; // Update global cache
-                await AsyncStorage.setItem("last_location_text", cityText);
+                const composed = areaText && cityText && areaText !== cityText
+                    ? `${areaText}, ${cityText}`
+                    : cityText;
+                setLocationAddress(composed);
+                cachedLocationText = composed;
+                await AsyncStorage.setItem("last_location_text", composed);
             }
         } catch (e) { }
     };
@@ -273,11 +277,48 @@ export default function HomeScreen() {
         syncCurrentLocation();
     };
 
+    const isVerificationLocked = staffData?.status === "Pending" || staffData?.status === "Rejected";
+
     if (loadingUser && !user) {
         return (
             <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#F3F4F9" }}>
                 <ActivityIndicator size="large" color={primaryColor} />
             </View>
+        );
+    }
+
+    if (isVerificationLocked) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={styles.kycOverlayStandalone}>
+                    <LinearGradient colors={["#FFFFFF", "#F8FAFC"]} style={styles.kycContent}>
+                        <View style={styles.kycHeader}>
+                            <View style={styles.kyclIconBox}>
+                                <LinearGradient colors={["#ECFDF5", "#D1FAE5"]} style={StyleSheet.absoluteFill} />
+                                <Ionicons name="shield-checkmark" size={42} color="#10B981" />
+                            </View>
+                            <Text style={styles.kycTitle}>Verification Required</Text>
+                            <Text style={styles.kycDesc}>
+                                Your account is under review. You can access full dashboard after admin approval.
+                            </Text>
+                        </View>
+                        <TouchableOpacity style={styles.kycCta} onPress={onRefresh} activeOpacity={0.8}>
+                            <LinearGradient colors={["#1E293B", "#0F172A"]} style={StyleSheet.absoluteFill} />
+                            <Ionicons name="refresh" size={20} color="#FFF" />
+                            <Text style={styles.kycCtaText}>Check Update</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={{ marginTop: 16, paddingVertical: 8, paddingHorizontal: 12 }}
+                            onPress={async () => {
+                                await logout();
+                                router.replace("/(auth)/login");
+                            }}
+                        >
+                            <Text style={{ color: "#DC2626", fontWeight: "700", fontSize: 16 }}>Logout</Text>
+                        </TouchableOpacity>
+                    </LinearGradient>
+                </View>
+            </SafeAreaView>
         );
     }
 
@@ -311,10 +352,24 @@ export default function HomeScreen() {
             >
                 <View style={styles.header}>
                     <View style={styles.locationBar}>
-                        <View style={styles.locationInfo}>
-                            <View style={styles.locationPin}><Ionicons name="location" size={16} color="#2D935C" /></View>
-                            <Text style={styles.locationLabel} numberOfLines={1}>{locationAddress}</Text>
-                        </View>
+                    <TouchableOpacity style={styles.locationInfo} activeOpacity={0.8} onPress={async () => {
+                        try {
+                            const { status } = await Location.requestForegroundPermissionsAsync();
+                            if (status !== "granted") {
+                                Toast.show({ type: "info", text1: "Location permission needed" });
+                                return;
+                            }
+                            const fresh = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+                            await updateLocationOnBackend(fresh.coords.latitude, fresh.coords.longitude);
+                            await reverseGeocode(fresh.coords.latitude, fresh.coords.longitude);
+                            Toast.show({ type: "success", text1: "Location refreshed" });
+                        } catch (e) {
+                            Toast.show({ type: "error", text1: "Unable to refresh location" });
+                        }
+                    }}>
+                        <View style={styles.locationPin}><Ionicons name="location" size={16} color="#2D935C" /></View>
+                        <Text style={styles.locationLabel} numberOfLines={1}>{locationAddress}</Text>
+                    </TouchableOpacity>
                         <TouchableOpacity style={styles.notificationBtn} onPress={() => router.push("/notifications")}>
                             <Ionicons name="notifications-outline" size={24} color="#1E293B" />
                             {unreadCount > 0 && <View style={styles.badgeDot} />}
@@ -489,6 +544,7 @@ const styles = StyleSheet.create({
     statusBadgeText: { fontSize: 11, fontWeight: '700', color: '#92400E' },
     emptyRequestsCard: { backgroundColor: '#FFF', borderRadius: 28, padding: 30, alignItems: 'center', borderStyle: 'dashed', borderWidth: 2, borderColor: '#E2E8F0' },
     emptyRequestsText: { fontSize: 14, fontWeight: '700', color: '#94A3B8', marginTop: 10 },
+    kycOverlayStandalone: { flex: 1, backgroundColor: "#F8FAFC", justifyContent: "center", alignItems: "center", padding: 24 },
     kycOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 10000, backgroundColor: "rgba(15, 23, 42, 0.6)", justifyContent: "center", alignItems: "center", padding: 24 },
     kycContent: { width: "100%", borderRadius: 40, padding: 32, alignItems: "center", elevation: 20 },
     kycHeader: { alignItems: 'center', marginBottom: 32 },

@@ -88,7 +88,10 @@ export default function ProfileEditScreen() {
 
     useEffect(() => {
         if (staffData) {
-            const initialImage = staffData.profileImage || "";
+            const selfieDocUrl = Array.isArray(staffData.documents)
+                ? staffData.documents.find((d: any) => d?.type === "Selfie" && d?.url)?.url || ""
+                : "";
+            const initialImage = staffData.profileImage || selfieDocUrl || "";
             setFormData({
                 name: staffData.name || "",
                 about: staffData.about || "",

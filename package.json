@@ -18,7 +18,7 @@
     "@react-native-firebase/messaging": "^23.8.8",
     "@react-native-google-signin/google-signin": "^13.1.0",
     "@tanstack/react-query": "^5.90.21",
-    "agora-react-native-rtm": "^1.5.1",
+    "agora-react-native-rtm": "^2.2.6",
     "agora-rn-uikit": "^5.0.2",
     "axios": "^1.13.5",
     "babel-preset-expo": "~54.0.10",

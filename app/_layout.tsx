@@ -72,10 +72,10 @@ function AuthGuard() {
         }
 
         if (token && (inOnboarding || (inAuth && !isInReviewStatus && !inRegister))) {
-            if (user?.isRegistered === false) {
-                router.replace("/(auth)/register" as any);
-            } else if (user?.status === "Pending") {
+            if (user?.status === "Pending" || user?.status === "Rejected") {
                 router.replace("/(auth)/review-status" as any);
+            } else if (user?.isRegistered === false) {
+                router.replace("/(auth)/register" as any);
             } else {
                 router.replace("/(tabs)/home" as any);
             }

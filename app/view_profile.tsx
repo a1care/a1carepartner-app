@@ -31,6 +31,10 @@ export default function ViewProfileScreen() {
     }
 
     const data = staffData || user;
+    const fallbackSelfieUrl = Array.isArray(data?.documents)
+        ? data.documents.find((d: any) => d?.type === "Selfie" && d?.url)?.url
+        : "";
+    const avatarUrl = data?.profileImage || fallbackSelfieUrl || "";
     const roleLabel = data?.role?.name || data?.role || "Partner";
 
     return (
@@ -50,8 +54,8 @@ export default function ViewProfileScreen() {
                 <View style={styles.profileHeaderCard}>
                     <LinearGradient colors={["#FFFFFF", "#F8FAFC"]} style={styles.cardGradient} />
                     <View style={styles.avatarWrapper}>
-                        {data?.profileImage ? (
-                            <Image source={{ uri: data.profileImage }} style={styles.avatar} />
+                        {avatarUrl ? (
+                            <Image source={{ uri: avatarUrl }} style={styles.avatar} />
                         ) : (
                             <View style={[styles.avatar, styles.avatarPlaceholder]}>
                                 <Ionicons name="person" size={50} color="#CBD5E1" />

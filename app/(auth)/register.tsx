@@ -30,6 +30,8 @@ const SPECIALIZATIONS = [
 ].sort();
 
 const GENDERS = ["Male", "Female", "Other"];
+const MAX_DOC_SIZE_MB = 5;
+const MAX_DOC_SIZE_BYTES = MAX_DOC_SIZE_MB * 1024 * 1024;
 
 const roleConfigs: Record<string, { label: string; fields: string[], docs: string[] }> = {
     doctor: { label: "Doctor", fields: ["name", "email", "gender", "specialization", "experience", "about", "workingHours", "serviceRadius", "homeConsultationFee", "onlineConsultationFee"], docs: ["Selfie", "Aadhar Card", "PAN Card", "Medical Degree Certificate", "MCI/State Registration"] },
@@ -57,7 +59,7 @@ const ROLE_IDS: Record<string, string> = {
 export default function RegisterScreen() {
     const router = useRouter();
     const { role: rawRole, token } = useLocalSearchParams<{ role: string, token: string }>();
-    const { setAuth, token: storedToken } = useAuthStore();
+    const { setAuth, token: storedToken, logout } = useAuthStore();
     const role = (rawRole?.toLowerCase() || "doctor");
     const config = roleConfigs[role] || roleConfigs.doctor;
     const authToken = (token as string) || storedToken;
@@ -74,8 +76,50 @@ export default function RegisterScreen() {
     const [showSourceModal, setShowSourceModal] = useState(false);
     const [pickingDocType, setPickingDocType] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+    const [docErrors, setDocErrors] = useState<Record<string, string>>({});
 
-    const filteredBanks = COMMON_BANKS.filter(b => b.toLowerCase().includes(bankSearch.toLowerCase()));
+    const handleBackPress = async () => {
+        if (step > 1) {
+            setStep(step - 1);
+            return;
+        }
+        await logout();
+        router.replace({
+            pathname: "/(auth)/login",
+            params: { role },
+        });
+    };
+
+    const normalizedBankSearch = bankSearch.trim().toLowerCase();
+    const filteredBanks = normalizedBankSearch
+        ? COMMON_BANKS.filter(b => b.toLowerCase().includes(normalizedBankSearch))
+        : COMMON_BANKS;
+    const sanitizeAlphaOnly = (value: string) =>
+        value.replace(/[^a-zA-Z]/g, "").slice(0, 40);
+    const validateFileSize = (docType: string, size?: number | null) => {
+        if (typeof size === "number" && size > MAX_DOC_SIZE_BYTES) {
+            setDocErrors(prev => ({
+                ...prev,
+                [docType]: `File too large. Upload below ${MAX_DOC_SIZE_MB} MB.`
+            }));
+            return false;
+        }
+        setDocErrors(prev => ({ ...prev, [docType]: "" }));
+        return true;
+    };
+    const removeEmoji = (value: string) =>
+        value.replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}\uFE0F]/gu, "");
+    const sanitizeName = (value: string) =>
+        removeEmoji(value)
+            .replace(/[^A-Za-z\s]/g, "")
+            .replace(/\s{2,}/g, " ")
+            .replace(/^\s+/, "")
+            .slice(0, 50);
+    const sanitizeAbout = (value: string) =>
+        removeEmoji(value)
+            .replace(/\s{2,}/g, " ")
+            .replace(/^\s+/, "")
+            .slice(0, 500);
 
     const handlePickDocument = async (docType: string) => {
         if (docType === "Selfie") {
@@ -87,6 +131,7 @@ export default function RegisterScreen() {
             const result = await DocumentPicker.getDocumentAsync({ type: ["image/*", "application/pdf"] });
             if (result.canceled) return;
             const asset = result.assets[0];
+            if (!validateFileSize(docType, asset.size)) return;
             await uploadFile(docType, { uri: asset.uri, name: asset.name, mimeType: asset.mimeType || 'image/jpeg' });
         } catch (err) { console.error(err); }
     };
@@ -100,6 +145,7 @@ export default function RegisterScreen() {
             const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.6 });
             if (!result.canceled) {
                 const asset = result.assets[0];
+                if (!validateFileSize(pickingDocType, asset.fileSize ?? (asset as any).size)) return;
                 await uploadFile(pickingDocType, { uri: asset.uri, name: `selfie_${Date.now()}.jpg`, mimeType: 'image/jpeg' });
             }
         } catch (err) { console.error(err); }
@@ -115,6 +161,7 @@ export default function RegisterScreen() {
             const result = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, quality: 0.6 });
             if (!result.canceled) {
                 const asset = result.assets[0];
+                if (!validateFileSize(pickingDocType, asset.fileSize ?? (asset as any).size)) return;
                 await uploadFile(pickingDocType, { uri: asset.uri, name: asset.fileName || `selfie_${Date.now()}.jpg`, mimeType: 'image/jpeg' });
             }
         } catch (err) { console.error(err); }
@@ -129,6 +176,7 @@ export default function RegisterScreen() {
             fd.append('document', { uri: file.uri, name: file.name, type: file.mimeType } as any);
             const res = await api.post("/doctor/auth/upload-document", fd, { headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${authToken}` } });
             setDocuments(prev => [...prev.filter(d => d.type !== docType), { type: docType, url: res.data.data.url, uploading: false }]);
+            setDocErrors(prev => ({ ...prev, [docType]: "" }));
         } catch (err) { setDocuments(prev => prev.filter(d => d.type !== docType)); }
     };
 
@@ -145,10 +193,12 @@ export default function RegisterScreen() {
 
         setShowThinking(true);
         try {
+            const selfieDoc = documents.find((d) => d.type === "Selfie" && d.url);
             const payload = {
                 ...form,
                 roleId: ROLE_IDS[role] || ROLE_IDS.doctor,
                 documents: documents.map(d => ({ type: d.type, url: d.url })),
+                profileImage: form.profileImage || selfieDoc?.url,
                 status: "Pending",
                 isRegistered: true,
                 experience: form.experience ? Number(form.experience) : undefined,
@@ -170,7 +220,10 @@ export default function RegisterScreen() {
     const update = (key: string, val: any) => setForm(prev => ({ ...prev, [key]: val }));
     const updateField = (key: string, val: string) => {
         const numericFields = ["experience", "serviceRadius", "consultationFee", "homeConsultationFee", "onlineConsultationFee"];
-        const nextValue = numericFields.includes(key) ? val.replace(/\D/g, "") : val;
+        let nextValue = numericFields.includes(key) ? val.replace(/\D/g, "") : val;
+        if (key === "name") nextValue = sanitizeName(nextValue);
+        if (key === "about") nextValue = sanitizeAbout(nextValue);
+        if (key === "email") nextValue = nextValue.replace(/\s/g, "").toLowerCase();
         update(key, nextValue);
         setFieldErrors(prev => ({ ...prev, [key]: "" }));
     };
@@ -190,6 +243,12 @@ export default function RegisterScreen() {
             if (value === undefined || value === null || String(value).trim().length === 0) {
                 nextErrors[field] = `${fieldLabels[field] || field} is required.`;
             }
+            if (field === "name" && value && !/^[A-Za-z]+(?:\s[A-Za-z]+)*$/.test(String(value).trim())) {
+                nextErrors.name = "Name should contain only alphabets.";
+            }
+            if (field === "email" && value && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value).trim())) {
+                nextErrors.email = "Enter a valid email address with @.";
+            }
         });
         setFieldErrors(prev => ({ ...prev, ...nextErrors }));
         return Object.keys(nextErrors).length === 0;
@@ -197,12 +256,22 @@ export default function RegisterScreen() {
 
     const isStep2Valid = () => config.docs.every(docType => documents.some(d => d.type === docType && d.url));
 
+    const validateStep2 = () => {
+        const nextDocErrors: Record<string, string> = {};
+        config.docs.forEach((docType) => {
+            const hasUploaded = documents.some(d => d.type === docType && d.url);
+            if (!hasUploaded) nextDocErrors[docType] = `Please upload ${docType}.`;
+        });
+        setDocErrors(prev => ({ ...prev, ...nextDocErrors }));
+        return Object.keys(nextDocErrors).length === 0;
+    };
+
     return (
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
             <LinearGradient colors={["#F8FAFC", "#FFFFFF"]} style={StyleSheet.absoluteFill} />
             <ScrollView contentContainerStyle={styles.scrollContent}>
                 <View style={styles.navBar}>
-                    <TouchableOpacity onPress={() => step > 1 ? setStep(step - 1) : router.back()} style={styles.backBtn}><Ionicons name="chevron-back" size={24} color="#1E293B" /></TouchableOpacity>
+                    <TouchableOpacity onPress={handleBackPress} style={styles.backBtn}><Ionicons name="chevron-back" size={24} color="#1E293B" /></TouchableOpacity>
                     <View style={styles.progressContainer}><View style={[styles.progressIndicator, { width: `${(step / 3) * 100}%` }]} /></View>
                     <Text style={styles.stepText}>{step}/3</Text>
                 </View>
@@ -216,7 +285,7 @@ export default function RegisterScreen() {
                                 if (f === "specialization" && role !== "doctor") return null;
                                 if (f === "gender") return (
                                     <View key={f} style={styles.fieldItem}>
-                                        <Text style={styles.fieldLabel}>Gender Required <Text style={styles.asterisk}>*</Text></Text>
+                                        <Text style={styles.fieldLabel}>Gender <Text style={styles.asterisk}>*</Text></Text>
                                         <TouchableOpacity style={[styles.dropdownToggle, fieldErrors.gender && styles.fieldInputError]} onPress={() => setShowGenderDropdown(true)}>
                                             <MaterialCommunityIcons name={form.gender === "Male" ? "gender-male" : "gender-female"} size={20} color="#2D935C" />
                                             <Text style={styles.dropdownValue}>{form.gender}</Text>
@@ -230,15 +299,15 @@ export default function RegisterScreen() {
                                 );
                                 if (f === "specialization") return (
                                     <View key={f} style={styles.fieldItem}>
-                                        <Text style={styles.fieldLabel}>Specializations Required <Text style={styles.asterisk}>*</Text></Text>
+                                        <Text style={styles.fieldLabel}>Specializations <Text style={styles.asterisk}>*</Text></Text>
                                         <View style={styles.specContainer}>{form.specialization.map((s: string) => (<TouchableOpacity key={s} style={styles.specChip} onPress={() => { update("specialization", form.specialization.filter((x: string) => x !== s)); setFieldErrors(prev => ({ ...prev, specialization: "" })); }}><Text style={styles.specChipText}>{s}</Text><Ionicons name="close-circle" size={14} color="#FFF" /></TouchableOpacity>))}<TouchableOpacity style={[styles.addSpecBtn, fieldErrors.specialization && styles.specAddError]} onPress={() => setShowSpecDropdown(true)}><Ionicons name="add-circle" size={18} color="#2D935C" /><Text style={styles.addSpecText}>Add</Text></TouchableOpacity></View>
                                         {!!fieldErrors.specialization && <Text style={styles.fieldErrorText}>{fieldErrors.specialization}</Text>}
-                                        <Modal transparent visible={showSpecDropdown} animationType="slide"><View style={styles.modalOverlay}><TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setShowSpecDropdown(false)} /><View style={styles.modalContentFull}><TextInput style={styles.searchBar} placeholder="Search..." value={specSearch} onChangeText={setSpecSearch} /><ScrollView style={{ maxHeight: 300 }}>{SPECIALIZATIONS.filter(s => s.toLowerCase().includes(specSearch.toLowerCase())).map(s => (<TouchableOpacity key={s} style={styles.modalItem} onPress={() => { if (!form.specialization.includes(s)) update("specialization", [...form.specialization, s]); setFieldErrors(prev => ({ ...prev, specialization: "" })); setShowSpecDropdown(false); }}><Text style={styles.modalItemText}>{s}</Text></TouchableOpacity>))}</ScrollView></View></View></Modal>
+                                        <Modal transparent visible={showSpecDropdown} animationType="slide"><View style={styles.modalOverlay}><TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setShowSpecDropdown(false)} /><View style={styles.modalContentFull}><TextInput style={styles.searchBar} placeholder="Search..." value={specSearch} onChangeText={(v) => setSpecSearch(sanitizeAlphaOnly(v))} autoCapitalize="none" autoCorrect={false} /><ScrollView style={{ maxHeight: 300 }}>{SPECIALIZATIONS.filter(s => s.toLowerCase().includes(specSearch.toLowerCase())).map(s => (<TouchableOpacity key={s} style={styles.modalItem} onPress={() => { if (!form.specialization.includes(s)) update("specialization", [...form.specialization, s]); setFieldErrors(prev => ({ ...prev, specialization: "" })); setShowSpecDropdown(false); }}><Text style={styles.modalItemText}>{s}</Text></TouchableOpacity>))}</ScrollView></View></View></Modal>
                                     </View>
                                 );
                                 return (
                                     <View key={f} style={styles.fieldItem}>
-                                        <Text style={styles.fieldLabel}>{fieldLabels[f]} Required <Text style={styles.asterisk}>*</Text></Text>
+                                        <Text style={styles.fieldLabel}>{fieldLabels[f]} <Text style={styles.asterisk}>*</Text></Text>
                                         <TextInput
                                             style={[styles.fieldInput, f === "about" && styles.fieldArea, fieldErrors[f] && styles.fieldInputError]}
                                             placeholder={fieldLabels[f]}
@@ -259,11 +328,11 @@ export default function RegisterScreen() {
                 {step === 2 && (
                     <View style={styles.stepWrapper}>
                         <Text style={styles.stepTitle}>Documents</Text>
-                        <View style={styles.docList}>{config.docs.map(doc => { const uploaded = documents.find(d => d.type === doc); return (<TouchableOpacity key={doc} onPress={() => handlePickDocument(doc)} style={[styles.docItem, uploaded && styles.docItemDone]}>
-                            <View><Text style={styles.docLabelTitle}>{doc}</Text><Text style={{fontSize:11, color:'#94A3B8'}}>{uploaded ? "Uploaded" : "Tap to upload"}</Text></View>
+                        <View style={styles.docList}>{config.docs.map(doc => { const uploaded = documents.find(d => d.type === doc); const docError = docErrors[doc]; return (<View key={doc}><TouchableOpacity onPress={() => handlePickDocument(doc)} style={[styles.docItem, uploaded && styles.docItemDone, !!docError && styles.fieldInputError]}>
+                            <View><Text style={styles.docLabelTitle}>{doc} <Text style={styles.asterisk}>*</Text></Text><Text style={{fontSize:11, color: docError ? '#DC2626' : '#94A3B8'}}>{uploaded ? "Uploaded" : `Tap to upload (Max ${MAX_DOC_SIZE_MB} MB)`}</Text></View>
                             <Ionicons name={uploaded ? "checkmark-circle" : "cloud-upload"} size={24} color={uploaded ? "#2D935C" : "#64748B"} />
-                        </TouchableOpacity>); })}</View>
-                        <TouchableOpacity onPress={() => isStep2Valid() ? setStep(3) : Alert.alert("Notice", "Upload all documents.")} style={[styles.mainActionBtn, !isStep2Valid() && { opacity: 0.6 }]}><Text style={styles.mainActionText}>Next: Bank Details</Text></TouchableOpacity>
+                        </TouchableOpacity>{!!docError && <Text style={styles.fieldErrorText}>{docError}</Text>}</View>); })}</View>
+                        <TouchableOpacity onPress={() => validateStep2() ? setStep(3) : null} style={[styles.mainActionBtn, !isStep2Valid() && { opacity: 0.6 }]}><Text style={styles.mainActionText}>Next: Bank Details</Text></TouchableOpacity>
                     </View>
                 )}
 
@@ -271,21 +340,21 @@ export default function RegisterScreen() {
                     <View style={styles.stepWrapper}>
                         <Text style={styles.stepTitle}>Settlement Details</Text>
                         <View style={styles.formGroup}>
-                            <View style={styles.fieldItem}><Text style={styles.fieldLabel}>Account Number Required <Text style={styles.asterisk}>*</Text></Text><TextInput style={[styles.fieldInput, fieldErrors.accountNumber && styles.fieldInputError]} placeholder="9-18 digit account number" value={form.bankDetails.accountNumber} onChangeText={v => { updateBank("accountNumber", v.replace(/\D/g, "").slice(0, 18)); setFieldErrors(prev => ({ ...prev, accountNumber: "" })); }} keyboardType="number-pad" />{!!fieldErrors.accountNumber && <Text style={styles.fieldErrorText}>{fieldErrors.accountNumber}</Text>}</View>
-                            <View style={styles.fieldItem}><Text style={styles.fieldLabel}>IFSC Code Required <Text style={styles.asterisk}>*</Text></Text><TextInput style={[styles.fieldInput, fieldErrors.ifscCode && styles.fieldInputError]} placeholder="e.g. SBIN0001234" value={form.bankDetails.ifscCode} onChangeText={v => { updateBank("ifscCode", v.toUpperCase().slice(0, 11)); setFieldErrors(prev => ({ ...prev, ifscCode: "" })); }} autoCapitalize="characters" />{!!fieldErrors.ifscCode && <Text style={styles.fieldErrorText}>{fieldErrors.ifscCode}</Text>}</View>
+                            <View style={styles.fieldItem}><Text style={styles.fieldLabel}>Account Number <Text style={styles.asterisk}>*</Text></Text><TextInput style={[styles.fieldInput, fieldErrors.accountNumber && styles.fieldInputError]} placeholder="9-18 digit account number" value={form.bankDetails.accountNumber} onChangeText={v => { updateBank("accountNumber", v.replace(/\D/g, "").slice(0, 18)); setFieldErrors(prev => ({ ...prev, accountNumber: "" })); }} keyboardType="number-pad" />{!!fieldErrors.accountNumber && <Text style={styles.fieldErrorText}>{fieldErrors.accountNumber}</Text>}</View>
+                            <View style={styles.fieldItem}><Text style={styles.fieldLabel}>IFSC Code <Text style={styles.asterisk}>*</Text></Text><TextInput style={[styles.fieldInput, fieldErrors.ifscCode && styles.fieldInputError]} placeholder="e.g. SBIN0001234" value={form.bankDetails.ifscCode} onChangeText={v => { updateBank("ifscCode", v.toUpperCase().slice(0, 11)); setFieldErrors(prev => ({ ...prev, ifscCode: "" })); }} autoCapitalize="characters" />{!!fieldErrors.ifscCode && <Text style={styles.fieldErrorText}>{fieldErrors.ifscCode}</Text>}</View>
                             <View style={styles.fieldItem}>
-                                <Text style={styles.fieldLabel}>Bank Name Required <Text style={styles.asterisk}>*</Text></Text>
-                                <TouchableOpacity style={[styles.dropdownToggle, fieldErrors.bankName && styles.fieldInputError]} onPress={() => setShowBankDropdown(true)}>
+                                <Text style={styles.fieldLabel}>Bank Name <Text style={styles.asterisk}>*</Text></Text>
+                                <TouchableOpacity style={[styles.dropdownToggle, fieldErrors.bankName && styles.fieldInputError]} onPress={() => { setBankSearch(""); setShowBankDropdown(true); }}>
                                     <Text style={[styles.dropdownValue, !form.bankDetails.bankName && { color: "#A0AABB" }]}>{form.bankDetails.bankName || "Select Bank"}</Text>
                                     <Ionicons name="chevron-down" size={18} color="#94A3B8" />
                                 </TouchableOpacity>
                                 {!!fieldErrors.bankName && <Text style={styles.fieldErrorText}>{fieldErrors.bankName}</Text>}
                                 <Modal visible={showBankDropdown} transparent animationType="slide">
                                     <View style={styles.modalOverlay}><TouchableOpacity style={StyleSheet.absoluteFill} onPress={() => setShowBankDropdown(false)} />
-                                    <View style={styles.modalContentFull}><TextInput style={styles.searchBar} placeholder="Search bank..." value={bankSearch} onChangeText={setBankSearch} /><ScrollView style={{ maxHeight: 300 }}>{filteredBanks.map(b => (<TouchableOpacity key={b} style={styles.modalItem} onPress={() => { updateBank("bankName", b); setFieldErrors(prev => ({ ...prev, bankName: "" })); setShowBankDropdown(false); }}><Text style={styles.modalItemText}>{b}</Text></TouchableOpacity>))}</ScrollView></View></View>
+                                    <View style={styles.modalContentFull}><TextInput style={styles.searchBar} placeholder="Search bank..." value={bankSearch} onChangeText={(v) => setBankSearch(v.replace(/[^a-zA-Z\s]/g, "").replace(/\s{2,}/g, " ").replace(/^\s+/, ""))} /><ScrollView style={{ maxHeight: 300 }}>{filteredBanks.map(b => (<TouchableOpacity key={b} style={styles.modalItem} onPress={() => { updateBank("bankName", b); setFieldErrors(prev => ({ ...prev, bankName: "" })); setShowBankDropdown(false); }}><Text style={styles.modalItemText}>{b}</Text></TouchableOpacity>))}</ScrollView></View></View>
                                 </Modal>
                             </View>
-                            <View style={styles.fieldItem}><Text style={styles.fieldLabel}>Account Holder Name Required <Text style={styles.asterisk}>*</Text></Text><TextInput style={[styles.fieldInput, fieldErrors.accountHolderName && styles.fieldInputError]} placeholder="As per bank records" value={form.bankDetails.accountHolderName} onChangeText={v => { updateBank("accountHolderName", v.replace(/[^a-zA-Z\s]/g, "")); setFieldErrors(prev => ({ ...prev, accountHolderName: "" })); }} />{!!fieldErrors.accountHolderName && <Text style={styles.fieldErrorText}>{fieldErrors.accountHolderName}</Text>}</View>
+                            <View style={styles.fieldItem}><Text style={styles.fieldLabel}>Account Holder Name <Text style={styles.asterisk}>*</Text></Text><TextInput style={[styles.fieldInput, fieldErrors.accountHolderName && styles.fieldInputError]} placeholder="As per bank records" value={form.bankDetails.accountHolderName} onChangeText={v => { updateBank("accountHolderName", v.replace(/[^a-zA-Z\s]/g, "")); setFieldErrors(prev => ({ ...prev, accountHolderName: "" })); }} />{!!fieldErrors.accountHolderName && <Text style={styles.fieldErrorText}>{fieldErrors.accountHolderName}</Text>}</View>
                         </View>
                         <TouchableOpacity onPress={handleRegister} style={styles.mainActionBtn}>{showThinking ? <ActivityIndicator color="#FFF" /> : <Text style={styles.mainActionText}>Confirm & Finish</Text>}</TouchableOpacity>
                     </View>
