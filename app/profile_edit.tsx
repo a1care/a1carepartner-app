@@ -32,6 +32,30 @@ const ROLE_LABELS: Record<string, string> = {
 
 const { width, height } = Dimensions.get("window");
 
+const formatTimeTo12h = (time: string) => {
+    const trimmed = String(time || "").trim();
+    const match = trimmed.match(/^(\d{1,2}):(\d{2})$/);
+    if (!match) return trimmed;
+    const hour = Number(match[1]);
+    const minute = Number(match[2]);
+    if (Number.isNaN(hour) || Number.isNaN(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
+        return trimmed;
+    }
+    const suffix = hour >= 12 ? "PM" : "AM";
+    const hour12 = hour % 12 === 0 ? 12 : hour % 12;
+    return `${hour12}:${String(minute).padStart(2, "0")} ${suffix}`;
+};
+
+const formatWorkingHoursDisplay = (value: string) => {
+    const raw = String(value || "").trim();
+    if (!raw) return raw;
+    const parts = raw.split("-").map(p => p.trim()).filter(Boolean);
+    if (parts.length === 2) {
+        return `${formatTimeTo12h(parts[0])} - ${formatTimeTo12h(parts[1])}`;
+    }
+    return formatTimeTo12h(raw);
+};
+
 export default function ProfileEditScreen() {
     const router = useRouter();
     const queryClient = useQueryClient();
@@ -173,33 +197,47 @@ export default function ProfileEditScreen() {
         { label: "Online Fee", value: displayData.onlineConsultationFee ? `₹${displayData.onlineConsultationFee}` : undefined, hide: !isDoctor && !isNurse },
         { label: "City", value: displayData.city },
         { label: "Service Radius", value: displayData.serviceRadius ? `${displayData.serviceRadius} km` : undefined },
-        { label: "Working Hours", value: displayData.workingHours },
+        { label: "Working Hours", value: formatWorkingHoursDisplay(displayData.workingHours) },
         { label: "Rating", value: displayData.rating ? `${displayData.rating} ⭐` : "—" },
         { label: "Jobs Completed", value: displayData.completed ?? 0 },
     ].filter(item => !item.hide && item.value !== undefined && item.value !== null && String(item.value).trim() !== "" && String(item.value) !== "0");
 
     const handleUseMyLocation = async () => {
         try {
-            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync(); // Just a dummy check for now
-            const { status: locStatus } = await (await import('expo-location')).requestForegroundPermissionsAsync();
-            if (locStatus !== 'granted') return Toast.show({ type: "error", text1: "Location Permission Denied" });
-            
-            const location = await (await import('expo-location')).getCurrentPositionAsync({});
-            const reverse = await (await import('expo-location')).reverseGeocodeAsync({
+            const { status: existingStatus } = await Location.getForegroundPermissionsAsync();
+            let permissionStatus = existingStatus;
+            if (permissionStatus !== "granted") {
+                const { status } = await Location.requestForegroundPermissionsAsync();
+                permissionStatus = status;
+            }
+            if (permissionStatus !== "granted") {
+                return Toast.show({ type: "error", text1: "Location Permission Denied" });
+            }
+
+            const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+            const reverse = await Location.reverseGeocodeAsync({
                 latitude: location.coords.latitude,
                 longitude: location.coords.longitude
             });
-            
-            if (reverse[0]) {
-                const city = reverse[0].city || reverse[0].district || reverse[0].subregion;
-                const state = reverse[0].region;
-                setFormData(prev => ({ 
-                    ...prev, 
-                    city: `${city}, ${state}`,
-                    location: { type: "Point", coordinates: [location.coords.longitude, location.coords.latitude] }
-                }));
-                Toast.show({ type: "success", text1: "Location Detected" });
+
+            const place = reverse?.[0];
+            const cityPart = place?.city || place?.district || place?.subregion || place?.region || "";
+            const statePart = place?.region || place?.country || "";
+            const cityText = cityPart && statePart && cityPart !== statePart
+                ? `${cityPart}, ${statePart}`
+                : (cityPart || statePart);
+
+            if (!cityText) {
+                return Toast.show({ type: "error", text1: "City not found", text2: "Please enter city manually." });
             }
+
+            setFormData(prev => ({
+                ...prev,
+                city: cityText,
+                location: { type: "Point", coordinates: [location.coords.longitude, location.coords.latitude] }
+            }));
+            setFieldErrors(prev => ({ ...prev, city: "" }));
+            Toast.show({ type: "success", text1: "Location Detected" });
         } catch (err) {
             Toast.show({ type: "error", text1: "Could not detect location" });
         }
@@ -268,9 +306,16 @@ export default function ProfileEditScreen() {
     const handleSave = () => {
         const nextErrors: Record<string, string> = {};
         if (!formData.name.trim()) nextErrors.name = "Full name is required.";
+        if (!formData.city.trim()) nextErrors.city = "City is required.";
         if (!formData.gender.trim()) nextErrors.gender = "Gender is required.";
         if (isDoctor && !formData.specialization.length) nextErrors.specialization = "Select at least one specialization.";
         if (!isAmbulance && !formData.workingHours.trim()) nextErrors.workingHours = "Working hours are required.";
+        if (!isAmbulance && formData.workingHours.trim()) {
+            const hoursPattern = /^\s*([01]?\d|2[0-3]):([0-5]\d)\s*-\s*([01]?\d|2[0-3]):([0-5]\d)\s*$/;
+            if (!hoursPattern.test(formData.workingHours.trim())) {
+                nextErrors.workingHours = "Use valid time range like 09:00 - 18:00.";
+            }
+        }
         if (!formData.experience.trim()) nextErrors.experience = "Experience is required.";
         if ((isDoctor || isNurse) && !formData.homeConsultationFee.trim()) nextErrors.homeConsultationFee = "Home consultation fee is required.";
         if ((isDoctor || isNurse) && !formData.onlineConsultationFee.trim()) nextErrors.onlineConsultationFee = "Online consultation fee is required.";

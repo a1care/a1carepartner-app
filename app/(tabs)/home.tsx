@@ -25,6 +25,26 @@ let cachedLocationText = "";
 // Global persistence to prevent flickering during tab switches
 let cachedCity = "";
 
+const formatTimeTo12h = (time: string) => {
+    const raw = String(time || "").trim();
+    const match = raw.match(/^(\d{1,2}):(\d{2})$/);
+    if (!match) return raw;
+    const hour = Number(match[1]);
+    const minute = Number(match[2]);
+    if (Number.isNaN(hour) || Number.isNaN(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) return raw;
+    const suffix = hour >= 12 ? "PM" : "AM";
+    const h = hour % 12 === 0 ? 12 : hour % 12;
+    return `${h}:${String(minute).padStart(2, "0")} ${suffix}`;
+};
+
+const formatTimeRange = (value: string) => {
+    const raw = String(value || "").trim();
+    if (!raw) return raw;
+    const parts = raw.split("-").map(p => p.trim()).filter(Boolean);
+    if (parts.length === 2) return `${formatTimeTo12h(parts[0])} - ${formatTimeTo12h(parts[1])}`;
+    return formatTimeTo12h(raw);
+};
+
 export default function HomeScreen() {
     const router = useRouter();
     const { user, setUser, token, logout } = useAuthStore() as any;
@@ -73,6 +93,38 @@ export default function HomeScreen() {
             }
         };
     }, [token]);
+
+    useEffect(() => {
+        const showPostLoginWelcome = async () => {
+            try {
+                if (!token) return;
+                const flag = await AsyncStorage.getItem("show_welcome_after_login");
+                if (flag === "1") {
+                    Alert.alert("Login Successful", `Welcome ${user?.name ?? "Partner"} to A1Care Partner.`);
+                    await AsyncStorage.removeItem("show_welcome_after_login");
+                }
+
+                const rawWelcomeNotification = await AsyncStorage.getItem("post_login_welcome_notification");
+                if (rawWelcomeNotification) {
+                    const localWelcome = JSON.parse(rawWelcomeNotification);
+
+                    queryClient.setQueryData(["partner_notifications"], (prev: any) => {
+                        const prevNotifications = Array.isArray(prev?.notifications) ? prev.notifications : [];
+                        const alreadyExists = prevNotifications.some((n: any) => n?._id === localWelcome._id);
+                        if (alreadyExists) return prev;
+                        return {
+                            ...(prev || {}),
+                            notifications: [localWelcome, ...prevNotifications],
+                            unreadCount: (prev?.unreadCount || 0) + 1,
+                        };
+                    });
+                    queryClient.invalidateQueries({ queryKey: ["partner_notifications_unread"] });
+                    await AsyncStorage.removeItem("post_login_welcome_notification");
+                }
+            } catch (e) { }
+        };
+        showPostLoginWelcome();
+    }, [token, user?.name, queryClient]);
 
     useEffect(() => {
         if (!token || !messaging) return;
@@ -220,7 +272,7 @@ export default function HomeScreen() {
         queryKey: ["homeStats", period],
         queryFn: async () => {
             const res = await api.get("/appointment/provider/feed", {
-                params: { status: "Pending", period }
+                params: { period }
             });
             return res.data.data || [];
         }
@@ -238,9 +290,16 @@ export default function HomeScreen() {
     });
 
     const stats = useMemo(() => {
-        const completed = bookings.filter((b: any) => b.status === "Completed").length;
+        const completedBookings = bookings.filter((b: any) => {
+            const s = String(b?.status || "").toLowerCase();
+            return s === "completed" || s === "complete";
+        });
+        const completed = completedBookings.length;
         const earnings = bookings
-            .filter((b: any) => b.status === "Completed")
+            .filter((b: any) => {
+                const s = String(b?.status || "").toLowerCase();
+                return s === "completed" || s === "complete";
+            })
             .reduce((acc: number, b: any) => acc + (b.totalAmount || 0), 0);
 
         return [
@@ -471,7 +530,7 @@ export default function HomeScreen() {
                         </LinearGradient>
                         <Text style={styles.actionLabel}>Earnings</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.actionItem} onPress={() => router.push("/profile_edit")}>
+                    <TouchableOpacity style={styles.actionItem} onPress={() => router.push("/(tabs)/profile")}>
                         <LinearGradient colors={["#FEF2F2", "#FFF1F1"]} style={styles.actionIconBox}>
                             <MaterialCommunityIcons name="cog" size={28} color="#EF4444" />
                         </LinearGradient>
@@ -490,7 +549,7 @@ export default function HomeScreen() {
                                 <View style={styles.requestIconBox}><Ionicons name="calendar" size={20} color="#2D935C" /></View>
                                 <View style={styles.requestMainInfo}>
                                     <Text style={styles.requestName}>{item.patientName || "New Patient"}</Text>
-                                    <Text style={styles.requestTime}>{new Date(item.appointmentDate).toDateString()} • {item.appointmentTime}</Text>
+                                    <Text style={styles.requestTime}>{new Date(item.appointmentDate).toDateString()} • {formatTimeRange(item.appointmentTime)}</Text>
                                 </View>
                                 <View style={styles.statusBadge}><Text style={styles.statusBadgeText}>Pending</Text></View>
                             </TouchableOpacity>

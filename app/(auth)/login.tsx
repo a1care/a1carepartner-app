@@ -9,6 +9,7 @@ import { Toast } from "../../components/CustomToast";
 import { api } from "../../lib/api";
 import { useAuthStore, PartnerRole } from "../../stores/auth";
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const getAuthModule = () => {
     try {
@@ -151,19 +152,30 @@ const LoginScreen = () => {
                 role: role as PartnerRole
             });
 
-            Toast.show({ type: 'success', text1: 'Login Successful' });
+            await AsyncStorage.setItem("show_welcome_after_login", "1");
+            await AsyncStorage.setItem(
+                "post_login_welcome_notification",
+                JSON.stringify({
+                    _id: `local-welcome-${Date.now()}`,
+                    title: "Login Successful",
+                    body: `Welcome ${userData?.name ?? "Partner"} to A1Care Partner.`,
+                    refType: "Broadcast",
+                    isRead: false,
+                    createdAt: new Date().toISOString(),
+                })
+            );
 
             // Request location permission after login
             await requestLocationPermission();
 
             // Precise navigation if AuthGuard hasn't kicked in yet
             if (userData.isRegistered === false) {
-                router.replace({
+                router.push({
                     pathname: "/(auth)/register",
                     params: { role: role ?? "doctor", token: authToken }
                 });
             } else if (userData.status === "Pending" || userData.status === "Rejected") {
-                router.replace("/(auth)/review-status");
+                router.push("/(auth)/review-status");
             } else {
                 router.replace("/home");
             }

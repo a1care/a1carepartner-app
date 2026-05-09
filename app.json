@@ -2,6 +2,12 @@
   "expo": {
     "name": "A1Care Partner",
     "slug": "a1care-partner",
+    "owner": "vamsireddy1133",
+    "extra": {
+      "eas": {
+        "projectId": "13cb4584-768c-4ae0-bfdd-08908cfa9f64"
+      }
+    },
     "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.jpeg",
@@ -15,10 +21,13 @@
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "com.a1care.partner"
+      "bundleIdentifier": "com.a1care.partner",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
-      "versionCode": 2,
+      "versionCode": 9,
       "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.jpeg",
@@ -70,6 +79,9 @@
                 "lib/arm64-v8a/libc++_shared.so"
               ]
             }
+          },
+          "ios": {
+            "useModularHeaders": true
           }
         }
       ]
