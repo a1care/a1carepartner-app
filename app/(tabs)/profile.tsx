@@ -100,7 +100,7 @@ export default function ProfileScreen() {
         } else if (path === "profile") {
             router.push("/profile_edit");
         } else if (path === "subscriptions") {
-            router.replace("/subscriptions" as any);
+            router.push("/subscriptions" as any);
         } else if (path === "bank") {
             router.push("/bank_details");
         } else if (path === "raise-ticket") {

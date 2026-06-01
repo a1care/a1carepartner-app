@@ -76,3 +76,10 @@ stores/**/*.js
 utils/**/*.js
 App.js
 index.js
+
+# Android release/build artifacts
+*.aab
+*.keystore
+local.properties
+android/.cxx/
+android/**/build/

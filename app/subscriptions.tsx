@@ -17,7 +17,11 @@ export default function SubscriptionsScreen() {
     const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
 
     const { user } = useAuthStore() as any;
-    const role = user?.role || "doctor";
+    const roleValue = user?.role;
+    const role =
+        typeof roleValue === "string"
+            ? roleValue
+            : (roleValue?.name || roleValue?.slug || "doctor");
 
     useEffect(() => {
         const onBack = () => {

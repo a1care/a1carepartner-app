@@ -7,13 +7,47 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import RazorpayCheckout from "react-native-razorpay";
 import { api } from "../../lib/api";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeInUp, FadeInRight } from "react-native-reanimated";
-import { Toast } from "../../components/CustomToast";
 import { useAuthStore } from "../../stores/auth";
 
 const { width } = Dimensions.get("window");
+
+const getPaymentErrorMessage = (err: any) => {
+    const fallback = "Payment failed. Please try again.";
+    const description = err?.description;
+    if (typeof description === "string" && description.trim()) {
+        try {
+            const parsed = JSON.parse(description);
+            if (parsed?.error?.reason === "payment_error") {
+                return "Payment could not be authenticated. Please try again or use another payment method.";
+            }
+            if (typeof parsed?.error?.description === "string" && parsed.error.description.trim()) {
+                return parsed.error.description.trim();
+            }
+        } catch {
+            return description.trim();
+        }
+        return description.trim();
+    }
+    if (description && typeof description === "object") {
+        if (description.reason === "payment_error") {
+            return "Payment could not be authenticated. Please try again or use another payment method.";
+        }
+        if (typeof description.description === "string" && description.description.trim()) {
+            return description.description.trim();
+        }
+    }
+    if (typeof err?.response?.data?.message === "string" && err.response.data.message.trim()) {
+        return err.response.data.message.trim();
+    }
+    if (typeof err?.message === "string" && err.message.trim()) {
+        return err.message.trim();
+    }
+    return fallback;
+};
 
 const WalletScreen = () => {
     const { user } = useAuthStore();
@@ -62,16 +96,52 @@ const WalletScreen = () => {
         }
     });
 
-    // Payment gateway disabled: admins will top-up wallets manually.
     const topUpMutation = useMutation({
-        mutationFn: async (_topUpAmount: number) => Promise.resolve(),
-        onSuccess: () => {
-            Alert.alert("Top-up Disabled", "Please contact admin to add wallet balance while the gateway is offline.");
+        mutationFn: async (topUpAmount: number) => {
+            const orderRes = await api.post("/payments/orders/create", {
+                amount: topUpAmount,
+                type: "WALLET_TOPUP"
+            });
+            const order = orderRes.data?.data;
+            const razorRes = await api.post("/payments/razorpay/initiate", { orderId: order._id });
+            const razorData = razorRes.data?.data;
+
+            const paymentData: any = await RazorpayCheckout.open({
+                key: razorData.key,
+                amount: razorData.razorOrder.amount,
+                currency: "INR",
+                name: "A1Care 24/7",
+                description: "Wallet Top-up",
+                order_id: razorData.razorOrder.id,
+                prefill: {
+                    email: razorData.customer?.email || "",
+                    contact: razorData.customer?.contact || "",
+                    name: razorData.customer?.name || "",
+                },
+                theme: { color: "#2D935C" },
+            });
+
+            await api.post("/payments/razorpay/verify", {
+                razorpay_order_id: paymentData.razorpay_order_id,
+                razorpay_payment_id: paymentData.razorpay_payment_id,
+                razorpay_signature: paymentData.razorpay_signature,
+                orderId: order._id,
+            });
+
+            return topUpAmount;
+        },
+        onSuccess: (topUpAmount) => {
+            Alert.alert("Payment Successful", `₹${topUpAmount} added to your wallet.`);
+            queryClient.invalidateQueries({ queryKey: ['staff_earnings'] });
+            queryClient.invalidateQueries({ queryKey: ['staff_payouts'] });
             setShowTopUp(false);
             setAmount("");
+            setActiveTab("Added");
         },
-        onError: () => {
-            Alert.alert("Top-up Disabled", "Please contact admin to add wallet balance while the gateway is offline.");
+        onError: (err: any) => {
+            if (err?.code !== 2) {
+                Alert.alert("Payment Failed", getPaymentErrorMessage(err));
+            }
         }
     });
 
@@ -89,15 +159,12 @@ const WalletScreen = () => {
     };
 
     const handleTopUp = () => {
-        Alert.alert("Top-up Disabled", "Please contact admin to add wallet balance while the gateway is offline.");
-    };
-
-    const handleComingSoon = () => {
-        Toast.show({
-            type: 'info',
-            text1: 'Coming Soon',
-            text2: 'This feature will be available in the next update.'
-        });
+        const amt = parseFloat(amount);
+        if (isNaN(amt) || amt <= 0) {
+            Alert.alert("Invalid Amount", "Please enter a valid amount.");
+            return;
+        }
+        topUpMutation.mutate(amt);
     };
 
     return (
@@ -128,12 +195,12 @@ const WalletScreen = () => {
                         </View>
                         
                         <View style={styles.cardFooter}>
-                            <TouchableOpacity style={styles.cardBtn} onPress={handleComingSoon}>
+                            <TouchableOpacity style={styles.cardBtn} onPress={() => { setAmount(""); setShowWithdraw(true); }}>
                                 <MaterialCommunityIcons name="bank-transfer-out" size={20} color="#FFF" />
                                 <Text style={styles.cardBtnText}>Withdraw</Text>
                             </TouchableOpacity>
                             <View style={styles.cardDivider} />
-                            <TouchableOpacity style={styles.cardBtn} onPress={handleComingSoon}>
+                            <TouchableOpacity style={styles.cardBtn} onPress={() => { setAmount(""); setShowTopUp(true); }}>
                                 <MaterialCommunityIcons name="plus-circle-outline" size={20} color="#FFF" />
                                 <Text style={styles.cardBtnText}>Add Money</Text>
                             </TouchableOpacity>

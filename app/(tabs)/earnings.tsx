@@ -4,7 +4,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { Toast } from "../../components/CustomToast";
 import { useAuthStore } from "../../stores/auth";
 
 const StatCard = ({ title, amount, icon, color }: any) => (
@@ -92,16 +91,19 @@ export default function EarningsScreen() {
                         <Text style={styles.balanceAmount}>₹{balance}</Text>
                     </View>
                     <TouchableOpacity 
-                        style={[styles.withdrawBtn, { opacity: 0.7 }]} 
+                        style={[styles.withdrawBtn, { opacity: (balance || 0) >= 500 && !withdrawMutation.isPending ? 1 : 0.6 }]} 
                         onPress={() => {
-                            Toast.show({
-                                type: 'info',
-                                text1: 'Coming Soon',
-                                text2: 'This feature will be available in the next update.'
-                            });
+                            if ((balance || 0) < 500) {
+                                Alert.alert("Insufficient Balance", "Minimum withdrawal amount is ₹500.");
+                                return;
+                            }
+                            withdrawMutation.mutate(balance);
                         }}
+                        disabled={(balance || 0) < 500 || withdrawMutation.isPending}
                     >
-                        <Text style={styles.withdrawBtnText}>Withdraw All</Text>
+                        <Text style={styles.withdrawBtnText}>
+                            {withdrawMutation.isPending ? "Processing..." : "Withdraw All"}
+                        </Text>
                     </TouchableOpacity>
                 </View>
 

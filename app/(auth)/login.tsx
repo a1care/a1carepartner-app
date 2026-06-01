@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
     View, Text, TextInput, TouchableOpacity, StyleSheet,
-    ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, NativeModules
+    ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Alert
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -55,16 +55,6 @@ const LoginScreen = () => {
         }
     };
 
-    // Initialize Google Sign-in
-    React.useEffect(() => {
-        const GoogleSignin = getGoogleSignin();
-        if (GoogleSignin) {
-            GoogleSignin.configure({
-                webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-            });
-        }
-    }, []);
-
     const handleGoogleSignIn = async () => {
         const GoogleSignin = getGoogleSignin();
         const authModule = getAuthModule();
@@ -76,6 +66,9 @@ const LoginScreen = () => {
 
         setGoogleLoading(true);
         try {
+            GoogleSignin.configure({
+                webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+            });
             await GoogleSignin.hasPlayServices();
             const signInResult = await GoogleSignin.signIn();
             const idToken = signInResult.data?.idToken || signInResult.idToken;
