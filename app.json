@@ -20,7 +20,7 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "3"
+      "buildNumber": "4"
     },
     "android": {
       "usesCleartextTraffic": true,
@@ -68,7 +68,8 @@
         {
           "ios": {
             "useFrameworks": "static",
-            "deploymentTarget": "15.1"
+            "deploymentTarget": "15.1",
+            "forceStaticLinking": ["RNFBApp", "RNFBAuth", "RNFBMessaging"]
           },
           "android": {
             "compileSdkVersion": 35,
