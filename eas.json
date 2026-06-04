@@ -32,6 +32,7 @@
     "production": {
       "ios": {
         "appleId": "goexpertsapps@gmail.com",
+        "ascAppId": "6768015463",
         "appleTeamId": "Z8UNCTCRRH"
       },
       "android": {
