@@ -20,7 +20,7 @@
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
-      "buildNumber": "5"
+      "buildNumber": "6"
     },
     "android": {
       "usesCleartextTraffic": true,
@@ -29,7 +29,7 @@
         "backgroundColor": "#EBF5FB"
       },
       "package": "com.a1care.partner",
-      "versionCode": 28,
+      "versionCode": 29,
       "googleServicesFile": "./google-services.json",
       "config": {
         "googleMaps": {
@@ -77,8 +77,8 @@
             ]
           },
           "android": {
-            "compileSdkVersion": 35,
-            "targetSdkVersion": 35,
+            "compileSdkVersion": 36,
+            "targetSdkVersion": 36,
             "minSdkVersion": 24,
             "kotlinVersion": "2.1.20",
             "packagingOptions": {
