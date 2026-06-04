@@ -148,8 +148,8 @@ export default function ProfileScreen() {
                     </View>
                 </View>
 
-                {/* Subscription Status Banner */}
-                {(!mySub || daysLeft <= 0) ? (
+                {/* Subscription Status Banner — commented out */}
+                {/* {(!mySub || daysLeft <= 0) ? (
                     <TouchableOpacity style={styles.warningBanner} onPress={() => handleNavigation("subscriptions")}>
                         <Ionicons name="alert-circle" size={20} color="#991B1B" />
                         <Text style={styles.warningText}>Subscription Expired. Re-activate to accept jobs.</Text>
@@ -160,7 +160,7 @@ export default function ProfileScreen() {
                         <Ionicons name="time" size={20} color="#92400E" />
                         <Text style={[styles.warningText, { color: '#92400E' }]}>Plan expires in {daysLeft} days. Renew now.</Text>
                     </TouchableOpacity>
-                ) : null}
+                ) : null} */}
 
                 {/* Wallet Card - Matched Gradient to Mockup */}
                 <TouchableOpacity onPress={() => router.push("/wallet")}>

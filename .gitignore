@@ -58,7 +58,7 @@ bin/
 *.zip
 *.cjs
 app.zip
-google-services.json
+# google-services.json
 .idea/
 .vscode/
 *.log
@@ -83,3 +83,6 @@ index.js
 local.properties
 android/.cxx/
 android/**/build/
+
+# Signing/EAS secrets — never commit
+credentials.json

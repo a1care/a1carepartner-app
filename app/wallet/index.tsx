@@ -7,7 +7,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import RazorpayCheckout from "react-native-razorpay";
+// react-native-razorpay is not New-Architecture compatible (iOS link failure),
+// so load it optionally — top-up gracefully degrades if the native module is absent.
+let RazorpayCheckout: any = null;
+try {
+    RazorpayCheckout = require("react-native-razorpay").default;
+} catch {
+    RazorpayCheckout = null;
+}
 import { api } from "../../lib/api";
 import { LinearGradient } from "expo-linear-gradient";
 import Animated, { FadeInUp, FadeInRight } from "react-native-reanimated";
@@ -98,6 +105,9 @@ const WalletScreen = () => {
 
     const topUpMutation = useMutation({
         mutationFn: async (topUpAmount: number) => {
+            if (!RazorpayCheckout || typeof RazorpayCheckout.open !== "function") {
+                throw new Error("Online top-up is currently unavailable. Please contact support to add funds.");
+            }
             const orderRes = await api.post("/payments/orders/create", {
                 amount: topUpAmount,
                 type: "WALLET_TOPUP"
