@@ -29,7 +29,7 @@
         "backgroundColor": "#EBF5FB"
       },
       "package": "com.a1care.partner",
-      "versionCode": 29,
+      "versionCode": 30,
       "googleServicesFile": "./google-services.json",
       "config": {
         "googleMaps": {
@@ -86,7 +86,8 @@
                 "lib/x86/libc++_shared.so",
                 "lib/x86_64/libc++_shared.so",
                 "lib/armeabi-v7a/libc++_shared.so",
-                "lib/arm64-v8a/libc++_shared.so"
+                "lib/arm64-v8a/libc++_shared.so",
+                "**/libaosl.so"
               ]
             }
           }
