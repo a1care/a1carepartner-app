@@ -94,7 +94,9 @@ export default function BookingsScreen() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["bookings"] });
-            Alert.alert("Job Claimed!", "Check 'Confirmed' tab to start the journey.");
+            queryClient.invalidateQueries({ queryKey: ["homeStats"] });
+            setActiveTab("Confirmed");
+            Alert.alert("Job Claimed! ✅", "Booking moved to your Confirmed tab. Navigate to the patient's location to begin.");
         },
         onError: (err: any) => {
             console.log('[Partner] Accept failed', err?.response?.data || err.message);
@@ -245,12 +247,15 @@ export default function BookingsScreen() {
 
                             <View style={styles.actions}>
                                 {b.status?.toLowerCase?.() === "broadcasted" && (
-                                    <TouchableOpacity
-                                        style={[styles.mainBtn, { backgroundColor: '#8B5CF6' }]}
-                                        onPress={() => acceptServiceMutation.mutate(b._id)}
-                                    >
-                                        <Text style={styles.mainBtnText}>⚡ Accept Request</Text>
-                                    </TouchableOpacity>
+                                    <View>
+                                        <Text style={{ fontSize: 11, color: '#7C3AED', fontWeight: '600', marginBottom: 6 }}>📢 Open to all partners — first to accept gets it</Text>
+                                        <TouchableOpacity
+                                            style={[styles.mainBtn, { backgroundColor: '#8B5CF6' }]}
+                                            onPress={() => acceptServiceMutation.mutate(b._id)}
+                                        >
+                                            <Text style={styles.mainBtnText}>⚡ Accept & Claim Job</Text>
+                                        </TouchableOpacity>
+                                    </View>
                                 )}
 
                                 {b.status === "Pending" && (
@@ -263,7 +268,14 @@ export default function BookingsScreen() {
                                         </TouchableOpacity>
                                         <TouchableOpacity
                                             style={styles.declineBtn}
-                                            onPress={() => updateStatusMutation.mutate({ id: b._id, status: "Cancelled", bookingType: b.bookingType })}
+                                            onPress={() => Alert.alert(
+                                                "Decline Booking?",
+                                                "Are you sure you want to decline this job? It will go back to admin.",
+                                                [
+                                                    { text: "Keep It", style: "cancel" },
+                                                    { text: "Decline", style: "destructive", onPress: () => updateStatusMutation.mutate({ id: b._id, status: "Cancelled", bookingType: b.bookingType }) }
+                                                ]
+                                            )}
                                         >
                                             <Ionicons name="close" size={20} color="#EF4444" />
                                         </TouchableOpacity>
@@ -290,18 +302,31 @@ export default function BookingsScreen() {
                                         )}
                                         <TouchableOpacity
                                             style={[styles.mainBtn, { flex: 1.2 }]}
-                                            onPress={async () => {
-                                                try {
-                                                    await updateStatusMutation.mutateAsync({
-                                                        id: b._id,
-                                                        status: b.bookingType === 'Doctor' ? "Completed" : "COMPLETED",
-                                                        bookingType: b.bookingType
-                                                    });
-                                                    router.push({ pathname: '/booking_feedback' as any, params: { bookingId: b._id, patientName: b.patientName || 'Patient', type: b.bookingType } });
-                                                } catch { /* error handled by mutation onError */ }
+                                            onPress={() => {
+                                                Alert.alert(
+                                                    "Mark Service Complete?",
+                                                    "Confirm that you have finished the service for this patient.",
+                                                    [
+                                                        { text: "Not Yet", style: "cancel" },
+                                                        {
+                                                            text: "Yes, Complete",
+                                                            style: "default",
+                                                            onPress: async () => {
+                                                                try {
+                                                                    await updateStatusMutation.mutateAsync({
+                                                                        id: b._id,
+                                                                        status: b.bookingType === 'Doctor' ? "Completed" : "COMPLETED",
+                                                                        bookingType: b.bookingType
+                                                                    });
+                                                                    router.push({ pathname: '/booking_feedback' as any, params: { bookingId: b._id, patientName: b.patientName || 'Patient', type: b.bookingType } });
+                                                                } catch { /* error handled by mutation onError */ }
+                                                            }
+                                                        }
+                                                    ]
+                                                );
                                             }}
                                         >
-                                            <Text style={styles.mainBtnText}>End Service</Text>
+                                            <Text style={styles.mainBtnText}>Mark Complete</Text>
                                         </TouchableOpacity>
                                     </View>
                                 )}

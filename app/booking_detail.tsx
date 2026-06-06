@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Linking, Image } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Linking, Image, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -187,10 +187,19 @@ export default function BookingDetailScreen() {
                 {isActive && (
                     <TouchableOpacity
                         style={styles.primaryBtn}
-                        onPress={() => updateStatus.mutate(bookingType === "Doctor" ? "Completed" : "COMPLETED")}
+                        onPress={() => {
+                            Alert.alert(
+                                "Mark Service Complete?",
+                                "Confirm you have finished the service for this patient.",
+                                [
+                                    { text: "Not Yet", style: "cancel" },
+                                    { text: "Yes, Complete", onPress: () => updateStatus.mutate(bookingType === "Doctor" ? "Completed" : "COMPLETED") }
+                                ]
+                            );
+                        }}
                         disabled={updateStatus.isPending}
                     >
-                        <Text style={styles.primaryBtnText}>{updateStatus.isPending ? "..." : "End Service"}</Text>
+                        <Text style={styles.primaryBtnText}>{updateStatus.isPending ? "..." : "Mark Complete"}</Text>
                     </TouchableOpacity>
                 )}
             </View>
