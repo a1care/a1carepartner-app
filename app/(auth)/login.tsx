@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import {
     View, Text, TextInput, TouchableOpacity, StyleSheet,
-    ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Alert
+    ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, NativeModules
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Toast } from "../../components/CustomToast";
 import { api } from "../../lib/api";
 import { useAuthStore, PartnerRole } from "../../stores/auth";
+import { needsKycUpload, roleFromPartner } from "../../lib/partnerOnboarding";
 import { Ionicons } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const getAuthModule = () => {
     try {
@@ -34,8 +34,6 @@ const roleLabels: Record<string, string> = {
     rental: "Equipment Provider"
 };
 
-import * as Location from "expo-location";
-
 const LoginScreen = () => {
     const router = useRouter();
     const { role } = useLocalSearchParams<{ role: string }>();
@@ -47,13 +45,15 @@ const LoginScreen = () => {
     const [googleLoading, setGoogleLoading] = useState(false);
     const [verifying, setVerifying] = useState(false);
 
-    const requestLocationPermission = async () => {
-        try {
-            await Location.requestForegroundPermissionsAsync();
-        } catch (e) {
-            console.log("[Location] request failed in login");
+    // Initialize Google Sign-in
+    React.useEffect(() => {
+        const GoogleSignin = getGoogleSignin();
+        if (GoogleSignin) {
+            GoogleSignin.configure({
+                webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+            });
         }
-    };
+    }, []);
 
     const handleGoogleSignIn = async () => {
         const GoogleSignin = getGoogleSignin();
@@ -66,9 +66,6 @@ const LoginScreen = () => {
 
         setGoogleLoading(true);
         try {
-            GoogleSignin.configure({
-                webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-            });
             await GoogleSignin.hasPlayServices();
             const signInResult = await GoogleSignin.signIn();
             const idToken = signInResult.data?.idToken || signInResult.idToken;
@@ -139,38 +136,26 @@ const LoginScreen = () => {
                 throw new Error("Unable to load partner profile after login");
             }
 
+            const partnerRole = roleFromPartner(userData, role);
+
             // Update Auth Store (this will trigger AuthGuard in layout)
             await setAuth(authToken, {
                 ...userData,
-                role: role as PartnerRole
+                role: partnerRole as PartnerRole
             });
 
-            await AsyncStorage.setItem("show_welcome_after_login", "1");
-            await AsyncStorage.setItem(
-                "post_login_welcome_notification",
-                JSON.stringify({
-                    _id: `local-welcome-${Date.now()}`,
-                    title: "Login Successful",
-                    body: `Welcome ${userData?.name ?? "Partner"} to A1Care Partner.`,
-                    refType: "Broadcast",
-                    isRead: false,
-                    createdAt: new Date().toISOString(),
-                })
-            );
-
-            // Request location permission after login
-            await requestLocationPermission();
+            Toast.show({ type: 'success', text1: 'Login Successful' });
 
             // Precise navigation if AuthGuard hasn't kicked in yet
-            if (userData.isRegistered === false) {
-                router.push({
+            if (needsKycUpload(userData, partnerRole)) {
+                router.replace({
                     pathname: "/(auth)/register",
-                    params: { role: role ?? "doctor", token: authToken }
+                    params: { role: partnerRole, token: authToken }
                 });
-            } else if (userData.status === "Pending" || userData.status === "Rejected") {
-                router.push("/(auth)/review-status");
+            } else if (userData.status === "Pending") {
+                router.replace("/(auth)/review-status");
             } else {
-                router.replace("/home");
+                router.replace("/(tabs)/home");
             }
 
         } catch (err: any) {
@@ -249,12 +234,9 @@ const LoginScreen = () => {
                                 placeholder="0 0 0 0 0 0"
                                 keyboardType="number-pad"
                                 value={otp}
-                                onChangeText={(value) => setOtp(value.replace(/\D/g, '').slice(0, 6))}
+                                onChangeText={setOtp}
                                 maxLength={6}
                                 placeholderTextColor="#9CB3C4"
-                                textContentType="oneTimeCode"
-                                autoComplete={Platform.OS === 'android' ? 'sms-otp' : 'one-time-code'}
-                                importantForAutofill="yes"
                                 autoFocus
                             />
                         </View>

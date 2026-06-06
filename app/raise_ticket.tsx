@@ -15,13 +15,6 @@ export default function RaiseTicketScreen() {
         priority: "Medium"
     });
 
-    const removeEmojiAndSpecial = (value: string) =>
-        value
-            .replace(/[\p{Emoji_Presentation}\p{Extended_Pictographic}\uFE0F]/gu, "")
-            .replace(/[^A-Za-z0-9\s.,\-]/g, "")
-            .replace(/\s{2,}/g, " ")
-            .replace(/^\s+/, "");
-
     useEffect(() => {
         const backAction = () => {
             router.navigate("/(tabs)/profile" as any);
@@ -47,7 +40,7 @@ export default function RaiseTicketScreen() {
             Alert.alert("Ticket Raised", "Our support team will look into it shortly.");
             setForm({ subject: "", description: "", priority: "Medium" });
             queryClient.invalidateQueries({ queryKey: ["profileTickets"] });
-            router.replace("/(tabs)/profile");
+            router.replace("/my_tickets");
         },
         onError: () => {
             Alert.alert("Error", "Failed to raise ticket. Please try again.");
@@ -80,7 +73,7 @@ export default function RaiseTicketScreen() {
                             <TextInput
                                 style={styles.input}
                                 value={form.subject}
-                                onChangeText={(v) => setForm(prev => ({ ...prev, subject: removeEmojiAndSpecial(v) }))}
+                                onChangeText={(v) => setForm(prev => ({ ...prev, subject: v }))}
                                 placeholder="Brief summary of the issue"
                             />
                         </View>
@@ -90,7 +83,7 @@ export default function RaiseTicketScreen() {
                             <TextInput
                                 style={[styles.input, styles.textArea]}
                                 value={form.description}
-                                onChangeText={(v) => setForm(prev => ({ ...prev, description: removeEmojiAndSpecial(v) }))}
+                                onChangeText={(v) => setForm(prev => ({ ...prev, description: v }))}
                                 placeholder="Detailed explanation..."
                                 multiline
                                 numberOfLines={4}

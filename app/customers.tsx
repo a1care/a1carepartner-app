@@ -21,7 +21,8 @@ export default function CustomersScreen() {
     const { data: bookings = [], isLoading } = useQuery({
         queryKey: ["customers"],
         queryFn: async () => {
-            const res = await api.get("/appointment/patient/appointments/pending");
+            // Unified provider feed returns patientName for both doctor + service bookings.
+            const res = await api.get("/appointment/provider/feed");
             return res.data.data || [];
         }
     });

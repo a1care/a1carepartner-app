@@ -32,30 +32,6 @@ const ROLE_LABELS: Record<string, string> = {
 
 const { width, height } = Dimensions.get("window");
 
-const formatTimeTo12h = (time: string) => {
-    const trimmed = String(time || "").trim();
-    const match = trimmed.match(/^(\d{1,2}):(\d{2})$/);
-    if (!match) return trimmed;
-    const hour = Number(match[1]);
-    const minute = Number(match[2]);
-    if (Number.isNaN(hour) || Number.isNaN(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) {
-        return trimmed;
-    }
-    const suffix = hour >= 12 ? "PM" : "AM";
-    const hour12 = hour % 12 === 0 ? 12 : hour % 12;
-    return `${hour12}:${String(minute).padStart(2, "0")} ${suffix}`;
-};
-
-const formatWorkingHoursDisplay = (value: string) => {
-    const raw = String(value || "").trim();
-    if (!raw) return raw;
-    const parts = raw.split("-").map(p => p.trim()).filter(Boolean);
-    if (parts.length === 2) {
-        return `${formatTimeTo12h(parts[0])} - ${formatTimeTo12h(parts[1])}`;
-    }
-    return formatTimeTo12h(raw);
-};
-
 export default function ProfileEditScreen() {
     const router = useRouter();
     const queryClient = useQueryClient();
@@ -112,10 +88,7 @@ export default function ProfileEditScreen() {
 
     useEffect(() => {
         if (staffData) {
-            const selfieDocUrl = Array.isArray(staffData.documents)
-                ? staffData.documents.find((d: any) => d?.type === "Selfie" && d?.url)?.url || ""
-                : "";
-            const initialImage = staffData.profileImage || selfieDocUrl || "";
+            const initialImage = staffData.profileImage || "";
             setFormData({
                 name: staffData.name || "",
                 about: staffData.about || "",
@@ -174,70 +147,46 @@ export default function ProfileEditScreen() {
     };
 
     const displayData = staffData || user || {};
-    const currentRole = String(displayData.role?.name || displayData.role || "").toLowerCase();
-    const isDoctor = currentRole.includes("doctor");
-    const isNurse = currentRole.includes("nurse");
-    const isAmbulance = currentRole.includes("ambulance");
-    const isRental = currentRole.includes("rental");
-
     const detailsList = [
         { label: "Name", value: displayData.name },
         { label: "Mobile", value: displayData.mobileNumber },
         { label: "Email", value: displayData.email },
         { label: "Gender", value: displayData.gender },
-        { label: "Role", value: ROLE_LABELS[currentRole] || displayData.role?.name || displayData.role || "Partner" },
-        { label: "Vehicle Number", value: displayData.vehicleNumber, hide: !isAmbulance },
-        { label: "Vehicle Type", value: displayData.vehicleType, hide: !isAmbulance },
-        { label: "Business Name", value: displayData.businessName, hide: !isRental },
-        { label: "GST Number", value: displayData.gstNumber, hide: !isRental },
-        { label: "Specialization", value: Array.isArray(displayData.specialization) ? displayData.specialization.join(", ") : displayData.specialization, hide: !isDoctor },
+        { label: "Role", value: ROLE_LABELS[String(displayData.role || "").toLowerCase()] || displayData.role?.name || displayData.role || "Partner" },
+        { label: "Specialization", value: Array.isArray(displayData.specialization) ? displayData.specialization.join(", ") : displayData.specialization },
         { label: "Experience (yrs)", value: displayData.experience ?? (displayData.startExperience ? Math.max(0, new Date().getFullYear() - new Date(displayData.startExperience).getFullYear()) : undefined) },
-        { label: "Consultation Fee", value: displayData.consultationFee ? `₹${displayData.consultationFee}` : undefined, hide: !isDoctor && !isNurse },
-        { label: "Home Fee", value: displayData.homeConsultationFee ? `₹${displayData.homeConsultationFee}` : undefined, hide: !isDoctor && !isNurse },
-        { label: "Online Fee", value: displayData.onlineConsultationFee ? `₹${displayData.onlineConsultationFee}` : undefined, hide: !isDoctor && !isNurse },
+        { label: "Consultation Fee", value: displayData.consultationFee ? `₹${displayData.consultationFee}` : undefined },
+        { label: "Home Fee", value: displayData.homeConsultationFee ? `₹${displayData.homeConsultationFee}` : undefined },
+        { label: "Online Fee", value: displayData.onlineConsultationFee ? `₹${displayData.onlineConsultationFee}` : undefined },
         { label: "City", value: displayData.city },
         { label: "Service Radius", value: displayData.serviceRadius ? `${displayData.serviceRadius} km` : undefined },
-        { label: "Working Hours", value: formatWorkingHoursDisplay(displayData.workingHours) },
+        { label: "Working Hours", value: displayData.workingHours },
         { label: "Rating", value: displayData.rating ? `${displayData.rating} ⭐` : "—" },
         { label: "Jobs Completed", value: displayData.completed ?? 0 },
-    ].filter(item => !item.hide && item.value !== undefined && item.value !== null && String(item.value).trim() !== "" && String(item.value) !== "0");
+    ].filter(item => item.value !== undefined && item.value !== null && String(item.value).trim() !== "" && String(item.value) !== "0");
 
     const handleUseMyLocation = async () => {
         try {
-            const { status: existingStatus } = await Location.getForegroundPermissionsAsync();
-            let permissionStatus = existingStatus;
-            if (permissionStatus !== "granted") {
-                const { status } = await Location.requestForegroundPermissionsAsync();
-                permissionStatus = status;
-            }
-            if (permissionStatus !== "granted") {
-                return Toast.show({ type: "error", text1: "Location Permission Denied" });
-            }
-
-            const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-            const reverse = await Location.reverseGeocodeAsync({
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync(); // Just a dummy check for now
+            const { status: locStatus } = await (await import('expo-location')).requestForegroundPermissionsAsync();
+            if (locStatus !== 'granted') return Toast.show({ type: "error", text1: "Location Permission Denied" });
+            
+            const location = await (await import('expo-location')).getCurrentPositionAsync({});
+            const reverse = await (await import('expo-location')).reverseGeocodeAsync({
                 latitude: location.coords.latitude,
                 longitude: location.coords.longitude
             });
-
-            const place = reverse?.[0];
-            const cityPart = place?.city || place?.district || place?.subregion || place?.region || "";
-            const statePart = place?.region || place?.country || "";
-            const cityText = cityPart && statePart && cityPart !== statePart
-                ? `${cityPart}, ${statePart}`
-                : (cityPart || statePart);
-
-            if (!cityText) {
-                return Toast.show({ type: "error", text1: "City not found", text2: "Please enter city manually." });
+            
+            if (reverse[0]) {
+                const city = reverse[0].city || reverse[0].district || reverse[0].subregion;
+                const state = reverse[0].region;
+                setFormData(prev => ({ 
+                    ...prev, 
+                    city: `${city}, ${state}`,
+                    location: { type: "Point", coordinates: [location.coords.longitude, location.coords.latitude] }
+                }));
+                Toast.show({ type: "success", text1: "Location Detected" });
             }
-
-            setFormData(prev => ({
-                ...prev,
-                city: cityText,
-                location: { type: "Point", coordinates: [location.coords.longitude, location.coords.latitude] }
-            }));
-            setFieldErrors(prev => ({ ...prev, city: "" }));
-            Toast.show({ type: "success", text1: "Location Detected" });
         } catch (err) {
             Toast.show({ type: "error", text1: "Could not detect location" });
         }
@@ -306,19 +255,12 @@ export default function ProfileEditScreen() {
     const handleSave = () => {
         const nextErrors: Record<string, string> = {};
         if (!formData.name.trim()) nextErrors.name = "Full name is required.";
-        if (!formData.city.trim()) nextErrors.city = "City is required.";
         if (!formData.gender.trim()) nextErrors.gender = "Gender is required.";
-        if (isDoctor && !formData.specialization.length) nextErrors.specialization = "Select at least one specialization.";
-        if (!isAmbulance && !formData.workingHours.trim()) nextErrors.workingHours = "Working hours are required.";
-        if (!isAmbulance && formData.workingHours.trim()) {
-            const hoursPattern = /^\s*([01]?\d|2[0-3]):([0-5]\d)\s*-\s*([01]?\d|2[0-3]):([0-5]\d)\s*$/;
-            if (!hoursPattern.test(formData.workingHours.trim())) {
-                nextErrors.workingHours = "Use valid time range like 09:00 - 18:00.";
-            }
-        }
+        if (!formData.specialization.length) nextErrors.specialization = "Select at least one specialization.";
+        if (!formData.workingHours.trim()) nextErrors.workingHours = "Working hours are required.";
         if (!formData.experience.trim()) nextErrors.experience = "Experience is required.";
-        if ((isDoctor || isNurse) && !formData.homeConsultationFee.trim()) nextErrors.homeConsultationFee = "Home consultation fee is required.";
-        if ((isDoctor || isNurse) && !formData.onlineConsultationFee.trim()) nextErrors.onlineConsultationFee = "Online consultation fee is required.";
+        if (!formData.homeConsultationFee.trim()) nextErrors.homeConsultationFee = "Home consultation fee is required.";
+        if (!formData.onlineConsultationFee.trim()) nextErrors.onlineConsultationFee = "Online consultation fee is required.";
         if (!formData.serviceRadius.trim()) nextErrors.serviceRadius = "Service radius is required.";
 
         setFieldErrors(nextErrors);
@@ -434,29 +376,25 @@ export default function ProfileEditScreen() {
                         {!!fieldErrors.gender && <Text style={styles.errorText}>{fieldErrors.gender}</Text>}
                     </View>
 
-                    {isDoctor && (
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Specializations <Text style={styles.asterisk}>*</Text></Text>
-                            <View style={styles.specChipsContainer}>
-                                {formData.specialization.map(s => (
-                                    <TouchableOpacity key={s} style={styles.specChip} onPress={() => toggleSpecialization(s)}>
-                                        <Text style={styles.specChipText}>{s}</Text>
-                                        <Ionicons name="close-circle" size={16} color="#FFF" />
-                                    </TouchableOpacity>
-                                ))}
-                                <TouchableOpacity onPress={() => setShowSpecDropdown(true)} style={styles.addSpecBtn}><Ionicons name="add-circle" size={22} color="#2D935C" /><Text style={styles.addSpecText}>Add Specialization</Text></TouchableOpacity>
-                            </View>
-                            {!!fieldErrors.specialization && <Text style={styles.errorText}>{fieldErrors.specialization}</Text>}
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Specializations <Text style={styles.asterisk}>*</Text></Text>
+                        <View style={styles.specChipsContainer}>
+                            {formData.specialization.map(s => (
+                                <TouchableOpacity key={s} style={styles.specChip} onPress={() => toggleSpecialization(s)}>
+                                    <Text style={styles.specChipText}>{s}</Text>
+                                    <Ionicons name="close-circle" size={16} color="#FFF" />
+                                </TouchableOpacity>
+                            ))}
+                            <TouchableOpacity onPress={() => setShowSpecDropdown(true)} style={styles.addSpecBtn}><Ionicons name="add-circle" size={22} color="#2D935C" /><Text style={styles.addSpecText}>Add Specialization</Text></TouchableOpacity>
                         </View>
-                    )}
+                        {!!fieldErrors.specialization && <Text style={styles.errorText}>{fieldErrors.specialization}</Text>}
+                    </View>
 
-                    {!isAmbulance && (
-                        <View style={styles.inputGroup}>
-                            <Text style={styles.label}>Working Hours <Text style={styles.asterisk}>*</Text></Text>
-                            <TextInput style={[styles.input, fieldErrors.workingHours && styles.inputError]} value={formData.workingHours} onChangeText={(v) => { setFormData({ ...formData, workingHours: v }); setFieldErrors(prev => ({ ...prev, workingHours: "" })); }} placeholder="e.g. 09:00 - 18:00" />
-                            {!!fieldErrors.workingHours && <Text style={styles.errorText}>{fieldErrors.workingHours}</Text>}
-                        </View>
-                    )}
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Working Hours <Text style={styles.asterisk}>*</Text></Text>
+                        <TextInput style={[styles.input, fieldErrors.workingHours && styles.inputError]} value={formData.workingHours} onChangeText={(v) => { setFormData({ ...formData, workingHours: v }); setFieldErrors(prev => ({ ...prev, workingHours: "" })); }} placeholder="e.g. 09:00 - 18:00" />
+                        {!!fieldErrors.workingHours && <Text style={styles.errorText}>{fieldErrors.workingHours}</Text>}
+                    </View>
 
                     <View style={styles.inputGroup}>
                         <Text style={styles.label}>Years of Experience <Text style={styles.asterisk}>*</Text></Text>
@@ -464,26 +402,22 @@ export default function ProfileEditScreen() {
                         {!!fieldErrors.experience && <Text style={styles.errorText}>{fieldErrors.experience}</Text>}
                     </View>
 
-                    {(isDoctor || isNurse) && (
-                        <>
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Clinic Consultation Fee (₹) <Text style={styles.asterisk}>*</Text></Text>
-                                <TextInput style={styles.input} value={formData.consultationFee} onChangeText={(v) => setFormData({ ...formData, consultationFee: v.replace(/\D/g, "") })} placeholder="e.g. 500" keyboardType="number-pad" />
-                            </View>
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Clinic Consultation Fee (₹) <Text style={styles.asterisk}>*</Text></Text>
+                        <TextInput style={styles.input} value={formData.consultationFee} onChangeText={(v) => setFormData({ ...formData, consultationFee: v.replace(/\D/g, "") })} placeholder="e.g. 500" keyboardType="number-pad" />
+                    </View>
 
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Home Consultation Fee (₹) <Text style={styles.asterisk}>*</Text></Text>
-                                <TextInput style={[styles.input, fieldErrors.homeConsultationFee && styles.inputError]} value={formData.homeConsultationFee} onChangeText={(v) => { setFormData({ ...formData, homeConsultationFee: v.replace(/\D/g, "") }); setFieldErrors(prev => ({ ...prev, homeConsultationFee: "" })); }} placeholder="e.g. 1000" keyboardType="number-pad" />
-                                {!!fieldErrors.homeConsultationFee && <Text style={styles.errorText}>{fieldErrors.homeConsultationFee}</Text>}
-                            </View>
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Home Consultation Fee (₹) <Text style={styles.asterisk}>*</Text></Text>
+                        <TextInput style={[styles.input, fieldErrors.homeConsultationFee && styles.inputError]} value={formData.homeConsultationFee} onChangeText={(v) => { setFormData({ ...formData, homeConsultationFee: v.replace(/\D/g, "") }); setFieldErrors(prev => ({ ...prev, homeConsultationFee: "" })); }} placeholder="e.g. 1000" keyboardType="number-pad" />
+                        {!!fieldErrors.homeConsultationFee && <Text style={styles.errorText}>{fieldErrors.homeConsultationFee}</Text>}
+                    </View>
 
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Online Consultation Fee (₹) <Text style={styles.asterisk}>*</Text></Text>
-                                <TextInput style={[styles.input, fieldErrors.onlineConsultationFee && styles.inputError]} value={formData.onlineConsultationFee} onChangeText={(v) => { setFormData({ ...formData, onlineConsultationFee: v.replace(/\D/g, "") }); setFieldErrors(prev => ({ ...prev, onlineConsultationFee: "" })); }} placeholder="e.g. 400" keyboardType="number-pad" />
-                                {!!fieldErrors.onlineConsultationFee && <Text style={styles.errorText}>{fieldErrors.onlineConsultationFee}</Text>}
-                            </View>
-                        </>
-                    )}
+                    <View style={styles.inputGroup}>
+                        <Text style={styles.label}>Online Consultation Fee (₹) <Text style={styles.asterisk}>*</Text></Text>
+                        <TextInput style={[styles.input, fieldErrors.onlineConsultationFee && styles.inputError]} value={formData.onlineConsultationFee} onChangeText={(v) => { setFormData({ ...formData, onlineConsultationFee: v.replace(/\D/g, "") }); setFieldErrors(prev => ({ ...prev, onlineConsultationFee: "" })); }} placeholder="e.g. 400" keyboardType="number-pad" />
+                        {!!fieldErrors.onlineConsultationFee && <Text style={styles.errorText}>{fieldErrors.onlineConsultationFee}</Text>}
+                    </View>
 
                     <View style={styles.inputGroup}>
                         <Text style={styles.label}>Service Radius (in km) <Text style={styles.asterisk}>*</Text></Text>

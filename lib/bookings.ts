@@ -16,6 +16,11 @@ export const partnerBookingService = {
         return api.post(`/service/booking/accept/${id}`, body);
     },
 
+    getBookingDetail: async (id: string, bookingType: 'Doctor' | 'Service' = 'Service') => {
+        const res = await api.get(`/appointment/provider/booking/${id}`, { params: { type: bookingType } });
+        return res.data.data;
+    },
+
     rejectServiceRequest: async (id: string) => {
         return api.post(`/service/booking/reject/${id}`);
     },
@@ -30,15 +35,9 @@ export const partnerBookingService = {
     },
 
     sendMessage: async (bookingId: string, message: string) => {
-        // We use Socket.io for real-time, but this can be a fallback if needed
-        // For now, we return a mock object that's compatible with the local state
-        // since the actual persistence happens in the Socket 'send_message' handler
-        return {
-            _id: Math.random().toString(),
-            bookingId,
-            message,
-            senderType: 'Partner',
-            createdAt: new Date().toISOString()
-        };
+        // Persist via REST first (source of truth) so messages survive socket drops.
+        // The socket emit is still used for real-time delivery to the other party.
+        const res = await api.post(`/chat/${bookingId}`, { message });
+        return res.data.data;
     }
 };

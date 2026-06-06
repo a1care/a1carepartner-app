@@ -1,16 +1,16 @@
 import { Tabs, useFocusEffect } from "expo-router";
-import { View, StyleSheet } from "react-native";
+import { StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuthStore } from "../../stores/auth";
 import { api } from "../../lib/api";
 import { useCallback, useRef } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function TabsLayout() {
     const { user, isLoading, setUser } = useAuthStore() as any;
     const hasRefetched = useRef(false);
-
-
+    const insets = useSafeAreaInsets();
+    const bottomInset = Math.max(insets.bottom, 12);
 
     // When coming to tabs, refresh auth details once so newly verified providers get unlocked immediately
     useFocusEffect(
@@ -24,23 +24,29 @@ export default function TabsLayout() {
                     }
                     hasRefetched.current = true;
                 } catch (err) {
-                    console.log("Auth refresh failed (non-blocking):", err?.message || err);
+                    console.log("Auth refresh failed (non-blocking):", err instanceof Error ? err.message : err);
                 }
             };
             refresh();
         }, [user?._id, setUser])
     );
 
-    // Tabs are fully enabled for approved partners (Active or Inactive/Offline).
-    // Pending/Rejected/Unregistered users keep limited navigation.
-    const isActivePartner = (user?.status === "Active" || user?.status === "Inactive") && user?.isRegistered !== false;
-    const tabsLocked = isLoading ? false : !isActivePartner;
+    // Lock tabs only when we definitely know the user is unapproved.
+    // While loading (or when flags are absent), keep tabs usable.
+    const isExplicitlyUnapproved = user?.isVerified === false || user?.isRegistered === false;
+    const tabsLocked = isLoading ? false : isExplicitlyUnapproved;
 
     return (
         <Tabs
             screenOptions={{
                 headerShown: false,
-                tabBarStyle: styles.tabBar,
+                tabBarStyle: [
+                    styles.tabBar,
+                    {
+                        height: 62 + bottomInset,
+                        paddingBottom: bottomInset,
+                    },
+                ],
                 tabBarShowLabel: true,
                 tabBarLabelStyle: styles.label,
                 tabBarIconStyle: styles.icon,
@@ -53,7 +59,6 @@ export default function TabsLayout() {
                 name="home"
                 options={{
                     title: "Home",
-                    href: tabsLocked ? null : undefined,
                     tabBarIcon: ({ focused, color }) => (
                         <Ionicons name={focused ? "home" : "home-outline"} size={26} color={color} />
                     ),
@@ -63,7 +68,6 @@ export default function TabsLayout() {
                 name="bookings"
                 options={{
                     title: "Bookings",
-                    href: tabsLocked ? null : undefined,
                     tabBarIcon: ({ focused, color }) => (
                         <Ionicons name={focused ? "calendar" : "calendar-outline"} size={26} color={color} />
                     ),
@@ -72,10 +76,18 @@ export default function TabsLayout() {
             <Tabs.Screen
                 name="earnings"
                 options={{
-                    title: "Wallet",
-                    href: tabsLocked ? null : undefined,
+                    title: "Earnings",
                     tabBarIcon: ({ focused, color }) => (
                         <Ionicons name={focused ? "wallet" : "wallet-outline"} size={26} color={color} />
+                    ),
+                }}
+            />
+            <Tabs.Screen
+                name="notifications"
+                options={{
+                    title: "Alerts",
+                    tabBarIcon: ({ focused, color }) => (
+                        <Ionicons name={focused ? "notifications" : "notifications-outline"} size={26} color={color} />
                     ),
                 }}
             />
@@ -83,7 +95,6 @@ export default function TabsLayout() {
                 name="profile"
                 options={{
                     title: "Menu",
-                    href: tabsLocked ? null : undefined,
                     tabBarIcon: ({ focused, color }) => (
                         <Ionicons name={focused ? "person" : "person-outline"} size={26} color={color} />
                     ),
@@ -95,12 +106,15 @@ export default function TabsLayout() {
 
 const styles = StyleSheet.create({
     tabBar: {
-        height: 70,
         backgroundColor: "#FFFFFF",
         borderTopWidth: 1,
         borderTopColor: '#F1F5F9',
-        paddingBottom: 10,
         paddingTop: 6,
+        elevation: 12,
+        shadowColor: "#0F172A",
+        shadowOpacity: 0.08,
+        shadowRadius: 10,
+        shadowOffset: { width: 0, height: -4 },
     },
     label: {
         fontSize: 11,

@@ -5,11 +5,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { NativeModules, View, ActivityIndicator, Alert, Linking } from "react-native";
-import * as Location from "expo-location";
+import { NativeModules, View, ActivityIndicator, Alert } from "react-native";
 import { useAuthStore } from "../stores/auth";
 import { useConfigStore } from "../stores/config.store";
 import { ToastProvider } from '../components/CustomToast';
+import { needsKycUpload, roleFromPartner } from "../lib/partnerOnboarding";
 
 // Conditional Firebase import 
 let messaging: any;
@@ -29,33 +29,6 @@ function AuthGuard() {
     const segments = useSegments();
     const router = useRouter();
     const [isAppReady, setIsAppReady] = useState(false);
-
-    const requestLocationPermission = async () => {
-        try {
-            const { status: existingStatus } = await Location.getForegroundPermissionsAsync();
-            if (existingStatus === 'granted') return;
-
-            const { status } = await Location.requestForegroundPermissionsAsync();
-            if (status !== 'granted') {
-                Alert.alert(
-                    "Location Access",
-                    "A1Care Partner needs your location to match you with nearby patients. Please enable it in settings.",
-                    [
-                        { text: "Cancel", style: "cancel" },
-                        { text: "Settings", onPress: () => Linking.openSettings() }
-                    ]
-                );
-            }
-        } catch (err) {
-            console.log("[Location] Error requesting permission:", err);
-        }
-    };
-
-    useEffect(() => {
-        if (token && user?.isRegistered) {
-            requestLocationPermission();
-        }
-    }, [token, user?.isRegistered]);
 
     useEffect(() => {
         const init = async () => {
@@ -100,12 +73,15 @@ function AuthGuard() {
         }
 
         if (token && (inOnboarding || (inAuth && !isInReviewStatus && !inRegister))) {
-            if (user?.isRegistered === false) {
-                router.push("/(auth)/register" as any);
-            } else if (user?.status === "Pending" || user?.status === "Rejected") {
-                router.push("/(auth)/review-status" as any);
+            if (needsKycUpload(user, user?.role)) {
+                router.replace({
+                    pathname: "/(auth)/register",
+                    params: { role: roleFromPartner(user, user?.role) }
+                } as any);
+            } else if (user?.status === "Pending") {
+                router.replace("/(auth)/review-status" as any);
             } else {
-                router.replace("/home" as any);
+                router.replace("/(tabs)/home" as any);
             }
             return;
         }
@@ -113,7 +89,7 @@ function AuthGuard() {
         if (!token && !inAuth && !inOnboarding && !isPolicyPage) {
             router.replace("/(auth)/role-select");
         }
-    }, [token, isAppReady, isLoading, segments, config?.maintenanceMode, user?.isRegistered, user?.status]);
+    }, [token, isAppReady, isLoading, segments, config?.maintenanceMode, user?.isRegistered, user?.status, user?.documents, user?.role]);
 
     if (!isAppReady || isLoading) {
         return (

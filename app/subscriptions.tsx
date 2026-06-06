@@ -17,15 +17,11 @@ export default function SubscriptionsScreen() {
     const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
 
     const { user } = useAuthStore() as any;
-    const roleValue = user?.role;
-    const role =
-        typeof roleValue === "string"
-            ? roleValue
-            : (roleValue?.name || roleValue?.slug || "doctor");
+    const role = user?.role || "doctor";
 
     useEffect(() => {
         const onBack = () => {
-            router.replace("/profile");
+            router.replace("/(tabs)/profile");
             return true;
         };
 
@@ -79,7 +75,7 @@ export default function SubscriptionsScreen() {
             Alert.alert("Request Sent", "Admin will activate your subscription after manual wallet top-up.");
             queryClient.invalidateQueries({ queryKey: ["myActiveSubscription"] });
             queryClient.invalidateQueries({ queryKey: ["subscriptionHistory"] });
-            router.replace("/profile");
+            router.replace("/(tabs)/profile");
         },
         onError: (error: any) => {
             Alert.alert("Error", error.response?.data?.message || "Failed to request subscription");
@@ -87,7 +83,7 @@ export default function SubscriptionsScreen() {
     });
 
     const handleBack = () => {
-        router.replace("/profile");
+        router.replace("/(tabs)/profile");
     };
 
     // Default back behavior (OS handles stack); no manual override.
@@ -331,13 +327,12 @@ export default function SubscriptionsScreen() {
                         onNavigationStateChange={(navState) => {
                             if (navState.url.includes("status=success")) {
                                 setPaymentUrl(null);
-                                Alert.alert("Payment Successful", "Subscription activated!");
                                 queryClient.invalidateQueries({ queryKey: ["myActiveSubscription"] });
                                 queryClient.invalidateQueries({ queryKey: ["subscriptionHistory"] });
-                                router.replace("/(tabs)/profile");
+                                router.replace({ pathname: "/checkout_status" as any, params: { status: "success", context: "subscription" } });
                             } else if (navState.url.includes("status=failure")) {
                                 setPaymentUrl(null);
-                                Alert.alert("Payment Failed", "Transaction failed. Please try again or check your account.");
+                                router.replace({ pathname: "/checkout_status" as any, params: { status: "failure", context: "subscription" } });
                             }
                         }}
                     />

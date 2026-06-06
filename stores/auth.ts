@@ -14,6 +14,8 @@ interface PartnerUser {
     isVerified?: boolean;
     isRegistered?: boolean;
     isOnline?: boolean;
+    status?: "Pending" | "Active" | "Rejected";
+    documents?: { type: string; url: string }[];
 }
 
 interface AuthState {

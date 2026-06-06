@@ -36,7 +36,8 @@ export default function SupportChatScreen() {
 
     const mutation = useMutation({
         mutationFn: async (msg: string) => {
-            return await api.post(`/tickets/messages/send`, { ticketId, message: msg, senderType: 'Staff' });
+            // senderType is derived server-side from the JWT — never sent from the client.
+            return await api.post(`/tickets/messages/send`, { ticketId, message: msg });
         },
         onSuccess: () => {
             setTypedMessage('');

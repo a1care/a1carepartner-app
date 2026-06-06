@@ -119,10 +119,10 @@ export default function PartnerNotificationsScreen() {
         switch (n.refType) {
             case 'DoctorAppointment':
             case 'ServiceRequest':
-                router.push('/bookings');
+                router.push('/(tabs)/bookings');
                 break;
             case 'Wallet':
-                router.push('/wallet');
+                router.push('/wallet_history');
                 break;
             case 'Ticket':
                 router.push('/raise_ticket');

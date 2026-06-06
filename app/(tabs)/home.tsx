@@ -10,14 +10,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Toast } from "../../components/CustomToast";
 import * as Location from 'expo-location';
 import AsyncStorage from "@react-native-async-storage/async-storage";
-
-// Conditional Firebase import 
-let messaging: any;
-try {
-    if (NativeModules.RNFBAppModule) {
-        messaging = require('@react-native-firebase/messaging').default;
-    }
-} catch (e) { }
+import { getFirebaseMessaging } from "../../lib/nativeFirebase";
 
 // Global persistence to prevent flickering during tab switches
 let cachedLocationText = "";
@@ -25,39 +18,18 @@ let cachedLocationText = "";
 // Global persistence to prevent flickering during tab switches
 let cachedCity = "";
 
-const formatTimeTo12h = (time: string) => {
-    const raw = String(time || "").trim();
-    const match = raw.match(/^(\d{1,2}):(\d{2})$/);
-    if (!match) return raw;
-    const hour = Number(match[1]);
-    const minute = Number(match[2]);
-    if (Number.isNaN(hour) || Number.isNaN(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) return raw;
-    const suffix = hour >= 12 ? "PM" : "AM";
-    const h = hour % 12 === 0 ? 12 : hour % 12;
-    return `${h}:${String(minute).padStart(2, "0")} ${suffix}`;
-};
-
-const formatTimeRange = (value: string) => {
-    const raw = String(value || "").trim();
-    if (!raw) return raw;
-    const parts = raw.split("-").map(p => p.trim()).filter(Boolean);
-    if (parts.length === 2) return `${formatTimeTo12h(parts[0])} - ${formatTimeTo12h(parts[1])}`;
-    return formatTimeTo12h(raw);
-};
-
 export default function HomeScreen() {
     const router = useRouter();
-    const { user, setUser, token, logout } = useAuthStore() as any;
+    const { user, setUser, token } = useAuthStore() as any;
     const [isOnline, setIsOnline] = useState(user?.status === "Active");
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
     const [locationAddress, setLocationAddress] = useState(cachedLocationText || "...");
-    const rawRole = typeof user?.role === 'string' ? user.role : (user?.role as any)?.name;
-    const role = rawRole?.toLowerCase();
-    const rolePath = role === 'nurse' ? 'nurse' : role === 'ambulance' ? 'ambulance' : 'doctor';
+    const role = user?.role ?? "doctor";
     const primaryColor = "#2D935C";
     const queryClient = useQueryClient();
     const locationWatcherRef = useRef<Location.LocationSubscription | null>(null);
     const locationIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+    const messaging = useMemo(() => getFirebaseMessaging(), []);
 
     // 1. Handle Permissions & Tracking after login
     useEffect(() => {
@@ -93,38 +65,6 @@ export default function HomeScreen() {
             }
         };
     }, [token]);
-
-    useEffect(() => {
-        const showPostLoginWelcome = async () => {
-            try {
-                if (!token) return;
-                const flag = await AsyncStorage.getItem("show_welcome_after_login");
-                if (flag === "1") {
-                    Alert.alert("Login Successful", `Welcome ${user?.name ?? "Partner"} to A1Care Partner.`);
-                    await AsyncStorage.removeItem("show_welcome_after_login");
-                }
-
-                const rawWelcomeNotification = await AsyncStorage.getItem("post_login_welcome_notification");
-                if (rawWelcomeNotification) {
-                    const localWelcome = JSON.parse(rawWelcomeNotification);
-
-                    queryClient.setQueryData(["partner_notifications"], (prev: any) => {
-                        const prevNotifications = Array.isArray(prev?.notifications) ? prev.notifications : [];
-                        const alreadyExists = prevNotifications.some((n: any) => n?._id === localWelcome._id);
-                        if (alreadyExists) return prev;
-                        return {
-                            ...(prev || {}),
-                            notifications: [localWelcome, ...prevNotifications],
-                            unreadCount: (prev?.unreadCount || 0) + 1,
-                        };
-                    });
-                    queryClient.invalidateQueries({ queryKey: ["partner_notifications_unread"] });
-                    await AsyncStorage.removeItem("post_login_welcome_notification");
-                }
-            } catch (e) { }
-        };
-        showPostLoginWelcome();
-    }, [token, user?.name, queryClient]);
 
     useEffect(() => {
         if (!token || !messaging) return;
@@ -225,15 +165,11 @@ export default function HomeScreen() {
         try {
             const address = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
             if (address && address[0]) {
-                const { city, region, district, subregion, street, name } = address[0];
-                const areaText = subregion || district || street || name || region || "";
+                const { city, region, district } = address[0];
                 const cityText = city || district || region || "Unknown City";
-                const composed = areaText && cityText && areaText !== cityText
-                    ? `${areaText}, ${cityText}`
-                    : cityText;
-                setLocationAddress(composed);
-                cachedLocationText = composed;
-                await AsyncStorage.setItem("last_location_text", composed);
+                setLocationAddress(cityText);
+                cachedLocationText = cityText; // Update global cache
+                await AsyncStorage.setItem("last_location_text", cityText);
             }
         } catch (e) { }
     };
@@ -272,7 +208,7 @@ export default function HomeScreen() {
         queryKey: ["homeStats", period],
         queryFn: async () => {
             const res = await api.get("/appointment/provider/feed", {
-                params: { period }
+                params: { status: "Pending", period }
             });
             return res.data.data || [];
         }
@@ -289,17 +225,23 @@ export default function HomeScreen() {
         refetchInterval: 30000,
     });
 
+    // Unread chat messages count
+    const { data: unreadChats = 0 } = useQuery({
+        queryKey: ["unread_chats"],
+        queryFn: async () => {
+            const res = await api.get("/chat/unread/count");
+            return res.data?.data?.count || 0;
+        },
+        enabled: !!user?._id,
+        refetchInterval: 30000,
+    });
+
+    const totalUnread = unreadCount + unreadChats;
+
     const stats = useMemo(() => {
-        const completedBookings = bookings.filter((b: any) => {
-            const s = String(b?.status || "").toLowerCase();
-            return s === "completed" || s === "complete";
-        });
-        const completed = completedBookings.length;
+        const completed = bookings.filter((b: any) => b.status === "Completed").length;
         const earnings = bookings
-            .filter((b: any) => {
-                const s = String(b?.status || "").toLowerCase();
-                return s === "completed" || s === "complete";
-            })
+            .filter((b: any) => b.status === "Completed")
             .reduce((acc: number, b: any) => acc + (b.totalAmount || 0), 0);
 
         return [
@@ -338,48 +280,11 @@ export default function HomeScreen() {
         syncCurrentLocation();
     };
 
-    const isVerificationLocked = staffData?.status === "Pending" || staffData?.status === "Rejected";
-
     if (loadingUser && !user) {
         return (
             <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#F3F4F9" }}>
                 <ActivityIndicator size="large" color={primaryColor} />
             </View>
-        );
-    }
-
-    if (isVerificationLocked) {
-        return (
-            <SafeAreaView style={styles.container}>
-                <View style={styles.kycOverlayStandalone}>
-                    <LinearGradient colors={["#FFFFFF", "#F8FAFC"]} style={styles.kycContent}>
-                        <View style={styles.kycHeader}>
-                            <View style={styles.kyclIconBox}>
-                                <LinearGradient colors={["#ECFDF5", "#D1FAE5"]} style={StyleSheet.absoluteFill} />
-                                <Ionicons name="shield-checkmark" size={42} color="#10B981" />
-                            </View>
-                            <Text style={styles.kycTitle}>Verification Required</Text>
-                            <Text style={styles.kycDesc}>
-                                Your account is under review. You can access full dashboard after admin approval.
-                            </Text>
-                        </View>
-                        <TouchableOpacity style={styles.kycCta} onPress={onRefresh} activeOpacity={0.8}>
-                            <LinearGradient colors={["#1E293B", "#0F172A"]} style={StyleSheet.absoluteFill} />
-                            <Ionicons name="refresh" size={20} color="#FFF" />
-                            <Text style={styles.kycCtaText}>Check Update</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                            style={{ marginTop: 16, paddingVertical: 8, paddingHorizontal: 12 }}
-                            onPress={async () => {
-                                await logout();
-                                router.replace("/(auth)/login");
-                            }}
-                        >
-                            <Text style={{ color: "#DC2626", fontWeight: "700", fontSize: 16 }}>Logout</Text>
-                        </TouchableOpacity>
-                    </LinearGradient>
-                </View>
-            </SafeAreaView>
         );
     }
 
@@ -413,27 +318,13 @@ export default function HomeScreen() {
             >
                 <View style={styles.header}>
                     <View style={styles.locationBar}>
-                    <TouchableOpacity style={styles.locationInfo} activeOpacity={0.8} onPress={async () => {
-                        try {
-                            const { status } = await Location.requestForegroundPermissionsAsync();
-                            if (status !== "granted") {
-                                Toast.show({ type: "info", text1: "Location permission needed" });
-                                return;
-                            }
-                            const fresh = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-                            await updateLocationOnBackend(fresh.coords.latitude, fresh.coords.longitude);
-                            await reverseGeocode(fresh.coords.latitude, fresh.coords.longitude);
-                            Toast.show({ type: "success", text1: "Location refreshed" });
-                        } catch (e) {
-                            Toast.show({ type: "error", text1: "Unable to refresh location" });
-                        }
-                    }}>
-                        <View style={styles.locationPin}><Ionicons name="location" size={16} color="#2D935C" /></View>
-                        <Text style={styles.locationLabel} numberOfLines={1}>{locationAddress}</Text>
-                    </TouchableOpacity>
+                        <View style={styles.locationInfo}>
+                            <View style={styles.locationPin}><Ionicons name="location" size={16} color="#2D935C" /></View>
+                            <Text style={styles.locationLabel} numberOfLines={1}>{locationAddress}</Text>
+                        </View>
                         <TouchableOpacity style={styles.notificationBtn} onPress={() => router.push("/notifications")}>
                             <Ionicons name="notifications-outline" size={24} color="#1E293B" />
-                            {unreadCount > 0 && <View style={styles.badgeDot} />}
+                            {totalUnread > 0 && <View style={styles.badgeDot} />}
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.profileBtn} onPress={() => router.push("/profile_edit")}>
                             {staffData?.profileImage || user?.profileImage ? (
@@ -487,15 +378,7 @@ export default function HomeScreen() {
 
                 <View style={styles.statsGrid}>
                     {stats.map((s, idx) => (
-                        <TouchableOpacity 
-                            key={idx} 
-                            style={styles.statBox} 
-                            activeOpacity={0.7}
-                            onPress={() => {
-                                if (s.label === "Earning") router.push("/earnings");
-                                else if (s.label === "Bookings" || s.label === "Completed") router.push("/bookings");
-                            }}
-                        >
+                        <View key={idx} style={styles.statBox}>
                             <View style={[styles.statIconContainer, { backgroundColor: s.color + '10' }]}>
                                 <Ionicons name={s.icon as any} size={22} color={s.color} />
                             </View>
@@ -503,7 +386,7 @@ export default function HomeScreen() {
                                 <Text style={styles.statValText}>{s.value}</Text>
                                 <Text style={styles.statLabelText}>{s.label}</Text>
                             </View>
-                        </TouchableOpacity>
+                        </View>
                     ))}
                 </View>
 
@@ -524,13 +407,13 @@ export default function HomeScreen() {
                         </LinearGradient>
                         <Text style={styles.actionLabel}>Users</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.actionItem} onPress={() => router.push("/earnings")}>
+                    <TouchableOpacity style={styles.actionItem} onPress={() => router.push("/(tabs)/earnings")}>
                         <LinearGradient colors={["#FFFBEB", "#FEF3C7"]} style={styles.actionIconBox}>
                             <MaterialCommunityIcons name="cash-multiple" size={28} color="#F59E0B" />
                         </LinearGradient>
                         <Text style={styles.actionLabel}>Earnings</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.actionItem} onPress={() => router.push("/(tabs)/profile")}>
+                    <TouchableOpacity style={styles.actionItem} onPress={() => router.push("/profile_edit")}>
                         <LinearGradient colors={["#FEF2F2", "#FFF1F1"]} style={styles.actionIconBox}>
                             <MaterialCommunityIcons name="cog" size={28} color="#EF4444" />
                         </LinearGradient>
@@ -549,7 +432,7 @@ export default function HomeScreen() {
                                 <View style={styles.requestIconBox}><Ionicons name="calendar" size={20} color="#2D935C" /></View>
                                 <View style={styles.requestMainInfo}>
                                     <Text style={styles.requestName}>{item.patientName || "New Patient"}</Text>
-                                    <Text style={styles.requestTime}>{new Date(item.appointmentDate).toDateString()} • {formatTimeRange(item.appointmentTime)}</Text>
+                                    <Text style={styles.requestTime}>{new Date(item.appointmentDate).toDateString()} • {item.appointmentTime}</Text>
                                 </View>
                                 <View style={styles.statusBadge}><Text style={styles.statusBadgeText}>Pending</Text></View>
                             </TouchableOpacity>
@@ -613,7 +496,6 @@ const styles = StyleSheet.create({
     statusBadgeText: { fontSize: 11, fontWeight: '700', color: '#92400E' },
     emptyRequestsCard: { backgroundColor: '#FFF', borderRadius: 28, padding: 30, alignItems: 'center', borderStyle: 'dashed', borderWidth: 2, borderColor: '#E2E8F0' },
     emptyRequestsText: { fontSize: 14, fontWeight: '700', color: '#94A3B8', marginTop: 10 },
-    kycOverlayStandalone: { flex: 1, backgroundColor: "#F8FAFC", justifyContent: "center", alignItems: "center", padding: 24 },
     kycOverlay: { ...StyleSheet.absoluteFillObject, zIndex: 10000, backgroundColor: "rgba(15, 23, 42, 0.6)", justifyContent: "center", alignItems: "center", padding: 24 },
     kycContent: { width: "100%", borderRadius: 40, padding: 32, alignItems: "center", elevation: 20 },
     kycHeader: { alignItems: 'center', marginBottom: 32 },

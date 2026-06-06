@@ -33,7 +33,7 @@ const API_URL = process.env.EXPO_PUBLIC_API_URL?.replace('/api', '') || 'https:/
 export default function BookingsScreen() {
     const queryClient = useQueryClient();
     const router = useRouter();
-    const { user } = useAuthStore();
+    const { user, token } = useAuthStore();
     const { status } = useLocalSearchParams<{ status?: string }>();
     const [activeTab, setActiveTab] = useState("Pending");
     const primaryColor = "#2D935C";
@@ -46,11 +46,11 @@ export default function BookingsScreen() {
         if (status && TABS.includes(status)) {
             setActiveTab(status);
         }
-        socketRef.current = io(API_URL);
+        socketRef.current = io(API_URL, { auth: { token } });
         return () => {
             socketRef.current?.disconnect();
         };
-    }, [status]);
+    }, [status, token]);
 
     const { data: bookings = [], isLoading, refetch, isRefetching } = useQuery({
         queryKey: ["bookings", activeTab],
@@ -60,6 +60,17 @@ export default function BookingsScreen() {
             });
             return res.data.data || [];
         }
+    });
+
+    // Per-booking unread chat counts → green dot on the chat button of cards with unread.
+    const { data: unreadByBooking = {} } = useQuery<Record<string, number>>({
+        queryKey: ["unread_chats_by_booking"],
+        queryFn: async () => {
+            const res = await api.get("/chat/unread/count");
+            return res.data?.data?.byBooking || {};
+        },
+        enabled: !!user?._id,
+        refetchInterval: 30000,
     });
 
     const updateStatusMutation = useMutation({
@@ -191,7 +202,7 @@ export default function BookingsScreen() {
                 ) : (
                     bookings.map((b: any) => (
                         <View key={b._id} style={styles.card}>
-                            <View style={styles.cardInfo}>
+                            <TouchableOpacity activeOpacity={0.7} style={styles.cardInfo} onPress={() => router.push({ pathname: '/booking_detail' as any, params: { bookingId: b._id, bookingType: b.bookingType } })}>
                                 <View style={styles.cardHeader}>
                                     <View>
                                         <Text style={styles.patientName}>{b.patientName || "Guest Patient"}</Text>
@@ -230,7 +241,7 @@ export default function BookingsScreen() {
                                     <MapPin size={16} color="#EF4444" />
                                     <Text style={styles.addressText} numberOfLines={1}>{b.location?.address || "Location not provided"}</Text>
                                 </View>
-                            </View>
+                            </TouchableOpacity>
 
                             <View style={styles.actions}>
                                 {b.status?.toLowerCase?.() === "broadcasted" && (
@@ -279,11 +290,16 @@ export default function BookingsScreen() {
                                         )}
                                         <TouchableOpacity
                                             style={[styles.mainBtn, { flex: 1.2 }]}
-                                            onPress={() => updateStatusMutation.mutate({ 
-                                                id: b._id, 
-                                                status: b.bookingType === 'Doctor' ? "Completed" : "COMPLETED", 
-                                                bookingType: b.bookingType 
-                                            })}
+                                            onPress={async () => {
+                                                try {
+                                                    await updateStatusMutation.mutateAsync({
+                                                        id: b._id,
+                                                        status: b.bookingType === 'Doctor' ? "Completed" : "COMPLETED",
+                                                        bookingType: b.bookingType
+                                                    });
+                                                    router.push({ pathname: '/booking_feedback' as any, params: { bookingId: b._id, patientName: b.patientName || 'Patient', type: b.bookingType } });
+                                                } catch { /* error handled by mutation onError */ }
+                                            }}
                                         >
                                             <Text style={styles.mainBtnText}>End Service</Text>
                                         </TouchableOpacity>
@@ -292,7 +308,7 @@ export default function BookingsScreen() {
 
                                 {b.status !== "Pending" && b.status !== "Broadcasted" && (
                                     <View style={styles.commsRow}>
-                                        <TouchableOpacity 
+                                        <TouchableOpacity
                                             style={styles.commBtn}
                                             onPress={() => router.push({
                                                 pathname: '/booking_chat' as any,
@@ -300,6 +316,7 @@ export default function BookingsScreen() {
                                             })}
                                         >
                                             <MessageCircle size={22} color="#2D935C" />
+                                            {unreadByBooking[b._id] > 0 && <View style={styles.chatDot} />}
                                         </TouchableOpacity>
 
                                         {(b.status === "Confirmed" || b.status === "ACCEPTED" || b.status === "IN_PROGRESS") && (
@@ -358,12 +375,13 @@ const styles = StyleSheet.create({
     detailText: { fontSize: 14, color: "#475569", fontWeight: '600' },
     addressRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FFF5F5', padding: 12, borderRadius: 12 },
     addressText: { fontSize: 13, color: "#B91C1C", fontWeight: '700', flex: 1 },
-    actions: { gap: 12 },
-    mainBtn: { flex: 1, minHeight: 50, backgroundColor: "#2D935C", borderRadius: 16, flexDirection: 'row', alignItems: "center", justifyContent: "center", gap: 8, paddingHorizontal: 12 },
+    actions: { flexDirection: 'row', gap: 12 },
+    mainBtn: { flex: 2, height: 50, backgroundColor: "#2D935C", borderRadius: 16, flexDirection: 'row', alignItems: "center", justifyContent: "center", gap: 8 },
     mainBtnText: { fontSize: 14, fontWeight: "800", color: "#fff" },
-    dualActions: { width: "100%", flexDirection: 'row', gap: 10 },
-    activeActions: { width: "100%", flexDirection: 'row', gap: 10 },
+    dualActions: { flex: 1, flexDirection: 'row', gap: 10 },
+    activeActions: { flex: 1, flexDirection: 'row', gap: 10 },
     declineBtn: { width: 50, height: 50, backgroundColor: "#FEF2F2", borderRadius: 16, alignItems: "center", justifyContent: "center" },
-    commsRow: { width: "100%", flexDirection: 'row', justifyContent: "flex-end", gap: 10 },
+    commsRow: { flexDirection: 'row', gap: 10 },
     commBtn: { width: 50, height: 50, backgroundColor: '#F0FDF4', borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
+    chatDot: { position: 'absolute', top: 10, right: 10, width: 11, height: 11, borderRadius: 6, backgroundColor: '#22C55E', borderWidth: 2, borderColor: '#FFF' },
 });
