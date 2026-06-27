@@ -23,6 +23,8 @@ export function connectSocket(token: string, partnerId: string) {
         socket?.emit("join_room", `partner:${partnerId}`);
         socket?.emit("join_room", "admin");
         console.log("[Socket] Room join emitted");
+        // On (re)connect, request any missed PARTNER_ASSIGNED booking
+        socket?.emit("check_pending_assignment", { partnerId });
     });
 
     socket.on("disconnect", (reason) => {
