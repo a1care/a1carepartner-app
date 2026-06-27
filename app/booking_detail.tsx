@@ -8,16 +8,20 @@ import { partnerBookingService } from "../lib/bookings";
 
 const PRIMARY = "#2D935C";
 
-const statusColors: Record<string, { bg: string; text: string }> = {
-    Pending: { bg: "#FFFBEB", text: "#D97706" },
-    ACCEPTED: { bg: "#ECFDF5", text: "#059669" },
-    Confirmed: { bg: "#ECFDF5", text: "#047857" },
-    IN_PROGRESS: { bg: "#EFF6FF", text: "#3B82F6" },
-    Completed: { bg: "#F0F9FF", text: "#0369A1" },
-    COMPLETED: { bg: "#F0F9FF", text: "#0369A1" },
-    Cancelled: { bg: "#FEF2F2", text: "#B91C1C" },
-    CANCELLED: { bg: "#FEF2F2", text: "#B91C1C" },
+const statusColors: Record<string, { bg: string; text: string; label: string }> = {
+    Pending: { bg: "#FFFBEB", text: "#D97706", label: "Pending" },
+    PENDING: { bg: "#FFFBEB", text: "#D97706", label: "Pending" },
+    ACCEPTED: { bg: "#ECFDF5", text: "#059669", label: "Accepted" },
+    Confirmed: { bg: "#ECFDF5", text: "#047857", label: "Confirmed" },
+    IN_PROGRESS: { bg: "#EFF6FF", text: "#3B82F6", label: "In Progress" },
+    Completed: { bg: "#F0F9FF", text: "#0369A1", label: "Completed" },
+    COMPLETED: { bg: "#F0F9FF", text: "#0369A1", label: "Completed" },
+    Cancelled: { bg: "#FEF2F2", text: "#B91C1C", label: "Cancelled" },
+    CANCELLED: { bg: "#FEF2F2", text: "#B91C1C", label: "Cancelled" },
 };
+
+const getStatusLabel = (status: string) =>
+    statusColors[status]?.label || status.replace(/_/g, ' ');
 
 export default function BookingDetailScreen() {
     const router = useRouter();
@@ -30,6 +34,18 @@ export default function BookingDetailScreen() {
         queryKey: ["booking-detail", id],
         queryFn: () => partnerBookingService.getBookingDetail(String(id), bookingType),
         enabled: !!id,
+    });
+
+    const collectCash = useMutation({
+        mutationFn: () => partnerBookingService.markCashCollected(String(id), bookingType),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["booking-detail", id] });
+            queryClient.invalidateQueries({ queryKey: ["bookings"] });
+            Alert.alert("Cash Collected ✅", "Payment has been marked as received.");
+        },
+        onError: (err: any) => {
+            Alert.alert("Error", err?.response?.data?.message || "Could not mark cash as collected");
+        }
     });
 
     const updateStatus = useMutation({
@@ -86,7 +102,7 @@ export default function BookingDetailScreen() {
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Job Details</Text>
                 <View style={[styles.statusBadge, { backgroundColor: sc.bg }]}>
-                    <Text style={[styles.statusText, { color: sc.text }]}>{booking.status}</Text>
+                    <Text style={[styles.statusText, { color: sc.text }]}>{getStatusLabel(booking.status)}</Text>
                 </View>
             </View>
 
@@ -159,9 +175,29 @@ export default function BookingDetailScreen() {
                 <View style={styles.card}>
                     <Text style={styles.sectionTitle}>Timeline</Text>
                     <TimelineItem label="Created" time={booking.createdAt} active />
-                    <TimelineItem label={`Status: ${booking.status}`} time={booking.updatedAt} active last />
+                    <TimelineItem label={getStatusLabel(booking.status)} time={booking.updatedAt} active last />
                 </View>
             </ScrollView>
+
+            {/* Collect cash row — only for OFFLINE unpaid bookings */}
+            {booking.paymentMode === "OFFLINE" && booking.paymentStatus !== "COMPLETED" && (
+                <View style={{ paddingHorizontal: 20, paddingBottom: 8, backgroundColor: "#FFF" }}>
+                    <TouchableOpacity
+                        style={[styles.primaryBtn, { backgroundColor: '#F59E0B', borderRadius: 14 }]}
+                        onPress={() => Alert.alert(
+                            "Confirm Cash Received",
+                            "Have you collected the cash payment from the patient?",
+                            [
+                                { text: "Not Yet", style: "cancel" },
+                                { text: "Yes, Collected", onPress: () => collectCash.mutate() }
+                            ]
+                        )}
+                        disabled={collectCash.isPending}
+                    >
+                        <Text style={styles.primaryBtnText}>{collectCash.isPending ? "..." : "💵 Mark Cash Collected"}</Text>
+                    </TouchableOpacity>
+                </View>
+            )}
 
             {/* Sticky actions */}
             <View style={styles.actionBar}>
@@ -171,14 +207,6 @@ export default function BookingDetailScreen() {
                 >
                     <MessageCircle size={22} color={PRIMARY} />
                 </TouchableOpacity>
-                {isActive && (
-                    <TouchableOpacity
-                        style={styles.iconBtn}
-                        onPress={() => router.push({ pathname: "/video-call" as any, params: { bookingId: String(id), channelName: String(id) } })}
-                    >
-                        <Ionicons name="videocam" size={22} color="#C2410C" />
-                    </TouchableOpacity>
-                )}
                 {isPending && (
                     <TouchableOpacity style={styles.primaryBtn} onPress={() => updateStatus.mutate("Confirmed")} disabled={updateStatus.isPending}>
                         <Text style={styles.primaryBtnText}>{updateStatus.isPending ? "..." : "Confirm Visit"}</Text>

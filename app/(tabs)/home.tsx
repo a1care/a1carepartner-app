@@ -88,17 +88,13 @@ export default function HomeScreen() {
             if (enabled) {
                 const fcmToken = await messaging().getToken();
                 if (fcmToken) {
-                    console.log("[FCM] Generated Token:", fcmToken);
                     await api.put("/notifications/fcm-token/partner", { fcmToken });
-                    console.log("[FCM] Token synced with backend");
                 } else {
-                    console.log("[FCM] No token received from Firebase");
+                    console.warn("[FCM] No token received from Firebase");
                 }
-            } else {
-                console.log("[FCM] Permission not granted:", authStatus);
             }
         } catch (e) {
-            console.log("[FCM] Notification setup error:", e);
+            console.warn("[FCM] Notification setup error:", e);
         }
     };
 
@@ -434,7 +430,11 @@ export default function HomeScreen() {
                                     <Text style={styles.requestName}>{item.patientName || "New Patient"}</Text>
                                     <Text style={styles.requestTime}>{new Date(item.appointmentDate).toDateString()} • {item.appointmentTime}</Text>
                                 </View>
-                                <View style={styles.statusBadge}><Text style={styles.statusBadgeText}>Pending</Text></View>
+                                <View style={[styles.statusBadge, { backgroundColor: { PENDING: '#FEF3C7', Pending: '#FEF3C7', BROADCASTED: '#F3E8FF', ACCEPTED: '#D1FAE5', Confirmed: '#D1FAE5', IN_PROGRESS: '#DBEAFE', COMPLETED: '#D1FAE5', Completed: '#D1FAE5' }[item.status] || '#F1F5F9' }]}>
+                                    <Text style={[styles.statusBadgeText, { color: { PENDING: '#92400E', Pending: '#92400E', BROADCASTED: '#6B21A8', ACCEPTED: '#065F46', Confirmed: '#065F46', IN_PROGRESS: '#1E40AF', COMPLETED: '#065F46', Completed: '#065F46' }[item.status] || '#64748B' }]}>
+                                        {{ PENDING: 'Pending', Pending: 'Pending', BROADCASTED: 'Open', ACCEPTED: 'Accepted', Confirmed: 'Confirmed', IN_PROGRESS: 'In Progress', COMPLETED: 'Completed', Completed: 'Completed' }[item.status] || (item.status || 'Pending')}
+                                    </Text>
+                                </View>
                             </TouchableOpacity>
                         ))
                     ) : (

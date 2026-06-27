@@ -39,5 +39,10 @@ export const partnerBookingService = {
         // The socket emit is still used for real-time delivery to the other party.
         const res = await api.post(`/chat/${bookingId}`, { message });
         return res.data.data;
-    }
+    },
+
+    markCashCollected: async (id: string, bookingType: 'Doctor' | 'Service') => {
+        const path = bookingType === 'Doctor' ? `/appointment/cash/${id}` : `/service/booking/cash/${id}`;
+        return api.patch(path);
+    },
 };

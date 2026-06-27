@@ -2,7 +2,7 @@
   "expo": {
     "name": "A1Care Partner",
     "slug": "a1care-partner",
-    "version": "1.0.3",
+    "version": "2.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "newArchEnabled": true,
@@ -29,7 +29,7 @@
         "backgroundColor": "#EBF5FB"
       },
       "package": "com.a1care.partner",
-      "versionCode": 31,
+      "versionCode": 51,
       "googleServicesFile": "./google-services.json",
       "config": {
         "googleMaps": {

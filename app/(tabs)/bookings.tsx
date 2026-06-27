@@ -16,16 +16,19 @@ const { width } = Dimensions.get("window");
 
 const TABS = ["Pending", "Confirmed", "Completed", "Cancelled"];
 
-const statusColors: Record<string, { bg: string; text: string; icon: string }> = {
-    Pending: { bg: "#FFFBEB", text: "#D97706", icon: "clock-outline" },
-    Broadcasted: { bg: "#F5F3FF", text: "#7C3AED", icon: "broadcast" },
-    ACCEPTED: { bg: "#ECFDF5", text: "#059669", icon: "check-circle-outline" },
-    Confirmed: { bg: "#ECFDF5", text: "#047857", icon: "check-decagram" },
-    Active: { bg: "#ECFDF5", text: "#047857", icon: "radio-tower" },
-    IN_PROGRESS: { bg: "#EFF6FF", text: "#3B82F6", icon: "map-marker-path" },
-    Completed: { bg: "#F0F9FF", text: "#0369A1", icon: "star-circle" },
-    COMPLETED: { bg: "#F0F9FF", text: "#0369A1", icon: "star-circle" },
-    Cancelled: { bg: "#FEF2F2", text: "#B91C1C", icon: "close-circle-outline" },
+const statusColors: Record<string, { bg: string; text: string; icon: string; label: string }> = {
+    Pending: { bg: "#FFFBEB", text: "#D97706", icon: "clock-outline", label: "Pending" },
+    PENDING: { bg: "#FFFBEB", text: "#D97706", icon: "clock-outline", label: "Pending" },
+    Broadcasted: { bg: "#F5F3FF", text: "#7C3AED", icon: "broadcast", label: "Open" },
+    BROADCASTED: { bg: "#F5F3FF", text: "#7C3AED", icon: "broadcast", label: "Open" },
+    ACCEPTED: { bg: "#ECFDF5", text: "#059669", icon: "check-circle-outline", label: "Accepted" },
+    Confirmed: { bg: "#ECFDF5", text: "#047857", icon: "check-decagram", label: "Confirmed" },
+    Active: { bg: "#ECFDF5", text: "#047857", icon: "radio-tower", label: "Active" },
+    IN_PROGRESS: { bg: "#EFF6FF", text: "#3B82F6", icon: "map-marker-path", label: "In Progress" },
+    Completed: { bg: "#F0F9FF", text: "#0369A1", icon: "star-circle", label: "Completed" },
+    COMPLETED: { bg: "#F0F9FF", text: "#0369A1", icon: "star-circle", label: "Completed" },
+    Cancelled: { bg: "#FEF2F2", text: "#B91C1C", icon: "close-circle-outline", label: "Cancelled" },
+    CANCELLED: { bg: "#FEF2F2", text: "#B91C1C", icon: "close-circle-outline", label: "Cancelled" },
 };
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL?.replace('/api', '') || 'https://api.a1carehospital.in';
@@ -62,6 +65,16 @@ export default function BookingsScreen() {
         }
     });
 
+    const { data: activeSub } = useQuery({
+        queryKey: ["myActiveSubscription"],
+        queryFn: async () => {
+            const res = await api.get("/subscription/my-active");
+            return res.data.data;
+        },
+        staleTime: 60000,
+    });
+    const hasActiveSub = !!activeSub;
+
     // Per-booking unread chat counts → green dot on the chat button of cards with unread.
     const { data: unreadByBooking = {} } = useQuery<Record<string, number>>({
         queryKey: ["unread_chats_by_booking"],
@@ -74,7 +87,7 @@ export default function BookingsScreen() {
     });
 
     const updateStatusMutation = useMutation({
-        mutationFn: ({ id, status, bookingType }: { id: string, status: string, bookingType: 'Doctor' | 'Service' }) => 
+        mutationFn: ({ id, status, bookingType }: { id: string, status: string, bookingType: 'Doctor' | 'Service' }) =>
             partnerBookingService.updateStatus(id, status, bookingType),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["bookings"] });
@@ -85,11 +98,25 @@ export default function BookingsScreen() {
         }
     });
 
+    const collectCashMutation = useMutation({
+        mutationFn: ({ id, bookingType }: { id: string; bookingType: 'Doctor' | 'Service' }) => {
+            const path = bookingType === 'Doctor'
+                ? `/appointment/cash/${id}`
+                : `/service/booking/cash/${id}`;
+            return api.patch(path);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["bookings"] });
+            Alert.alert("Cash Collected ✅", "Payment has been marked as received.");
+        },
+        onError: (err: any) => {
+            Alert.alert("Error", err?.response?.data?.message || "Could not mark cash as collected");
+        }
+    });
+
     const acceptServiceMutation = useMutation({
         mutationFn: async (id: string) => {
-            console.log('[Partner] Accepting service', id);
             const res = await partnerBookingService.acceptServiceRequest(id, user?.roleId);
-            console.log('[Partner] Accept success', JSON.stringify(res.data || res, null, 2));
             return res;
         },
         onSuccess: () => {
@@ -99,7 +126,6 @@ export default function BookingsScreen() {
             Alert.alert("Job Claimed! ✅", "Booking moved to your Confirmed tab. Navigate to the patient's location to begin.");
         },
         onError: (err: any) => {
-            console.log('[Partner] Accept failed', err?.response?.data || err.message);
             Alert.alert("Busy!", err?.response?.data?.message || "Someone else just claimed this job.");
         }
     });
@@ -160,7 +186,7 @@ export default function BookingsScreen() {
                         <Ionicons name="arrow-back" size={24} color="#1E293B" />
                     </TouchableOpacity>
                     <View>
-                        <Text style={styles.title}>Service Hub</Text>
+                        <Text style={styles.title}>My Bookings</Text>
                         <Text style={styles.sub}>{bookings.length} assigned requests</Text>
                     </View>
                 </View>
@@ -219,7 +245,7 @@ export default function BookingsScreen() {
                                     </View>
                                     <View style={[styles.statusBadge, { backgroundColor: statusColors[b.status]?.bg || "#F1F5F9" }]}>
                                         <MaterialCommunityIcons name={statusColors[b.status]?.icon as any || "help-circle-outline"} size={14} color={statusColors[b.status]?.text || "#64748B"} style={{marginRight: 4}} />
-                                        <Text style={[styles.statusText, { color: statusColors[b.status]?.text || "#64748B" }]}>{b.status}</Text>
+                                        <Text style={[styles.statusText, { color: statusColors[b.status]?.text || "#64748B" }]}>{statusColors[b.status]?.label || b.status}</Text>
                                     </View>
                                 </View>
 
@@ -249,9 +275,21 @@ export default function BookingsScreen() {
                                 {b.status?.toLowerCase?.() === "broadcasted" && (
                                     <View>
                                         <Text style={{ fontSize: 11, color: '#7C3AED', fontWeight: '600', marginBottom: 6 }}>📢 Open to all partners — first to accept gets it</Text>
+                                        {!hasActiveSub && (
+                                            <Text style={{ fontSize: 11, color: '#EF4444', fontWeight: '600', marginBottom: 4 }}>⚠️ Active subscription required to claim jobs</Text>
+                                        )}
                                         <TouchableOpacity
-                                            style={[styles.mainBtn, { backgroundColor: '#8B5CF6' }]}
-                                            onPress={() => acceptServiceMutation.mutate(b._id)}
+                                            style={[styles.mainBtn, { backgroundColor: hasActiveSub ? '#8B5CF6' : '#94A3B8' }]}
+                                            onPress={() => {
+                                                if (!hasActiveSub) {
+                                                    Alert.alert("Subscription Required", "You need an active subscription to accept jobs.", [
+                                                        { text: "View Plans", onPress: () => router.push("/subscriptions" as any) },
+                                                        { text: "Cancel", style: "cancel" }
+                                                    ]);
+                                                    return;
+                                                }
+                                                acceptServiceMutation.mutate(b._id);
+                                            }}
                                         >
                                             <Text style={styles.mainBtnText}>⚡ Accept & Claim Job</Text>
                                         </TouchableOpacity>
@@ -282,12 +320,37 @@ export default function BookingsScreen() {
                                     </View>
                                 )}
                                 
+                                {/* Collect cash button for OFFLINE payment bookings */}
+                                {(b.status === "Confirmed" || b.status === "ACCEPTED" || b.status === "IN_PROGRESS" || b.status === "COMPLETED") &&
+                                    b.paymentMode === "OFFLINE" && b.paymentStatus !== "COMPLETED" && (
+                                    <TouchableOpacity
+                                        style={[styles.mainBtn, { backgroundColor: '#F59E0B', marginBottom: 8 }]}
+                                        onPress={() => Alert.alert(
+                                            "Confirm Cash Received",
+                                            "Have you collected the cash payment from the patient?",
+                                            [
+                                                { text: "Not Yet", style: "cancel" },
+                                                { text: "Yes, Collected", onPress: () => collectCashMutation.mutate({ id: b._id, bookingType: b.bookingType }) }
+                                            ]
+                                        )}
+                                    >
+                                        <Text style={styles.mainBtnText}>💵 Collect Cash</Text>
+                                    </TouchableOpacity>
+                                )}
+
                                 {(b.status === "Confirmed" || b.status === "ACCEPTED" || b.status === "IN_PROGRESS") && (
                                     <View style={styles.activeActions}>
                                         {isTracking !== b._id ? (
                                             <TouchableOpacity
                                                 style={[styles.mainBtn, { backgroundColor: '#3B82F6' }]}
-                                                onPress={() => startTracking(b._id, b.location?.address)}
+                                                onPress={async () => {
+                                                    if (b.status !== "IN_PROGRESS") {
+                                                        try {
+                                                            await updateStatusMutation.mutateAsync({ id: b._id, status: "IN_PROGRESS", bookingType: b.bookingType });
+                                                        } catch { /* status update failure shouldn't block navigation */ }
+                                                    }
+                                                    startTracking(b._id, b.location?.address);
+                                                }}
                                             >
                                                 <Navigation size={18} color="#FFF" />
                                                 <Text style={styles.mainBtnText}>Navigate</Text>
@@ -344,17 +407,6 @@ export default function BookingsScreen() {
                                             {unreadByBooking[b._id] > 0 && <View style={styles.chatDot} />}
                                         </TouchableOpacity>
 
-                                        {(b.status === "Confirmed" || b.status === "ACCEPTED" || b.status === "IN_PROGRESS") && (
-                                            <TouchableOpacity 
-                                                style={[styles.commBtn, { backgroundColor: '#FFF7ED' }]}
-                                                onPress={() => router.push({
-                                                    pathname: '/video-call' as any,
-                                                    params: { bookingId: b._id, channelName: b._id }
-                                                })}
-                                            >
-                                                <Ionicons name="videocam" size={22} color="#C2410C" />
-                                            </TouchableOpacity>
-                                        )}
                                     </View>
                                 )}
                             </View>

@@ -85,17 +85,25 @@ export default function EarningsScreen() {
                         <Text style={styles.balanceLabel}>Withdrawable Balance</Text>
                         <Text style={styles.balanceAmount}>₹{balance}</Text>
                     </View>
-                    <TouchableOpacity 
-                        style={[styles.withdrawBtn, { opacity: 0.7 }]} 
+                    <TouchableOpacity
+                        style={[styles.withdrawBtn, withdrawMutation.isPending && { opacity: 0.6 }]}
+                        disabled={withdrawMutation.isPending}
                         onPress={() => {
-                            Toast.show({
-                                type: 'info',
-                                text1: 'Coming Soon',
-                                text2: 'This feature will be available in the next update.'
-                            });
+                            if (!balance || balance < 500) {
+                                Alert.alert("Insufficient Balance", "Minimum withdrawal amount is ₹500.");
+                                return;
+                            }
+                            Alert.alert(
+                                "Confirm Withdrawal",
+                                `Request a payout of ₹${balance} to your registered bank account?`,
+                                [
+                                    { text: "Cancel", style: "cancel" },
+                                    { text: "Confirm", onPress: () => withdrawMutation.mutate(balance) }
+                                ]
+                            );
                         }}
                     >
-                        <Text style={styles.withdrawBtnText}>Withdraw All</Text>
+                        <Text style={styles.withdrawBtnText}>{withdrawMutation.isPending ? "Processing..." : "Withdraw All"}</Text>
                     </TouchableOpacity>
                 </View>
 
@@ -123,14 +131,14 @@ export default function EarningsScreen() {
                                 <Text style={styles.payoutDate}>{new Date(p.createdAt).toLocaleDateString()}</Text>
                             </View>
                             <View style={[
-                                styles.statusBadge, 
-                                { backgroundColor: p.status === 'COMPLETED' ? '#ECFDF5' : p.status === 'PENDING' ? '#FFFBEB' : '#FEF2F2' }
+                                styles.statusBadge,
+                                { backgroundColor: p.status === 'COMPLETED' ? '#ECFDF5' : p.status === 'PENDING' ? '#FFFBEB' : p.status === 'APPROVED' ? '#EFF6FF' : '#FEF2F2' }
                             ]}>
                                 <Text style={[
-                                    styles.statusText, 
-                                    { color: p.status === 'COMPLETED' ? '#10B981' : p.status === 'PENDING' ? '#D97706' : '#EF4444' }
+                                    styles.statusText,
+                                    { color: p.status === 'COMPLETED' ? '#10B981' : p.status === 'PENDING' ? '#D97706' : p.status === 'APPROVED' ? '#3B82F6' : '#EF4444' }
                                 ]}>
-                                    {p.status}
+                                    {p.status === 'COMPLETED' ? 'Paid' : p.status === 'PENDING' ? 'Pending' : p.status === 'APPROVED' ? 'Approved' : p.status === 'REJECTED' ? 'Rejected' : p.status}
                                 </Text>
                             </View>
                         </View>
