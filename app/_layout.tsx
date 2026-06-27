@@ -1,5 +1,5 @@
 import "../global.css";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Slot, useRouter, useSegments } from "expo-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
@@ -10,6 +10,9 @@ import { useAuthStore } from "../stores/auth";
 import { useConfigStore } from "../stores/config.store";
 import { ToastProvider } from '../components/CustomToast';
 import { needsKycUpload, roleFromPartner } from "../lib/partnerOnboarding";
+import { connectSocket, disconnectSocket } from "../lib/socket";
+import BookingAssignmentPopup, { AssignmentRequest } from "../components/BookingAssignmentPopup";
+import { api } from "../lib/api";
 
 // Conditional Firebase import 
 let messaging: any;
@@ -29,6 +32,7 @@ function AuthGuard() {
     const segments = useSegments();
     const router = useRouter();
     const [isAppReady, setIsAppReady] = useState(false);
+    const [assignmentRequest, setAssignmentRequest] = useState<AssignmentRequest | null>(null);
 
     useEffect(() => {
         const init = async () => {
@@ -91,6 +95,39 @@ function AuthGuard() {
         }
     }, [token, isAppReady, isLoading, segments, config?.maintenanceMode, user?.isRegistered, user?.status, user?.documents, user?.role]);
 
+    // Socket: connect when logged in, disconnect on logout
+    useEffect(() => {
+        if (token && user?._id) {
+            const socket = connectSocket(token, user._id);
+            socket.on("booking:assignment_request", (data: AssignmentRequest) => {
+                setAssignmentRequest(data);
+            });
+            return () => {
+                socket.off("booking:assignment_request");
+                disconnectSocket();
+            };
+        }
+    }, [token, user?._id]);
+
+    const handleAccept = async (bookingId: string) => {
+        try {
+            await api.post(`/service-bookings/accept/${bookingId}`);
+            setAssignmentRequest(null);
+            Alert.alert("✅ Accepted!", "You have accepted the job. Check My Bookings.");
+        } catch (err: any) {
+            Alert.alert("Error", err?.response?.data?.message || "Failed to accept booking.");
+        }
+    };
+
+    const handleReject = async (bookingId: string) => {
+        setAssignmentRequest(null);
+        try {
+            await api.post(`/service-bookings/reject-assignment/${bookingId}`);
+        } catch (err) {
+            // Silent - backend handles timeout cleanup
+        }
+    };
+
     if (!isAppReady || isLoading) {
         return (
             <View style={{ flex: 1, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center' }}>
@@ -99,7 +136,16 @@ function AuthGuard() {
         );
     }
 
-    return <Slot />;
+    return (
+        <>
+            <Slot />
+            <BookingAssignmentPopup
+                request={assignmentRequest}
+                onAccept={handleAccept}
+                onReject={handleReject}
+            />
+        </>
+    );
 }
 
 export default function RootLayout() {
