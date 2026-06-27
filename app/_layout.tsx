@@ -97,9 +97,12 @@ function AuthGuard() {
 
     // Socket: connect when logged in, disconnect on logout
     useEffect(() => {
+        console.log("[Layout] Socket effect - token:", !!token, "user._id:", user?._id);
         if (token && user?._id) {
+            console.log("[Layout] Connecting socket for partner:", user._id);
             const socket = connectSocket(token, user._id);
             socket.on("booking:assignment_request", (data: AssignmentRequest) => {
+                console.log("[Layout] 🚨 Assignment request received in layout:", data);
                 setAssignmentRequest(data);
             });
             return () => {
