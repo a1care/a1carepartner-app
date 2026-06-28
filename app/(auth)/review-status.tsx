@@ -79,11 +79,11 @@ const ReviewStatusScreen = () => {
 
                 <View style={styles.stepsBox}>
                     <View style={styles.step}>
-                        <View style={[styles.stepDot, styles.stepActive]}>
-                            <Ionicons name="checkmark" size={14} color="#FFF" />
+                        <View style={[styles.stepDot, hasMissingDocs ? { backgroundColor: '#EF4444' } : styles.stepActive]}>
+                            <Ionicons name={hasMissingDocs ? "alert" : "checkmark"} size={14} color="#FFF" />
                         </View>
                         <View style={styles.stepLine} />
-                        <Text style={styles.stepText}>{hasMissingDocs ? "Documents Required" : "Documents Submitted"}</Text>
+                        <Text style={[styles.stepText, hasMissingDocs && { color: '#EF4444' }]}>{hasMissingDocs ? "Documents Required" : "Documents Submitted"}</Text>
                     </View>
 
                     <View style={styles.step}>

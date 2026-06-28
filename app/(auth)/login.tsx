@@ -44,6 +44,13 @@ const LoginScreen = () => {
     const [loading, setLoading] = useState(false);
     const [googleLoading, setGoogleLoading] = useState(false);
     const [verifying, setVerifying] = useState(false);
+    const [resendTimer, setResendTimer] = useState(0);
+
+    React.useEffect(() => {
+        if (resendTimer <= 0) return;
+        const t = setTimeout(() => setResendTimer(s => s - 1), 1000);
+        return () => clearTimeout(t);
+    }, [resendTimer]);
 
     // Initialize Google Sign-in
     React.useEffect(() => {
@@ -176,7 +183,8 @@ const LoginScreen = () => {
         try {
             await api.post("/doctor/auth/send-otp", { mobileNumber: cleaned });
             setOtpSessionId("ACTIVE");
-            Toast.show({ type: 'success', text1: 'OTP Sent' });
+            setResendTimer(30);
+            Toast.show({ type: 'success', text1: 'OTP Sent', text2: 'Enter the 6-digit code sent to your number.' });
         } catch (err: any) {
             Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to send OTP.' });
         } finally {
@@ -249,11 +257,28 @@ const LoginScreen = () => {
                             </LinearGradient>
                         </TouchableOpacity>
                     ) : (
-                        <TouchableOpacity onPress={handleVerifyOtp} disabled={verifying} activeOpacity={0.85}>
-                            <LinearGradient colors={["#27AE60", "#1E8449"]} style={styles.cta}>
-                                {verifying ? <ActivityIndicator color={"#fff"} /> : <Text style={styles.ctaText}>Verify & Login</Text>}
-                            </LinearGradient>
-                        </TouchableOpacity>
+                        <>
+                            <TouchableOpacity onPress={handleVerifyOtp} disabled={verifying} activeOpacity={0.85}>
+                                <LinearGradient colors={["#27AE60", "#1E8449"]} style={styles.cta}>
+                                    {verifying ? <ActivityIndicator color={"#fff"} /> : <Text style={styles.ctaText}>Verify & Login</Text>}
+                                </LinearGradient>
+                            </TouchableOpacity>
+                            {/* H3: Resend OTP + H4: Change Number */}
+                            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 14 }}>
+                                <TouchableOpacity onPress={() => { setOtpSessionId(null); setOtp(""); setMobile(""); }} activeOpacity={0.7}>
+                                    <Text style={{ color: '#64748B', fontSize: 13, fontWeight: '600' }}>← Change Number</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    onPress={resendTimer > 0 ? undefined : handleSendOtp}
+                                    disabled={resendTimer > 0 || loading}
+                                    activeOpacity={resendTimer > 0 ? 1 : 0.7}
+                                >
+                                    <Text style={{ color: resendTimer > 0 ? '#94A3B8' : '#1A7FD4', fontSize: 13, fontWeight: '600' }}>
+                                        {resendTimer > 0 ? `Resend in ${resendTimer}s` : 'Resend OTP'}
+                                    </Text>
+                                </TouchableOpacity>
+                            </View>
+                        </>
                     )}
 
                     {/* Google Sign-in hidden for now */}

@@ -196,7 +196,11 @@ export default function RegisterScreen() {
             fd.append('document', { uri: file.uri, name: file.name, type: file.mimeType } as any);
             const res = await api.post("/doctor/auth/upload-document", fd, { headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${authToken}` } });
             setDocuments(prev => [...prev.filter(d => d.type !== docType), { type: docType, url: res.data.data.url, uploading: false }]);
-        } catch (err) { setDocuments(prev => prev.filter(d => d.type !== docType)); }
+        } catch (err: any) {
+            setDocuments(prev => prev.filter(d => d.type !== docType));
+            const msg = err?.response?.data?.message || err?.message || 'Upload failed. Please try again.';
+            Toast.show({ type: 'error', text1: 'Upload Failed', text2: msg });
+        }
     };
 
     const handleRegister = async () => {
