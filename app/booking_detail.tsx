@@ -91,7 +91,7 @@ export default function BookingDetailScreen() {
     }
 
     const sc = statusColors[booking.status] || { bg: "#F1F5F9", text: "#64748B" };
-    const isActive = ["Confirmed", "ACCEPTED", "IN_PROGRESS"].includes(booking.status);
+    const isActive = ["Confirmed", "ACCEPTED", "IN_PROGRESS", "Active", "PARTNER_ASSIGNED"].includes(booking.status);
     const isPending = booking.status === "Pending";
 
     return (

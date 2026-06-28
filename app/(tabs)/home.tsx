@@ -22,6 +22,7 @@ export default function HomeScreen() {
     const router = useRouter();
     const { user, setUser, token } = useAuthStore() as any;
     const [isOnline, setIsOnline] = useState(user?.status === "Active");
+    const [isStatusLoading, setIsStatusLoading] = useState(!user); // loading until user hydrates
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
     const [locationAddress, setLocationAddress] = useState(cachedLocationText || "...");
     const role = user?.role ?? "doctor";
@@ -194,6 +195,7 @@ export default function HomeScreen() {
     useEffect(() => {
         if (staffData) {
             setIsOnline(staffData.status === "Active");
+            setIsStatusLoading(false);
             setUser({ ...user, ...staffData }); // Sync to global store to unlock tabs/layout
         }
     }, [staffData]);
@@ -350,13 +352,16 @@ export default function HomeScreen() {
                                 {isOnline ? "You are visible to patients" : "You are hidden from searches"}
                             </Text>
                         </View>
-                        <Switch
-                            value={isOnline}
-                            onValueChange={handleToggleOnline}
-                            trackColor={{ false: "#CBD5E1", true: "#2D935C" }}
-                            thumbColor={"#FFF"}
-                            disabled={isUpdatingStatus}
-                        />
+                        {isStatusLoading
+                            ? <ActivityIndicator size="small" color="#2D935C" />
+                            : <Switch
+                                value={isOnline}
+                                onValueChange={handleToggleOnline}
+                                trackColor={{ false: "#CBD5E1", true: "#2D935C" }}
+                                thumbColor={"#FFF"}
+                                disabled={isUpdatingStatus}
+                            />
+                        }
                     </View>
                 </View>
 
@@ -428,7 +433,7 @@ export default function HomeScreen() {
                                 <View style={styles.requestIconBox}><Ionicons name="calendar" size={20} color="#2D935C" /></View>
                                 <View style={styles.requestMainInfo}>
                                     <Text style={styles.requestName}>{item.patientName || "New Patient"}</Text>
-                                    <Text style={styles.requestTime}>{new Date(item.appointmentDate).toDateString()} • {item.appointmentTime}</Text>
+                                    <Text style={styles.requestTime}>{item.date ? new Date(item.date).toLocaleDateString() : item.scheduledTime ? new Date(item.scheduledTime).toLocaleDateString() : "Date TBD"} • {item.timeSlot || item.appointmentTime || item.startingTime || "Time TBD"}</Text>
                                 </View>
                                 <View style={[styles.statusBadge, { backgroundColor: { PENDING: '#FEF3C7', Pending: '#FEF3C7', BROADCASTED: '#F3E8FF', ACCEPTED: '#D1FAE5', Confirmed: '#D1FAE5', IN_PROGRESS: '#DBEAFE', COMPLETED: '#D1FAE5', Completed: '#D1FAE5' }[item.status] || '#F1F5F9' }]}>
                                     <Text style={[styles.statusBadgeText, { color: { PENDING: '#92400E', Pending: '#92400E', BROADCASTED: '#6B21A8', ACCEPTED: '#065F46', Confirmed: '#065F46', IN_PROGRESS: '#1E40AF', COMPLETED: '#065F46', Completed: '#065F46' }[item.status] || '#64748B' }]}>

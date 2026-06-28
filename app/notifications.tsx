@@ -115,17 +115,22 @@ export default function PartnerNotificationsScreen() {
 
     const handlePress = (n: any) => {
         if (!n.isRead) markOneMutation.mutate(n._id);
-        
+        // Try deeplink from data.screen first
+        if (n.data?.screen) { router.push(n.data.screen as any); return; }
         switch (n.refType) {
             case 'DoctorAppointment':
             case 'ServiceRequest':
-                router.push('/(tabs)/bookings');
+                if (n.refId) {
+                    router.push({ pathname: '/booking_detail', params: { bookingId: n.refId, bookingType: n.refType === 'DoctorAppointment' ? 'Doctor' : 'Service' } } as any);
+                } else {
+                    router.push('/(tabs)/bookings' as any);
+                }
                 break;
             case 'Wallet':
-                router.push('/wallet_history');
+                router.push('/wallet_history' as any);
                 break;
             case 'Ticket':
-                router.push('/raise_ticket');
+                router.push('/raise_ticket' as any);
                 break;
         }
     };

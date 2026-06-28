@@ -338,7 +338,7 @@ export default function BookingsScreen() {
                                     </TouchableOpacity>
                                 )}
 
-                                {(b.status === "Confirmed" || b.status === "ACCEPTED" || b.status === "IN_PROGRESS") && (
+                                {(b.status === "Confirmed" || b.status === "ACCEPTED" || b.status === "IN_PROGRESS" || b.status === "Active" || b.status === "PARTNER_ASSIGNED") && (
                                     <View style={styles.activeActions}>
                                         {isTracking !== b._id ? (
                                             <TouchableOpacity

@@ -112,6 +112,23 @@ function AuthGuard() {
         }
     }, [token, user?._id]);
 
+    // FCM: handle push notification taps from background/killed state
+    useEffect(() => {
+        if (!messaging) return;
+        // App opened from background via notification tap
+        const unsubscribeBg = messaging().onNotificationOpenedApp((remoteMessage: any) => {
+            const bookingId = remoteMessage?.data?.bookingId;
+            if (bookingId) router.push({ pathname: '/booking_detail', params: { bookingId } } as any);
+        });
+        // App opened from killed state via notification tap
+        messaging().getInitialNotification().then((remoteMessage: any) => {
+            if (remoteMessage?.data?.bookingId) {
+                router.push({ pathname: '/booking_detail', params: { bookingId: remoteMessage.data.bookingId } } as any);
+            }
+        });
+        return () => unsubscribeBg();
+    }, []);
+
     const handleAccept = async (bookingId: string) => {
         try {
             await api.post(`/service-bookings/accept/${bookingId}`);
