@@ -2,12 +2,7 @@ import axios from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Platform } from "react-native";
 
-const BASE_URL = process.env.EXPO_PUBLIC_API_URL ??
-    (Platform.OS === 'web'
-        // Local fallback for web when EXPO_PUBLIC_API_URL is not provided.
-        ? "http://localhost:3000/api"
-        // Use your machine LAN IP here when testing on physical mobile devices.
-        : "http://localhost:3000/api");
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL ?? "https://api.a1carehospital.in/api";
 
 export const api = axios.create({
     baseURL: BASE_URL,
