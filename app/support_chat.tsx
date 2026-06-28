@@ -82,7 +82,8 @@ export default function SupportChatScreen() {
                     showsVerticalScrollIndicator={false}
                 >
                     {messages.map((msg: any) => {
-                        const isMe = msg.senderType === 'Staff';
+                        // Match by senderId first (most reliable), then by known partner senderTypes
+                        const isMe = msg.senderId === user?._id || ['Staff', 'Doctor', 'Partner', 'Provider'].includes(msg.senderType);
                         return (
                             <View key={msg._id} style={[styles.bubble, isMe ? styles.myBubble : styles.theirBubble]}>
                                 <Text style={[styles.msgText, isMe ? styles.myText : styles.theirText]}>{msg.message}</Text>

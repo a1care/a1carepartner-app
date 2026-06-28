@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from 'react-nati
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
+import { Alert } from 'react-native';
 
 export default function ToolsScreen() {
     const router = useRouter();
@@ -28,7 +28,7 @@ export default function ToolsScreen() {
                         <Text style={styles.toolTitle}>Bluetooth Printer</Text>
                         <Text style={styles.toolDesc}>Connect receipt printer for billing</Text>
                     </View>
-                    <TouchableOpacity style={styles.btn}>
+                    <TouchableOpacity style={styles.btn} onPress={() => Alert.alert('Coming Soon', 'Bluetooth printer integration is coming in a future update.')}>
                         <Text style={styles.btnText}>Connect</Text>
                     </TouchableOpacity>
                 </View>
@@ -41,7 +41,7 @@ export default function ToolsScreen() {
                         <Text style={styles.toolTitle}>Vitals Monitor</Text>
                         <Text style={styles.toolDesc}>Sync health monitoring devices</Text>
                     </View>
-                    <TouchableOpacity style={styles.btn}>
+                    <TouchableOpacity style={styles.btn} onPress={() => Alert.alert('Coming Soon', 'Vitals monitor integration is coming in a future update.')}>
                         <Text style={styles.btnText}>Pair</Text>
                     </TouchableOpacity>
                 </View>

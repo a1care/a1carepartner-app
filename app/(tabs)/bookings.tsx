@@ -16,6 +16,16 @@ const { width } = Dimensions.get("window");
 
 const TABS = ["Pending", "Confirmed", "Completed", "Cancelled"];
 
+// Map API statuses to tab names so no booking goes missing
+const STATUS_TO_TAB: Record<string, string> = {
+    Pending: "Pending", PENDING: "Pending",
+    PARTNER_ASSIGNED: "Pending", BROADCASTED: "Pending", Broadcasted: "Pending",
+    ACCEPTED: "Confirmed", Confirmed: "Confirmed",
+    IN_PROGRESS: "Confirmed", Active: "Confirmed",
+    COMPLETED: "Completed", Completed: "Completed",
+    CANCELLED: "Cancelled", Cancelled: "Cancelled",
+};
+
 const statusColors: Record<string, { bg: string; text: string; icon: string; label: string }> = {
     Pending: { bg: "#FFFBEB", text: "#D97706", icon: "clock-outline", label: "Pending" },
     PENDING: { bg: "#FFFBEB", text: "#D97706", icon: "clock-outline", label: "Pending" },
@@ -55,15 +65,19 @@ export default function BookingsScreen() {
         };
     }, [status, token]);
 
-    const { data: bookings = [], isLoading, refetch, isRefetching } = useQuery({
-        queryKey: ["bookings", activeTab],
+    const { data: allBookings = [], isLoading, refetch, isRefetching } = useQuery({
+        queryKey: ["bookings"],
         queryFn: async () => {
-            const res = await api.get("/appointment/provider/feed", {
-                params: { status: activeTab }
-            });
+            const res = await api.get("/appointment/provider/feed");
             return res.data.data || [];
-        }
+        },
+        refetchInterval: 30000,
     });
+
+    // Client-side tab filtering using the STATUS_TO_TAB map so nothing is ever silently dropped
+    const bookings = allBookings.filter((b: any) =>
+        (STATUS_TO_TAB[b.status] ?? "Pending") === activeTab
+    );
 
     const { data: activeSub } = useQuery({
         queryKey: ["myActiveSubscription"],

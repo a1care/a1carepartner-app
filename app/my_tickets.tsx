@@ -76,7 +76,7 @@ export default function MyTicketsScreen() {
                 ) : filtered.length === 0 ? (
                     <View style={styles.empty}>
                         <MaterialCommunityIcons name="ticket-outline" size={48} color="#CBD5E1" />
-                        <Text style={styles.emptyText}>No {filter.toLowerCase()} tickets</Text>
+                        <Text style={styles.emptyText}>{filter === "All" ? "No tickets yet" : `No ${filter.toLowerCase()} tickets`}</Text>
                         <TouchableOpacity style={styles.emptyCta} onPress={() => router.push("/raise_ticket")}>
                             <Text style={styles.emptyCtaText}>Raise a ticket</Text>
                         </TouchableOpacity>

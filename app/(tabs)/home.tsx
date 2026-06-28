@@ -112,7 +112,7 @@ export default function HomeScreen() {
             await AsyncStorage.setItem("last_location", JSON.stringify(coords));
             await api.post("/appointment/location/update", {
                 ...coords,
-                isOnline: true
+                isOnline: isOnline // use actual toggle state, not hardcoded true
             });
             console.log("[Location] Synced:", coords.latitude, coords.longitude);
             return coords;
@@ -205,8 +205,9 @@ export default function HomeScreen() {
     const { data: bookings = [], isLoading: loadingStats, refetch: refetchStats, isRefetching } = useQuery({
         queryKey: ["homeStats", period],
         queryFn: async () => {
+            // Fetch all statuses so earnings/completed stats are accurate
             const res = await api.get("/appointment/provider/feed", {
-                params: { status: "Pending", period }
+                params: { period }
             });
             return res.data.data || [];
         }

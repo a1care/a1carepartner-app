@@ -159,7 +159,7 @@ function AuthGuard() {
     if (!isAppReady || isLoading) {
         return (
             <View style={{ flex: 1, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center' }}>
-                <ActivityIndicator size="large" color="#1A7FD4" />
+                <ActivityIndicator size="large" color="#2D935C" />
             </View>
         );
     }

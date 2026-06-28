@@ -179,16 +179,16 @@ const styles = StyleSheet.create({
     nextButton: {
         paddingVertical: 14,
         paddingHorizontal: 28,
-        backgroundColor: "#1A7FD4", // Blue background
+        backgroundColor: "#2D935C", // Blue background
         borderRadius: 30,
-        shadowColor: "#1A7FD4", // Blue glowing color
+        shadowColor: "#2D935C", // Blue glowing color
         shadowOffset: { width: 0, height: 0 },
         shadowOpacity: 0.8,
         // shadowRadius is animated inline
         elevation: 8,
     },
     skipText: {
-        color: "#1A7FD4",
+        color: "#2D935C",
         fontWeight: "800",
         fontSize: 16,
     },

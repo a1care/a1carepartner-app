@@ -208,8 +208,10 @@ export default function ProfileScreen() {
                                         )}
                                     </View>
                                     <Text style={styles.docName} numberOfLines={1}>{doc.type}</Text>
-                                    <View style={styles.statusChip}>
-                                        <Text style={styles.docStatus}>Verified</Text>
+                                    <View style={[styles.statusChip, { backgroundColor: doc.status === 'Rejected' ? '#FEE2E2' : doc.status === 'Pending' ? '#FEF3C7' : '#D1FAE5' }]}>
+                                        <Text style={[styles.docStatus, { color: doc.status === 'Rejected' ? '#DC2626' : doc.status === 'Pending' ? '#D97706' : '#059669' }]}>
+                                            {doc.status || 'Verified'}
+                                        </Text>
                                     </View>
                                 </TouchableOpacity>
                             ))}

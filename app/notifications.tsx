@@ -130,7 +130,7 @@ export default function PartnerNotificationsScreen() {
                 router.push('/wallet_history' as any);
                 break;
             case 'Ticket':
-                router.push('/raise_ticket' as any);
+                router.push('/my_tickets' as any); // navigate to ticket list, not new ticket form
                 break;
         }
     };
