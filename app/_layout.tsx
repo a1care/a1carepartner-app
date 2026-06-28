@@ -84,9 +84,17 @@ function AuthGuard() {
                 } as any);
             } else if (user?.status === "Pending") {
                 router.replace("/(auth)/review-status" as any);
+            } else if (user?.status === "Rejected") {
+                router.replace("/(auth)/review-status" as any); // C4: block Rejected partners from home
             } else {
                 router.replace("/(tabs)/home" as any);
             }
+            return;
+        }
+
+        // C4+C6: block Pending/Rejected partners even if they reach tabs
+        if (token && user && (user.status === "Pending" || user.status === "Rejected") && !inAuth && !isPolicyPage) {
+            router.replace("/(auth)/review-status" as any);
             return;
         }
 

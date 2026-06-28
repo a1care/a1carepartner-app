@@ -21,13 +21,15 @@ api.interceptors.response.use(
     (res) => res,
     async (error) => {
         const requestUrl = error?.config?.url || "";
-        const isAuthDetailsRequest =
-            typeof requestUrl === "string" &&
-            (requestUrl.includes("/doctor/auth/details") || requestUrl.includes("/doctor/auth/verify-otp"));
+        const isLoginRequest = typeof requestUrl === "string" && requestUrl.includes("/verify-otp");
 
-        if (error?.response?.status === 401 && isAuthDetailsRequest) {
+        // C5: Any 401 on a non-login endpoint means the token is expired — clear session
+        if (error?.response?.status === 401 && !isLoginRequest) {
             await AsyncStorage.removeItem("partner_token");
             await AsyncStorage.removeItem("partner_user");
+            // Dynamic import to avoid circular dependency
+            const { useAuthStore } = await import('../stores/auth');
+            useAuthStore.getState().logout();
         }
         return Promise.reject(error);
     }
