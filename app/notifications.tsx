@@ -113,10 +113,18 @@ export default function PartnerNotificationsScreen() {
         },
     });
 
+    const ALLOWED_SCREENS = [
+        '/(tabs)/bookings', '/booking_detail', '/wallet_history',
+        '/my_tickets', '/subscriptions', '/(tabs)/profile',
+    ];
+
     const handlePress = (n: any) => {
         if (!n.isRead) markOneMutation.mutate(n._id);
-        // Try deeplink from data.screen first
-        if (n.data?.screen) { router.push(n.data.screen as any); return; }
+        // Validate deeplink screen against allowlist before navigating
+        if (n.data?.screen && ALLOWED_SCREENS.some(s => (n.data.screen as string).startsWith(s))) {
+            router.push(n.data.screen as any);
+            return;
+        }
         switch (n.refType) {
             case 'DoctorAppointment':
             case 'ServiceRequest':

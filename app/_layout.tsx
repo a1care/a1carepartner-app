@@ -21,7 +21,7 @@ try {
         messaging = require('@react-native-firebase/messaging').default;
     }
 } catch (e) {
-    console.log("Firebase Messaging not available");
+    if (__DEV__) console.log("Firebase Messaging not available");
 }
 
 const queryClient = new QueryClient();
@@ -46,11 +46,11 @@ function AuthGuard() {
                     Promise.all([loadFromStorage(), fetchConfig()]),
                     timeout
                 ]).catch(err => {
-                    console.log("[Layout] Init timeout or error, proceeding anyway. Error: ", err);
+                    if (__DEV__) console.log("[Layout] Init timeout or error:", err);
                 });
 
             } catch (err) {
-                console.log("[Layout] Init error", err);
+                if (__DEV__) console.log("[Layout] Init error", err);
             } finally {
                 setIsAppReady(true);
             }
@@ -105,9 +105,9 @@ function AuthGuard() {
 
     // Socket: connect when logged in, disconnect on logout
     useEffect(() => {
-        console.log("[Layout] Socket effect - token:", !!token, "user._id:", user?._id);
+        if (__DEV__) console.log("[Layout] Socket effect");
         if (token && user?._id) {
-            console.log("[Layout] Connecting socket for partner:", user._id);
+            
             const socket = connectSocket(token, user._id);
             socket.on("booking:assignment_request", (data: AssignmentRequest) => {
                 console.log("[Layout] 🚨 Assignment request received in layout:", data);

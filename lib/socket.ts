@@ -18,26 +18,22 @@ export function connectSocket(token: string, partnerId: string) {
     });
 
     socket.on("connect", () => {
-        console.log("[Socket] ✅ Connected:", socket?.id);
-        console.log("[Socket] Joining room:", `partner:${partnerId}`);
+        if (__DEV__) console.log("[Socket] Connected:", socket?.id);
         socket?.emit("join_room", `partner:${partnerId}`);
-        socket?.emit("join_room", "admin");
-        console.log("[Socket] Room join emitted");
-        // On (re)connect, request any missed PARTNER_ASSIGNED booking
+        // Do NOT join "admin" room — partners should not receive admin events
         socket?.emit("check_pending_assignment", { partnerId });
     });
 
     socket.on("disconnect", (reason) => {
-        console.log("[Socket] ❌ Disconnected:", reason);
+        if (__DEV__) console.log("[Socket] Disconnected:", reason);
     });
 
     socket.on("connect_error", (err) => {
-        console.log("[Socket] ❌ Connection Error:", err.message);
-        console.log("[Socket] URL was:", SOCKET_URL);
+        if (__DEV__) console.log("[Socket] Connection Error:", err.message);
     });
 
-    socket.on("booking:assignment_request", (data: any) => {
-        console.log("[Socket] 🚨 RAW assignment_request received:", JSON.stringify(data));
+    socket.on("booking:assignment_request", (_data: any) => {
+        // Assignment handling is done in _layout.tsx listener
     });
 
     return socket;

@@ -34,7 +34,8 @@ export default function TabsLayout() {
 
     // Lock tabs only when we definitely know the user is unapproved.
     // While loading (or when flags are absent), keep tabs usable.
-    const isExplicitlyUnapproved = user?.isVerified === false || user?.isRegistered === false;
+    const isExplicitlyUnapproved = user?.isVerified === false || user?.isRegistered === false
+        || user?.status === 'Pending' || user?.status === 'Rejected';
     const tabsLocked = isLoading ? false : isExplicitlyUnapproved;
 
     // PA1: unread notifications badge
