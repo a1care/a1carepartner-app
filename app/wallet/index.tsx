@@ -87,6 +87,16 @@ const WalletScreen = () => {
         }
     });
 
+    // Fetch Credits / Additions (top-ups and booking payments received)
+    const { data: additions, isLoading: loadingAdditions } = useQuery({
+        queryKey: ['staff_additions'],
+        enabled: activeTab === 'Added',
+        queryFn: async () => {
+            const res = await api.get(`/${rolePath}/earnings/additions`);
+            return res.data.data ?? [];
+        }
+    });
+
     const withdrawMutation = useMutation({
         mutationFn: async (withdrawAmount: number) => {
             return await api.post(`/${rolePath}/earnings/withdraw`, { amount: withdrawAmount });
@@ -144,6 +154,7 @@ const WalletScreen = () => {
             Alert.alert("Payment Successful", `₹${topUpAmount} added to your wallet.`);
             queryClient.invalidateQueries({ queryKey: ['staff_earnings'] });
             queryClient.invalidateQueries({ queryKey: ['staff_payouts'] });
+            queryClient.invalidateQueries({ queryKey: ['staff_additions'] });
             setShowTopUp(false);
             setAmount("");
             setActiveTab("Added");
@@ -268,10 +279,22 @@ const WalletScreen = () => {
                                 <Text style={styles.emptyText}>No withdrawal history</Text>
                             </View>
                         )
+                    ) : loadingAdditions ? (
+                        <ActivityIndicator color="#2D935C" style={{ marginTop: 32 }} />
+                    ) : additions?.length > 0 ? (
+                        additions.map((a: any, i: number) => (
+                            <Animated.View key={a._id || i} style={styles.historyItem}>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.itemLabel}>{a.description || a.type || 'Credit'}</Text>
+                                    <Text style={styles.itemSub}>{new Date(a.createdAt || a.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</Text>
+                                </View>
+                                <Text style={[styles.itemAmt, { color: '#22C55E' }]}>+ ₹{Number(a.amount || 0).toLocaleString('en-IN')}</Text>
+                            </Animated.View>
+                        ))
                     ) : (
                         <View style={styles.emptyState}>
                             <Ionicons name="wallet-outline" size={48} color="#CBD5E1" />
-                            <Text style={styles.emptyText}>No wallet additions found</Text>
+                            <Text style={styles.emptyText}>No wallet additions yet</Text>
                         </View>
                     )}
                 </View>

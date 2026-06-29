@@ -5,6 +5,7 @@ import { useAuthStore } from "../../stores/auth";
 import { api } from "../../lib/api";
 import { useCallback, useRef } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useQuery } from "@tanstack/react-query";
 
 export default function TabsLayout() {
     const { user, isLoading, setUser } = useAuthStore() as any;
@@ -35,6 +36,17 @@ export default function TabsLayout() {
     // While loading (or when flags are absent), keep tabs usable.
     const isExplicitlyUnapproved = user?.isVerified === false || user?.isRegistered === false;
     const tabsLocked = isLoading ? false : isExplicitlyUnapproved;
+
+    // PA1: unread notifications badge
+    const { data: unreadCount = 0 } = useQuery({
+        queryKey: ["partner_notifications_unread"],
+        queryFn: async () => {
+            const res = await api.get("/notifications?unread=true&limit=1");
+            return res.data?.data?.unreadCount || 0;
+        },
+        enabled: !!user?._id,
+        refetchInterval: 30000,
+    });
 
     return (
         <Tabs
@@ -86,6 +98,7 @@ export default function TabsLayout() {
                 name="notifications"
                 options={{
                     title: "Notifications",
+                    tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
                     tabBarIcon: ({ focused, color }) => (
                         <Ionicons name={focused ? "notifications" : "notifications-outline"} size={26} color={color} />
                     ),

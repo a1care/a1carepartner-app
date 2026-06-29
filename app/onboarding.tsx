@@ -132,6 +132,18 @@ export default function OnboardingScreen() {
                 </TouchableOpacity>
             )}
 
+            {/* PA3: Pagination dots */}
+            <View style={{ flexDirection: 'row', justifyContent: 'center', marginBottom: 16, gap: 8 }}>
+                {slides.map((_, i) => (
+                    <View key={i} style={{
+                        width: i === currentIndex ? 20 : 8,
+                        height: 8,
+                        borderRadius: 4,
+                        backgroundColor: i === currentIndex ? '#2D935C' : '#CBD5E1',
+                    }} />
+                ))}
+            </View>
+
             {/* Next / Get Started button at the bottom right with Glow */}
             <TouchableOpacity onPress={handleNext} activeOpacity={0.85} style={styles.nextButtonWrapper}>
                 <Animated.View style={[

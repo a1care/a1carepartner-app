@@ -245,10 +245,14 @@ export default function ProfileEditScreen() {
     const updateProfileMutation = useMutation({
         mutationFn: async (updatedData: any) => api.put("/doctor/auth/register", updatedData),
         onSuccess: (res) => {
-            setUser({ ...user, ...res.data.data });
+            if (res.data?.data) setUser({ ...user, ...res.data.data });
             queryClient.invalidateQueries({ queryKey: ["profileDetails"] });
             Toast.show({ type: "success", text1: "Profile Updated" });
             router.back();
+        },
+        onError: (err: any) => {
+            const msg = err?.response?.data?.message || "Failed to update profile. Please try again.";
+            Toast.show({ type: "error", text1: "Update Failed", text2: msg });
         },
     });
 

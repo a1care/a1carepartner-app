@@ -173,10 +173,10 @@ export default function SubscriptionsScreen() {
                                                 <ActivityIndicator size="small" color="#FFF" />
                                             ) : (
                                                 <Text style={[styles.buyButtonText, plan.tier === "Premium" && { color: "#000" }]}>
-                                                    {mySub?.planId?._id === plan._id
-                                                        ? "Current Plan"
-                                                        : mySub?.status === "Pending" && mySub?.planId?._id === plan._id
-                                                            ? "Pending Admin Approval"
+                                                    {mySub?.planId?._id === plan._id && mySub?.status === "Pending"
+                                                        ? "Pending Approval"
+                                                        : mySub?.planId?._id === plan._id
+                                                            ? "Current Plan"
                                                             : plan.tier === "Basic"
                                                                 ? "Activate Free"
                                                                 : "Request Activation"}

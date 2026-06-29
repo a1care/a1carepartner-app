@@ -52,9 +52,10 @@ export default function VideoCallScreen() {
     if (!tokenData?.token) {
         return (
             <View style={styles.centered}>
-                <Text>Token Error. Check environment.</Text>
-                <TouchableOpacity onPress={() => router.back()} style={styles.retryButton}>
-                    <Text style={{ color: '#2D935C' }}>Go Back</Text>
+                <Text style={{ fontSize: 16, fontWeight: '600', color: '#1E293B', marginBottom: 8 }}>Unable to start the call</Text>
+                <Text style={{ color: '#64748B', textAlign: 'center', marginBottom: 16 }}>Please check your internet connection and try again.</Text>
+                <TouchableOpacity onPress={() => router.back()} style={[styles.retryButton, { backgroundColor: '#2D935C', paddingHorizontal: 24, paddingVertical: 12, borderRadius: 12 }]}>
+                    <Text style={{ color: '#fff', fontWeight: '700' }}>Go Back</Text>
                 </TouchableOpacity>
             </View>
         );

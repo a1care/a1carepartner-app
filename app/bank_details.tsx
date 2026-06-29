@@ -62,8 +62,12 @@ export default function BankDetailsScreen() {
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["bankStaffDetails"] });
-            Toast.show({ type: "success", text1: "Details Saved!" });
+            Toast.show({ type: "success", text1: "Bank Details Saved" });
             router.back();
+        },
+        onError: (err: any) => {
+            const msg = err?.response?.data?.message || "Failed to save bank details. Please try again.";
+            Toast.show({ type: "error", text1: "Save Failed", text2: msg });
         },
     });
 
@@ -120,6 +124,11 @@ export default function BankDetailsScreen() {
                             <View style={styles.inputGroup}>
                                 <Text style={styles.label}>IFSC Code</Text>
                                 <TextInput style={styles.input} value={form.ifscCode} onChangeText={(v) => setForm({ ...form, ifscCode: v.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 11) })} placeholder="e.g. SBIN0001234" autoCapitalize="characters" />
+                            </View>
+
+                            <View style={styles.inputGroup}>
+                                <Text style={styles.label}>UPI ID (optional)</Text>
+                                <TextInput style={styles.input} value={form.upiId} onChangeText={(v) => setForm({ ...form, upiId: v.trim() })} placeholder="e.g. yourname@upi" keyboardType="email-address" autoCapitalize="none" />
                             </View>
 
                             <TouchableOpacity style={[styles.saveBtn, updateMutation.isPending && { opacity: 0.6 }]} onPress={handleSave} disabled={updateMutation.isPending}>
