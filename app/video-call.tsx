@@ -9,7 +9,7 @@ try {
     console.warn("AgoraUIKit not available (Expo Go?)");
 }
 
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../lib/api';
 
@@ -20,6 +20,7 @@ import { api } from '../lib/api';
 export default function VideoCallScreen() {
     const { channelName, bookingId } = useLocalSearchParams();
     const router = useRouter();
+    const insets = useSafeAreaInsets();
     const [tokenData, setTokenData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
 
@@ -77,7 +78,7 @@ export default function VideoCallScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
+            <View style={[styles.header, { top: insets.top + 8, marginHorizontal: 15 }]}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.exitButton}>
                     <Ionicons name="arrow-back" size={24} color="#FFF" />
                 </TouchableOpacity>
@@ -106,14 +107,14 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: '#000' },
     centered: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8FAFC' },
     loadingText: { marginTop: 15, fontSize: 16, color: '#2D935C', fontWeight: '600' },
-    header: { 
-        height: 60, 
-        flexDirection: 'row', 
-        alignItems: 'center', 
+    header: {
+        height: 60,
+        flexDirection: 'row',
+        alignItems: 'center',
         paddingHorizontal: 15,
         backgroundColor: 'rgba(0,0,0,0.6)',
         position: 'absolute',
-        top: 40,
+        top: 0, // uses SafeAreaView insets via paddingTop
         left: 0,
         right: 0,
         zIndex: 10,
