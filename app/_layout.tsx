@@ -12,9 +12,10 @@ import { ToastProvider } from '../components/CustomToast';
 import { needsKycUpload, roleFromPartner } from "../lib/partnerOnboarding";
 import { connectSocket, disconnectSocket } from "../lib/socket";
 import BookingAssignmentPopup, { AssignmentRequest } from "../components/BookingAssignmentPopup";
+import { partnerBookingService } from "../lib/bookings";
 import { api } from "../lib/api";
 
-// Conditional Firebase import 
+// Conditional Firebase import
 let messaging: any;
 try {
     if (NativeModules.RNFBAppModule) {
@@ -22,6 +23,25 @@ try {
     }
 } catch (e) {
     if (__DEV__) console.log("Firebase Messaging not available");
+}
+
+// Register FCM token with server after login
+async function registerFcmToken() {
+    if (!messaging) return;
+    try {
+        const authStatus = await messaging().requestPermission();
+        const enabled =
+            authStatus === 1 || // AUTHORIZED
+            authStatus === 2;   // PROVISIONAL
+        if (!enabled) return;
+        const token = await messaging().getToken();
+        if (token) {
+            await api.put('/notifications/fcm-token/partner', { fcmToken: token });
+            if (__DEV__) console.log('[FCM] Token registered:', token.slice(0, 20) + '...');
+        }
+    } catch (e) {
+        if (__DEV__) console.log('[FCM] Token registration failed:', e);
+    }
 }
 
 const queryClient = new QueryClient();
@@ -120,9 +140,26 @@ function AuthGuard() {
         }
     }, [token, user?._id]);
 
+    // FCM: register token when user logs in
+    useEffect(() => {
+        if (token && user?._id) {
+            registerFcmToken();
+            // Refresh token if it rotates
+            const unsub = messaging?.().onTokenRefresh?.((newToken: string) => {
+                api.put('/notifications/fcm-token/partner', { fcmToken: newToken }).catch(() => {});
+            });
+            return () => unsub?.();
+        }
+    }, [token, user?._id]);
+
     // FCM: handle push notification taps from background/killed state
     useEffect(() => {
         if (!messaging) return;
+        // Foreground messages — show an Alert so partner sees them while app is open
+        const unsubscribeFg = messaging().onMessage((remoteMessage: any) => {
+            const { title, body } = remoteMessage?.notification || {};
+            if (title || body) Alert.alert(title || 'Notification', body || '');
+        });
         // App opened from background via notification tap
         const unsubscribeBg = messaging().onNotificationOpenedApp((remoteMessage: any) => {
             const bookingId = remoteMessage?.data?.bookingId;
@@ -134,13 +171,15 @@ function AuthGuard() {
                 router.push({ pathname: '/booking_detail', params: { bookingId: remoteMessage.data.bookingId } } as any);
             }
         });
-        return () => unsubscribeBg();
+        return () => { unsubscribeFg(); unsubscribeBg(); };
     }, []);
 
     const handleAccept = async (bookingId: string) => {
         try {
-            await api.post(`/service-bookings/accept/${bookingId}`);
+            await partnerBookingService.acceptServiceRequest(bookingId);
             setAssignmentRequest(null);
+            queryClient.invalidateQueries({ queryKey: ["bookings"] });
+            queryClient.invalidateQueries({ queryKey: ["homeStats"] });
             Alert.alert("✅ Accepted!", "You have accepted the job. Check My Bookings.");
         } catch (err: any) {
             Alert.alert("Error", err?.response?.data?.message || "Failed to accept booking.");
@@ -150,7 +189,7 @@ function AuthGuard() {
     const handleReject = async (bookingId: string) => {
         setAssignmentRequest(null);
         try {
-            await api.post(`/service-bookings/reject-assignment/${bookingId}`);
+            await partnerBookingService.rejectServiceRequest(bookingId);
         } catch (err) {
             // Silent - backend handles timeout cleanup
         }
