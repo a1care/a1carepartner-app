@@ -16,8 +16,10 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
 import { Ionicons, Feather } from '@expo/vector-icons';
+import { useAuthStore } from '../stores/auth';
 
 export default function SupportChatScreen() {
+    const { user } = useAuthStore();
     const { ticketId, subject } = useLocalSearchParams<{ ticketId: string, subject: string }>();
     const router = useRouter();
     const queryClient = useQueryClient();

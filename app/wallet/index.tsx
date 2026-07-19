@@ -211,6 +211,7 @@ const WalletScreen = () => {
                             <View>
                                 <Text style={styles.label}>Settlement Balance</Text>
                                 <Text style={styles.amount}>₹{(summary?.balance || 0).toLocaleString()}</Text>
+                                {user?.name ? <Text style={styles.cardName}>{user.name}</Text> : null}
                             </View>
                             <FontAwesome5 name="wallet" size={32} color="rgba(255,255,255,0.15)" />
                         </View>
@@ -283,9 +284,12 @@ const WalletScreen = () => {
                         <ActivityIndicator color="#2D935C" style={{ marginTop: 32 }} />
                     ) : additions?.length > 0 ? (
                         additions.map((a: any, i: number) => (
-                            <Animated.View key={a._id || i} style={styles.historyItem}>
+                            <Animated.View entering={FadeInRight} key={a._id || i} style={styles.historyItem}>
+                                <View style={[styles.itemIcon, { backgroundColor: '#F0FDF4' }]}>
+                                    <MaterialCommunityIcons name="plus-circle-outline" size={20} color="#22C55E" />
+                                </View>
                                 <View style={{ flex: 1 }}>
-                                    <Text style={styles.itemLabel}>{a.description || a.type || 'Credit'}</Text>
+                                    <Text style={styles.itemTitle}>{a.description || a.type || 'Credit'}</Text>
                                     <Text style={styles.itemSub}>{new Date(a.createdAt || a.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</Text>
                                 </View>
                                 <Text style={[styles.itemAmt, { color: '#22C55E' }]}>+ ₹{Number(a.amount || 0).toLocaleString('en-IN')}</Text>
@@ -378,14 +382,15 @@ const styles = StyleSheet.create({
     balanceCard: { borderRadius: 32, overflow: 'hidden', elevation: 15, shadowColor: '#1e293b', shadowOpacity: 0.2, shadowRadius: 20 },
     cardGradient: { padding: 32 },
     cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 32 },
+    cardName: { fontSize: 12, color: 'rgba(255,255,255,0.6)', fontWeight: '600', marginTop: 6 },
     label: { color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 },
     amount: { color: '#FFF', fontSize: 42, fontWeight: '900', marginTop: 8 },
     cardFooter: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     cardBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12 },
     cardBtnText: { color: '#FFF', fontSize: 15, fontWeight: '800' },
     cardDivider: { width: 1, height: 24, backgroundColor: 'rgba(255,255,255,0.1)' },
-    statsGrid: { flexDirection: 'row', gap: 16, marginTop: 24 },
-    statBox: { flex: 1, backgroundColor: '#F8FAFC', padding: 20, borderRadius: 24, borderWidth: 1, borderColor: '#F1F5F9' },
+    statsGrid: { flexDirection: 'row', marginTop: 24 },
+    statBox: { flex: 1, backgroundColor: '#F8FAFC', padding: 20, borderRadius: 24, borderWidth: 1, borderColor: '#F1F5F9', marginHorizontal: 4 },
     statLabel: { fontSize: 11, color: '#64748B', fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
     statVal: { fontSize: 20, fontWeight: '900', color: '#1E293B', marginTop: 6 },
     tabContainer: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 16, padding: 6, marginVertical: 32 },
@@ -393,8 +398,8 @@ const styles = StyleSheet.create({
     activeTab: { backgroundColor: '#FFF', elevation: 3, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 8 },
     tabText: { fontSize: 14, fontWeight: '800', color: '#64748B' },
     activeTabText: { color: '#1E293B' },
-    historyList: { gap: 12 },
-    historyItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 16, borderRadius: 20, borderWidth: 1, borderColor: '#F1F5F9' },
+    historyList: { marginTop: 4 },
+    historyItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 16, borderRadius: 20, borderWidth: 1, borderColor: '#F1F5F9', marginBottom: 12 },
     itemIcon: { width: 48, height: 48, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
     itemTitle: { fontSize: 16, fontWeight: '800', color: '#1E293B' },
     itemSub: { fontSize: 12, color: '#94A3B8', marginTop: 2, fontWeight: '600' },

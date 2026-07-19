@@ -12,6 +12,7 @@ import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import { api } from "../lib/api";
 import { useAuthStore } from "../stores/auth";
+import { getRolePath } from "../lib/roleApi";
 import { Toast } from "../components/CustomToast";
 
 const SPECIALIZATIONS = [
@@ -31,6 +32,34 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 const { width, height } = Dimensions.get("window");
+
+const API_ORIGIN = (process.env.EXPO_PUBLIC_API_URL ?? 'https://api.a1carehospital.in/api').replace(/\/api\/?$/, '');
+const resolvePhoto = (url?: string | null): string => {
+    if (!url) return '';
+    if (url.startsWith('http')) return url;
+    return `${API_ORIGIN}${url.startsWith('/') ? url : `/${url}`}`;
+};
+
+const getDetailIcon = (label: string) => {
+    switch (label) {
+        case "Name": return <Ionicons name="person-circle-outline" size={18} color="#2D935C" />;
+        case "Mobile": return <Ionicons name="call-outline" size={18} color="#2D935C" />;
+        case "Email": return <Ionicons name="mail-outline" size={18} color="#2D935C" />;
+        case "Gender": return <Ionicons name="male-female-outline" size={18} color="#2D935C" />;
+        case "City": return <Ionicons name="map-outline" size={18} color="#2D935C" />;
+        case "Role": return <Ionicons name="shield-checkmark-outline" size={18} color="#2D935C" />;
+        case "Specialization": return <Ionicons name="medical-outline" size={18} color="#2D935C" />;
+        case "Experience (yrs)": return <Ionicons name="ribbon-outline" size={18} color="#2D935C" />;
+        case "Consultation Fee": return <Ionicons name="wallet-outline" size={18} color="#2D935C" />;
+        case "Home Fee": return <Ionicons name="home-outline" size={18} color="#2D935C" />;
+        case "Online Fee": return <Ionicons name="videocam-outline" size={18} color="#2D935C" />;
+        case "Service Radius": return <Ionicons name="navigate-outline" size={18} color="#2D935C" />;
+        case "Working Hours": return <Ionicons name="time-outline" size={18} color="#2D935C" />;
+        case "Rating": return <Ionicons name="star-outline" size={18} color="#2D935C" />;
+        case "Jobs Completed": return <Ionicons name="checkmark-done-circle-outline" size={18} color="#2D935C" />;
+        default: return <Ionicons name="information-circle-outline" size={18} color="#2D935C" />;
+    }
+};
 
 export default function ProfileEditScreen() {
     const router = useRouter();
@@ -64,6 +93,8 @@ export default function ProfileEditScreen() {
     const [showFullImage, setShowFullImage] = useState(false);
     const [debugToken, setDebugToken] = useState("");
     const [showDebug, setShowDebug] = useState(false);
+    const [activeTab, setActiveTab] = useState<"personal" | "professional">("personal");
+    const [isEditing, setIsEditing] = useState(false);
 
     useEffect(() => {
         const backAction = () => {
@@ -81,7 +112,7 @@ export default function ProfileEditScreen() {
     const { data: staffData, isLoading } = useQuery({
         queryKey: ["profileDetails"],
         queryFn: async () => {
-            const res = await api.get("/doctor/auth/details");
+            const res = await api.get(`/${getRolePath()}/auth/details`);
             return res.data.data;
         }
     });
@@ -105,7 +136,7 @@ export default function ProfileEditScreen() {
                 address: staffData.address || "",
                 location: staffData.location || { type: "Point", coordinates: [0, 0] },
             });
-            setPreviewImage(initialImage);
+            setPreviewImage(resolvePhoto(initialImage) || "");
         }
     }, [staffData]);
 
@@ -167,28 +198,63 @@ export default function ProfileEditScreen() {
 
     const handleUseMyLocation = async () => {
         try {
-            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync(); // Just a dummy check for now
-            const { status: locStatus } = await (await import('expo-location')).requestForegroundPermissionsAsync();
-            if (locStatus !== 'granted') return Toast.show({ type: "error", text1: "Location Permission Denied" });
+            const Location = await import('expo-location');
+            const { status: locStatus } = await Location.requestForegroundPermissionsAsync();
+            if (locStatus !== 'granted') {
+                return Toast.show({ type: "error", text1: "Location Permission Denied" });
+            }
             
-            const location = await (await import('expo-location')).getCurrentPositionAsync({});
-            const reverse = await (await import('expo-location')).reverseGeocodeAsync({
-                latitude: location.coords.latitude,
-                longitude: location.coords.longitude
+            let location = await Location.getLastKnownPositionAsync({
+                maxAge: 5 * 60 * 1000
             });
+            if (!location) {
+                location = await Location.getCurrentPositionAsync({
+                    accuracy: Location.Accuracy.Balanced
+                });
+            }
             
-            if (reverse[0]) {
-                const city = reverse[0].city || reverse[0].district || reverse[0].subregion;
-                const state = reverse[0].region;
+            if (!location) {
+                throw new Error("Could not retrieve coordinates");
+            }
+            
+            let city = "";
+            let state = "";
+
+            if (Platform.OS === 'web') {
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${location.coords.latitude}&lon=${location.coords.longitude}`, {
+                    headers: { 'Accept': 'application/json' }
+                });
+                const data = await res.json();
+                if (data && data.address) {
+                    const addr = data.address;
+                    city = addr.city || addr.town || addr.village || addr.county || "Unknown City";
+                    state = addr.state || "";
+                }
+            } else {
+                const reverse = await Location.reverseGeocodeAsync({
+                    latitude: location.coords.latitude,
+                    longitude: location.coords.longitude
+                });
+                if (reverse[0]) {
+                    city = reverse[0].city || reverse[0].district || reverse[0].subregion || "";
+                    state = reverse[0].region || "";
+                }
+            }
+            
+            if (city) {
+                const formatted = state ? `${city}, ${state}` : city;
                 setFormData(prev => ({ 
                     ...prev, 
-                    city: `${city}, ${state}`,
+                    city: formatted,
                     location: { type: "Point", coordinates: [location.coords.longitude, location.coords.latitude] }
                 }));
                 Toast.show({ type: "success", text1: "Location Detected" });
+            } else {
+                Toast.show({ type: "error", text1: "Could not resolve address" });
             }
-        } catch (err) {
-            Toast.show({ type: "error", text1: "Could not detect location" });
+        } catch (err: any) {
+            console.log("[Detect Location] Error:", err);
+            Toast.show({ type: "error", text1: "Could not detect location", text2: err?.message || "" });
         }
     };
 
@@ -223,12 +289,12 @@ export default function ProfileEditScreen() {
             const fd = new FormData();
             const fileName = uri.split('/').pop() || 'profile.jpg';
             fd.append('document', { uri, name: fileName, type: 'image/jpeg' } as any);
-            const res = await api.post(`/doctor/auth/upload-document`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+            const res = await api.post(`/${getRolePath()}/auth/upload-document`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
             if (res.data.success && res.data.data?.url) {
                 const imageUrl = res.data.data.url;
                 setFormData(prev => ({ ...prev, profileImage: imageUrl }));
-                setPreviewImage(imageUrl);
-                const updateRes = await api.put("/doctor/auth/register", { profileImage: imageUrl });
+                setPreviewImage(resolvePhoto(imageUrl) || imageUrl);
+                const updateRes = await api.put(`/${getRolePath()}/auth/register`, { profileImage: imageUrl });
                 if (updateRes.data?.data) {
                     await setUser({ ...user, ...updateRes.data.data });
                     queryClient.invalidateQueries({ queryKey: ["profileDetails"] });
@@ -243,12 +309,12 @@ export default function ProfileEditScreen() {
     };
 
     const updateProfileMutation = useMutation({
-        mutationFn: async (updatedData: any) => api.put("/doctor/auth/register", updatedData),
+        mutationFn: async (updatedData: any) => api.put(`/${getRolePath()}/auth/register`, updatedData),
         onSuccess: (res) => {
             if (res.data?.data) setUser({ ...user, ...res.data.data });
             queryClient.invalidateQueries({ queryKey: ["profileDetails"] });
             Toast.show({ type: "success", text1: "Profile Updated" });
-            router.back();
+            router.navigate("/(tabs)/profile" as any);
         },
         onError: (err: any) => {
             const msg = err?.response?.data?.message || "Failed to update profile. Please try again.";
@@ -304,134 +370,260 @@ export default function ProfileEditScreen() {
                     <View style={{ width: 40 }} />
                 </View>
 
-                <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-                    <View style={styles.avatarSection}>
-                        <View style={styles.avatarContainer}>
-                            <TouchableOpacity onPress={() => setShowFullImage(true)}>
-                                {previewImage ? (
-                                    <Image source={{ uri: previewImage }} style={styles.avatar} />
-                                ) : (
-                                    <View style={[styles.avatar, styles.avatarPlaceholder]}>
-                                        <Ionicons name="person" size={40} color="#94A3B8" />
-                                    </View>
-                                )}
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.editBadge} onPress={handlePickImage}>
-                                {isUploading ? (
-                                    <ActivityIndicator size="small" color="#FFF" />
-                                ) : (
-                                    <Ionicons name="camera" size={18} color="#FFF" />
-                                )}
-                            </TouchableOpacity>
-                        </View>
-                        <Text style={styles.avatarLabel}>{isUploading ? "Uploading..." : "Tap to change photo"}</Text>
-                    </View>
-
-                    {/* Registration Details Grid */}
-                    <Text style={styles.sectionTitle}>Profile Details</Text>
-                    <View style={styles.detailsGrid}>
-                        {detailsList.map((item, idx) => (
-                            <View key={idx} style={styles.detailCard}>
-                                <Text style={styles.detailLabel}>{item.label}</Text>
-                                <Text style={styles.detailValue}>{String(item.value)}</Text>
-                            </View>
-                        ))}
-                    </View>
-
-                    <Text style={styles.sectionTitle}>Edit Professional Info</Text>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Full Name <Text style={styles.asterisk}>*</Text></Text>
-                        <TextInput style={[styles.input, fieldErrors.name && styles.inputError]} value={formData.name} onChangeText={(v) => { setFormData({ ...formData, name: v }); setFieldErrors(prev => ({ ...prev, name: "" })); }} placeholder="Enter your name" />
-                        {!!fieldErrors.name && <Text style={styles.errorText}>{fieldErrors.name}</Text>}
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-                            <Text style={[styles.label, { marginBottom: 0 }]}>City (Service Location) <Text style={styles.asterisk}>*</Text></Text>
-                            <TouchableOpacity onPress={handleUseMyLocation} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                <Ionicons name="location" size={16} color="#2D935C" />
-                                <Text style={{ color: '#2D935C', fontWeight: '700', fontSize: 13 }}>Detect</Text>
-                            </TouchableOpacity>
-                        </View>
-                        <TextInput style={[styles.input, fieldErrors.city && styles.inputError]} value={formData.city} onChangeText={(v) => { setFormData({ ...formData, city: v }); setFieldErrors(prev => ({ ...prev, city: "" })); }} placeholder="e.g. Mumbai, Maharashtra" />
-                        {!!fieldErrors.city && <Text style={styles.errorText}>{fieldErrors.city}</Text>}
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Detailed Address</Text>
-                        <TextInput style={[styles.input, styles.textArea]} value={formData.address} onChangeText={(v) => setFormData({ ...formData, address: v })} placeholder="Enter your full clinic address or area details..." multiline />
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Professional Bio (About)</Text>
-                        <TextInput style={[styles.input, styles.textArea]} value={formData.about} onChangeText={(v) => setFormData({ ...formData, about: v })} placeholder="Tell patients about your expertise..." multiline />
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Gender <Text style={styles.asterisk}>*</Text></Text>
-                        <TouchableOpacity style={[styles.dropdownToggle, fieldErrors.gender && styles.inputError]} onPress={() => setShowGenderDropdown(true)}>
-                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                                <MaterialCommunityIcons name={formData.gender === "Male" ? "gender-male" : formData.gender === "Female" ? "gender-female" : "gender-non-binary"} size={22} color="#2D935C" />
-                                <Text style={styles.dropdownValue}>{formData.gender || "Select Gender"}</Text>
-                            </View>
-                            <Ionicons name="chevron-down" size={20} color="#94A3B8" />
-                        </TouchableOpacity>
-                        {!!fieldErrors.gender && <Text style={styles.errorText}>{fieldErrors.gender}</Text>}
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Specializations <Text style={styles.asterisk}>*</Text></Text>
-                        <View style={styles.specChipsContainer}>
-                            {formData.specialization.map(s => (
-                                <TouchableOpacity key={s} style={styles.specChip} onPress={() => toggleSpecialization(s)}>
-                                    <Text style={styles.specChipText}>{s}</Text>
-                                    <Ionicons name="close-circle" size={16} color="#FFF" />
-                                </TouchableOpacity>
-                            ))}
-                            <TouchableOpacity onPress={() => setShowSpecDropdown(true)} style={styles.addSpecBtn}><Ionicons name="add-circle" size={22} color="#2D935C" /><Text style={styles.addSpecText}>Add Specialization</Text></TouchableOpacity>
-                        </View>
-                        {!!fieldErrors.specialization && <Text style={styles.errorText}>{fieldErrors.specialization}</Text>}
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Working Hours <Text style={styles.asterisk}>*</Text></Text>
-                        <TextInput style={[styles.input, fieldErrors.workingHours && styles.inputError]} value={formData.workingHours} onChangeText={(v) => { setFormData({ ...formData, workingHours: v }); setFieldErrors(prev => ({ ...prev, workingHours: "" })); }} placeholder="e.g. 09:00 - 18:00" />
-                        {!!fieldErrors.workingHours && <Text style={styles.errorText}>{fieldErrors.workingHours}</Text>}
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Years of Experience <Text style={styles.asterisk}>*</Text></Text>
-                        <TextInput style={[styles.input, fieldErrors.experience && styles.inputError]} value={formData.experience} onChangeText={(v) => { setFormData({ ...formData, experience: v.replace(/\D/g, "") }); setFieldErrors(prev => ({ ...prev, experience: "" })); }} placeholder="e.g. 5" keyboardType="number-pad" />
-                        {!!fieldErrors.experience && <Text style={styles.errorText}>{fieldErrors.experience}</Text>}
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Clinic Consultation Fee (₹) <Text style={styles.asterisk}>*</Text></Text>
-                        <TextInput style={styles.input} value={formData.consultationFee} onChangeText={(v) => setFormData({ ...formData, consultationFee: v.replace(/\D/g, "") })} placeholder="e.g. 500" keyboardType="number-pad" />
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Home Consultation Fee (₹) <Text style={styles.asterisk}>*</Text></Text>
-                        <TextInput style={[styles.input, fieldErrors.homeConsultationFee && styles.inputError]} value={formData.homeConsultationFee} onChangeText={(v) => { setFormData({ ...formData, homeConsultationFee: v.replace(/\D/g, "") }); setFieldErrors(prev => ({ ...prev, homeConsultationFee: "" })); }} placeholder="e.g. 1000" keyboardType="number-pad" />
-                        {!!fieldErrors.homeConsultationFee && <Text style={styles.errorText}>{fieldErrors.homeConsultationFee}</Text>}
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Online Consultation Fee (₹) <Text style={styles.asterisk}>*</Text></Text>
-                        <TextInput style={[styles.input, fieldErrors.onlineConsultationFee && styles.inputError]} value={formData.onlineConsultationFee} onChangeText={(v) => { setFormData({ ...formData, onlineConsultationFee: v.replace(/\D/g, "") }); setFieldErrors(prev => ({ ...prev, onlineConsultationFee: "" })); }} placeholder="e.g. 400" keyboardType="number-pad" />
-                        {!!fieldErrors.onlineConsultationFee && <Text style={styles.errorText}>{fieldErrors.onlineConsultationFee}</Text>}
-                    </View>
-
-                    <View style={styles.inputGroup}>
-                        <Text style={styles.label}>Service Radius (in km) <Text style={styles.asterisk}>*</Text></Text>
-                        <TextInput style={[styles.input, fieldErrors.serviceRadius && styles.inputError]} value={formData.serviceRadius} onChangeText={(v) => { setFormData({ ...formData, serviceRadius: v.replace(/\D/g, "") }); setFieldErrors(prev => ({ ...prev, serviceRadius: "" })); }} placeholder="e.g. 15" keyboardType="number-pad" />
-                        {!!fieldErrors.serviceRadius && <Text style={styles.errorText}>{fieldErrors.serviceRadius}</Text>}
-                    </View>
-
-                    <TouchableOpacity style={[styles.saveBtn, updateProfileMutation.isPending && styles.saveBtnDisabled]} onPress={handleSave} disabled={updateProfileMutation.isPending}>
-                        {updateProfileMutation.isPending ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveBtnText}>Save Changes</Text>}
+                <View style={styles.tabContainer}>
+                    <TouchableOpacity
+                        style={[styles.tabButton, activeTab === "personal" && styles.tabButtonActive]}
+                        onPress={() => setActiveTab("personal")}
+                    >
+                        <Text style={[styles.tabText, activeTab === "personal" && styles.tabTextActive]}>Personal Details</Text>
                     </TouchableOpacity>
+                    <TouchableOpacity
+                        style={[styles.tabButton, activeTab === "professional" && styles.tabButtonActive]}
+                        onPress={() => setActiveTab("professional")}
+                    >
+                        <Text style={[styles.tabText, activeTab === "professional" && styles.tabTextActive]}>Professional Details</Text>
+                    </TouchableOpacity>
+                </View>
+
+                <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+                    {activeTab === "personal" ? (
+                        <View>
+                            <View style={styles.avatarSection}>
+                                <View style={styles.avatarContainer}>
+                                    <TouchableOpacity onPress={() => setShowFullImage(true)}>
+                                        {previewImage ? (
+                                            <Image source={{ uri: previewImage }} style={styles.avatar} />
+                                        ) : (
+                                            <View style={[styles.avatar, styles.avatarPlaceholder]}>
+                                                <Ionicons name="person" size={40} color="#94A3B8" />
+                                            </View>
+                                        )}
+                                    </TouchableOpacity>
+                                    {isEditing && (
+                                        <TouchableOpacity style={styles.editBadge} onPress={handlePickImage}>
+                                            {isUploading ? (
+                                                <ActivityIndicator size="small" color="#FFF" />
+                                            ) : (
+                                                <Ionicons name="camera" size={18} color="#FFF" />
+                                            )}
+                                        </TouchableOpacity>
+                                    )}
+                                </View>
+                                {isEditing && <Text style={styles.avatarLabel}>{isUploading ? "Uploading..." : "Tap to change photo"}</Text>}
+                            </View>
+
+                            {/* Registration Details Grid */}
+                            <Text style={styles.sectionTitle}>Overview</Text>
+                            <View style={styles.detailsGrid}>
+                                {detailsList.filter(item => ["Name", "Mobile", "Email", "Gender", "City"].includes(item.label)).map((item, idx) => (
+                                    <View key={idx} style={styles.detailCard}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                                            {getDetailIcon(item.label)}
+                                            <Text style={styles.detailLabel}>{item.label}</Text>
+                                        </View>
+                                        <Text style={styles.detailValue} numberOfLines={1}>{String(item.value)}</Text>
+                                    </View>
+                                ))}
+                            </View>
+
+                            {!isEditing && (
+                                <TouchableOpacity style={styles.editBtn} onPress={() => setIsEditing(true)}>
+                                    <Ionicons name="create-outline" size={20} color="#FFF" style={{ marginRight: 8 }} />
+                                    <Text style={styles.editBtnText}>Edit Profile</Text>
+                                </TouchableOpacity>
+                            )}
+
+                            {isEditing && (
+                                <View>
+                                    <Text style={styles.sectionTitle}>Edit Personal Info</Text>
+
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.label}>Full Name <Text style={styles.asterisk}>*</Text></Text>
+                                        <View style={[styles.inputWrapper, fieldErrors.name && styles.inputWrapperError]}>
+                                            <Ionicons name="person-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                                            <TextInput style={styles.input} value={formData.name} onChangeText={(v) => { setFormData({ ...formData, name: v }); setFieldErrors(prev => ({ ...prev, name: "" })); }} placeholder="Enter your name" />
+                                        </View>
+                                        {!!fieldErrors.name && <Text style={styles.errorText}>{fieldErrors.name}</Text>}
+                                    </View>
+
+                                    <View style={styles.inputGroup}>
+                                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                                            <Text style={[styles.label, { marginBottom: 0 }]}>City (Service Location) <Text style={styles.asterisk}>*</Text></Text>
+                                            <TouchableOpacity onPress={handleUseMyLocation} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                                <Ionicons name="location" size={16} color="#2D935C" />
+                                                <Text style={{ color: '#2D935C', fontWeight: '700', fontSize: 13 }}>Detect</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                        <View style={[styles.inputWrapper, fieldErrors.city && styles.inputWrapperError]}>
+                                            <Ionicons name="map-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                                            <TextInput style={styles.input} value={formData.city} onChangeText={(v) => { setFormData({ ...formData, city: v }); setFieldErrors(prev => ({ ...prev, city: "" })); }} placeholder="e.g. Mumbai, Maharashtra" />
+                                        </View>
+                                        {!!fieldErrors.city && <Text style={styles.errorText}>{fieldErrors.city}</Text>}
+                                    </View>
+
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.label}>Detailed Address</Text>
+                                        <View style={styles.inputWrapperLarge}>
+                                            <Ionicons name="home-outline" size={20} color="#64748B" style={styles.inputIconLarge} />
+                                            <TextInput style={[styles.input, styles.textArea]} value={formData.address} onChangeText={(v) => setFormData({ ...formData, address: v })} placeholder="Enter your full clinic address or area details..." multiline />
+                                        </View>
+                                    </View>
+
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.label}>Professional Bio (About)</Text>
+                                        <View style={styles.inputWrapperLarge}>
+                                            <Ionicons name="document-text-outline" size={20} color="#64748B" style={styles.inputIconLarge} />
+                                            <TextInput style={[styles.input, styles.textArea]} value={formData.about} onChangeText={(v) => setFormData({ ...formData, about: v })} placeholder="Tell patients about your expertise..." multiline />
+                                        </View>
+                                    </View>
+
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.label}>Gender <Text style={styles.asterisk}>*</Text></Text>
+                                        <TouchableOpacity style={[styles.dropdownToggle, fieldErrors.gender && styles.inputError]} onPress={() => setShowGenderDropdown(true)}>
+                                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                                                <MaterialCommunityIcons name={formData.gender === "Male" ? "gender-male" : formData.gender === "Female" ? "gender-female" : "gender-non-binary"} size={22} color="#2D935C" />
+                                                <Text style={styles.dropdownValue}>{formData.gender || "Select Gender"}</Text>
+                                            </View>
+                                            <Ionicons name="chevron-down" size={20} color="#94A3B8" />
+                                        </TouchableOpacity>
+                                        {!!fieldErrors.gender && <Text style={styles.errorText}>{fieldErrors.gender}</Text>}
+                                    </View>
+                                </View>
+                            )}
+                        </View>
+                    ) : (
+                        <View>
+                            {/* Registration Details Grid */}
+                            <Text style={styles.sectionTitle}>Overview</Text>
+                            <View style={styles.detailsGrid}>
+                                {detailsList.filter(item => !["Name", "Mobile", "Email", "Gender", "City"].includes(item.label)).map((item, idx) => (
+                                    <View key={idx} style={styles.detailCard}>
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                                            {getDetailIcon(item.label)}
+                                            <Text style={styles.detailLabel}>{item.label}</Text>
+                                        </View>
+                                        <Text style={styles.detailValue} numberOfLines={1}>{String(item.value)}</Text>
+                                    </View>
+                                ))}
+                            </View>
+
+                            {!isEditing && (
+                                <TouchableOpacity style={styles.editBtn} onPress={() => setIsEditing(true)}>
+                                    <Ionicons name="create-outline" size={20} color="#FFF" style={{ marginRight: 8 }} />
+                                    <Text style={styles.editBtnText}>Edit Profile</Text>
+                                </TouchableOpacity>
+                            )}
+
+                            {isEditing && (
+                                <View>
+                                    <Text style={styles.sectionTitle}>Edit Professional Info</Text>
+
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.label}>Specializations <Text style={styles.asterisk}>*</Text></Text>
+                                        <View style={styles.specChipsContainer}>
+                                            {formData.specialization.map(s => (
+                                                <TouchableOpacity key={s} style={styles.specChip} onPress={() => toggleSpecialization(s)}>
+                                                    <Text style={styles.specChipText}>{s}</Text>
+                                                    <Ionicons name="close-circle" size={16} color="#FFF" />
+                                                </TouchableOpacity>
+                                            ))}
+                                            <TouchableOpacity onPress={() => setShowSpecDropdown(true)} style={styles.addSpecBtn}><Ionicons name="add-circle" size={22} color="#2D935C" /><Text style={styles.addSpecText}>Add Specialization</Text></TouchableOpacity>
+                                        </View>
+                                        {!!fieldErrors.specialization && <Text style={styles.errorText}>{fieldErrors.specialization}</Text>}
+                                    </View>
+
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.label}>Working Hours <Text style={styles.asterisk}>*</Text></Text>
+                                        <View style={[styles.inputWrapper, fieldErrors.workingHours && styles.inputWrapperError]}>
+                                            <Ionicons name="time-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                                            <TextInput style={styles.input} value={formData.workingHours} onChangeText={(v) => { setFormData({ ...formData, workingHours: v }); setFieldErrors(prev => ({ ...prev, workingHours: "" })); }} placeholder="e.g. 09:00 - 18:00" />
+                                        </View>
+                                        {!!fieldErrors.workingHours && <Text style={styles.errorText}>{fieldErrors.workingHours}</Text>}
+                                    </View>
+
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.label}>Years of Experience <Text style={styles.asterisk}>*</Text></Text>
+                                        <View style={[styles.inputWrapper, fieldErrors.experience && styles.inputWrapperError]}>
+                                            <Ionicons name="ribbon-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                                            <TextInput style={styles.input} value={formData.experience} onChangeText={(v) => { setFormData({ ...formData, experience: v.replace(/\D/g, "") }); setFieldErrors(prev => ({ ...prev, experience: "" })); }} placeholder="e.g. 5" keyboardType="number-pad" />
+                                        </View>
+                                        {!!fieldErrors.experience && <Text style={styles.errorText}>{fieldErrors.experience}</Text>}
+                                    </View>
+
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.label}>Clinic Consultation Fee (₹) <Text style={styles.asterisk}>*</Text></Text>
+                                        <View style={styles.inputWrapper}>
+                                            <Ionicons name="cash-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                                            <TextInput style={styles.input} value={formData.consultationFee} onChangeText={(v) => setFormData({ ...formData, consultationFee: v.replace(/\D/g, "") })} placeholder="e.g. 500" keyboardType="number-pad" />
+                                        </View>
+                                    </View>
+
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.label}>Home Consultation Fee (₹) <Text style={styles.asterisk}>*</Text></Text>
+                                        <View style={[styles.inputWrapper, fieldErrors.homeConsultationFee && styles.inputWrapperError]}>
+                                            <Ionicons name="home-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                                            <TextInput style={styles.input} value={formData.homeConsultationFee} onChangeText={(v) => { setFormData({ ...formData, homeConsultationFee: v.replace(/\D/g, "") }); setFieldErrors(prev => ({ ...prev, homeConsultationFee: "" })); }} placeholder="e.g. 1000" keyboardType="number-pad" />
+                                        </View>
+                                        {!!fieldErrors.homeConsultationFee && <Text style={styles.errorText}>{fieldErrors.homeConsultationFee}</Text>}
+                                    </View>
+
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.label}>Online Consultation Fee (₹) <Text style={styles.asterisk}>*</Text></Text>
+                                        <View style={[styles.inputWrapper, fieldErrors.onlineConsultationFee && styles.inputWrapperError]}>
+                                            <Ionicons name="videocam-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                                            <TextInput style={styles.input} value={formData.onlineConsultationFee} onChangeText={(v) => { setFormData({ ...formData, onlineConsultationFee: v.replace(/\D/g, "") }); setFieldErrors(prev => ({ ...prev, onlineConsultationFee: "" })); }} placeholder="e.g. 400" keyboardType="number-pad" />
+                                        </View>
+                                        {!!fieldErrors.onlineConsultationFee && <Text style={styles.errorText}>{fieldErrors.onlineConsultationFee}</Text>}
+                                    </View>
+
+                                    <View style={styles.inputGroup}>
+                                        <Text style={styles.label}>Service Radius (in km) <Text style={styles.asterisk}>*</Text></Text>
+                                        <View style={[styles.inputWrapper, fieldErrors.serviceRadius && styles.inputWrapperError]}>
+                                            <Ionicons name="navigate-outline" size={20} color="#64748B" style={styles.inputIcon} />
+                                            <TextInput style={styles.input} value={formData.serviceRadius} onChangeText={(v) => { setFormData({ ...formData, serviceRadius: v.replace(/\D/g, "") }); setFieldErrors(prev => ({ ...prev, serviceRadius: "" })); }} placeholder="e.g. 15" keyboardType="number-pad" />
+                                        </View>
+                                        {!!fieldErrors.serviceRadius && <Text style={styles.errorText}>{fieldErrors.serviceRadius}</Text>}
+                                    </View>
+                                </View>
+                            )}
+                        </View>
+                    )}
+
+                    {isEditing && (
+                        <View style={{ gap: 12, marginTop: 20 }}>
+                            <TouchableOpacity style={[styles.saveBtn, updateProfileMutation.isPending && styles.saveBtnDisabled]} onPress={handleSave} disabled={updateProfileMutation.isPending}>
+                                {updateProfileMutation.isPending ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveBtnText}>Save Changes</Text>}
+                            </TouchableOpacity>
+
+                            <TouchableOpacity 
+                                style={styles.cancelBtnOutline} 
+                                onPress={() => {
+                                    setIsEditing(false);
+                                    if (staffData) {
+                                        setFormData({
+                                            name: staffData.name || "",
+                                            about: staffData.about || "",
+                                            gender: staffData.gender || "Male",
+                                            specialization: Array.isArray(staffData.specialization) ? staffData.specialization : [],
+                                            workingHours: staffData.workingHours || "",
+                                            serviceRadius: staffData.serviceRadius?.toString() || "",
+                                            experience: staffData.experience?.toString() || (staffData.startExperience ? Math.max(0, new Date().getFullYear() - new Date(staffData.startExperience).getFullYear()).toString() : ""),
+                                            consultationFee: staffData.consultationFee?.toString() || "",
+                                            homeConsultationFee: staffData.homeConsultationFee?.toString() || "",
+                                            onlineConsultationFee: staffData.onlineConsultationFee?.toString() || "",
+                                            profileImage: staffData.profileImage || "",
+                                            city: staffData.city || "",
+                                            address: staffData.address || "",
+                                            location: staffData.location || { type: "Point", coordinates: [0, 0] },
+                                        });
+                                        setPreviewImage(resolvePhoto(staffData.profileImage) || "");
+                                    }
+                                }}
+                            >
+                                <Text style={styles.cancelBtnOutlineText}>Cancel</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
 
                     {/* Debug Info */}
                     <TouchableOpacity 
@@ -548,10 +740,54 @@ const styles = StyleSheet.create({
     inputGroup: { marginBottom: 24 },
     label: { fontSize: 14, fontWeight: "800", color: "#1E293B", marginBottom: 10, marginLeft: 2 },
     asterisk: { color: "#EF4444" },
-    input: { backgroundColor: "#FFF", borderRadius: 16, paddingHorizontal: 18, paddingVertical: 16, fontSize: 15, color: "#1E293B", borderWidth: 1.5, borderColor: "#F1F5F9", elevation: 1 },
+    inputWrapper: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: "#FFF",
+        borderRadius: 16,
+        borderWidth: 1.5,
+        borderColor: "#E2E8F0",
+        paddingHorizontal: 16,
+        elevation: 1,
+        shadowColor: "#000",
+        shadowOpacity: 0.02,
+        shadowOffset: { width: 0, height: 2 },
+        shadowRadius: 4
+    },
+    inputWrapperError: {
+        borderColor: "#EF4444"
+    },
+    inputWrapperLarge: {
+        flexDirection: "row",
+        backgroundColor: "#FFF",
+        borderRadius: 16,
+        borderWidth: 1.5,
+        borderColor: "#E2E8F0",
+        paddingHorizontal: 16,
+        paddingTop: 16,
+        elevation: 1,
+        shadowColor: "#000",
+        shadowOpacity: 0.02,
+        shadowOffset: { width: 0, height: 2 },
+        shadowRadius: 4
+    },
+    input: {
+        flex: 1,
+        paddingVertical: 14,
+        fontSize: 15,
+        color: "#1E293B",
+        fontWeight: "600"
+    },
+    inputIcon: {
+        marginRight: 10,
+    },
+    inputIconLarge: {
+        marginRight: 10,
+        marginTop: 2
+    },
     inputError: { borderColor: "#EF4444" },
     errorText: { color: "#DC2626", fontSize: 12, fontWeight: "600", marginTop: 8, marginLeft: 2 },
-    textArea: { height: 100, textAlignVertical: "top" },
+    textArea: { height: 100, textAlignVertical: "top", paddingVertical: 0 },
     dropdownToggle: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFF', borderRadius: 16, paddingHorizontal: 18, paddingVertical: 16, borderWidth: 1.5, borderColor: '#F1F5F9', elevation: 1 },
     dropdownValue: { fontSize: 15, color: '#1E293B', fontWeight: '600' },
     specChipsContainer: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 },
@@ -572,10 +808,10 @@ const styles = StyleSheet.create({
     saveBtn: { backgroundColor: "#2D935C", borderRadius: 20, height: 60, justifyContent: "center", alignItems: "center", marginTop: 20, elevation: 5 },
     saveBtnDisabled: { opacity: 0.6 },
     saveBtnText: { color: "#FFF", fontSize: 17, fontWeight: "800" },
-    sectionTitle: { fontSize: 18, fontWeight: '800', color: "#334155", marginBottom: 16, marginTop: 10 },
+    sectionTitle: { fontSize: 16, fontWeight: '800', color: "#1E293B", marginBottom: 16, marginTop: 10, textTransform: 'uppercase', letterSpacing: 0.5 },
     detailsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 28 },
-    detailCard: { width: "47%", backgroundColor: "#FFF", borderRadius: 18, padding: 14, borderWidth: 1, borderColor: '#F1F5F9', elevation: 1 },
-    detailLabel: { fontSize: 12, color: "#94A3B8", fontWeight: "700", marginBottom: 4, textTransform: 'uppercase', letterSpacing: 0.5 },
+    detailCard: { width: "48%", backgroundColor: "#FFF", borderRadius: 18, padding: 14, borderWidth: 1.5, borderColor: '#F1F5F9', elevation: 1 },
+    detailLabel: { fontSize: 12, color: "#64748B", fontWeight: "700", textTransform: 'uppercase', letterSpacing: 0.5 },
     detailValue: { fontSize: 14, fontWeight: "800", color: "#1E293B" },
     sourceRow: { flexDirection: 'row', justifyContent: 'space-around', marginVertical: 24 },
     sourceBtn: { alignItems: 'center', gap: 12 },
@@ -586,4 +822,57 @@ const styles = StyleSheet.create({
     fullImageOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.9)', justifyContent: 'center', alignItems: 'center' },
     fullImage: { width: '100%', height: '80%' },
     closeFullImage: { position: 'absolute', top: 50, right: 20, zIndex: 10, padding: 10 },
+    tabContainer: { 
+        flexDirection: "row", 
+        backgroundColor: "#F1F5F9", 
+        marginHorizontal: 20, 
+        marginTop: 20, 
+        borderRadius: 16, 
+        padding: 4, 
+        borderWidth: 1, 
+        borderColor: "#E2E8F0" 
+    },
+    tabButton: { 
+        flex: 1, 
+        paddingVertical: 12, 
+        alignItems: "center", 
+        borderRadius: 12,
+        backgroundColor: "transparent"
+    },
+    tabButtonActive: { 
+        backgroundColor: "#FFF",
+        elevation: 2,
+        shadowColor: "#000",
+        shadowOpacity: 0.05,
+        shadowOffset: { width: 0, height: 2 },
+        shadowRadius: 4
+    },
+    tabText: { fontSize: 14, fontWeight: "800", color: "#64748B" },
+    tabTextActive: { color: "#1E293B" },
+    editBtn: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        backgroundColor: '#2D935C', 
+        borderRadius: 20, 
+        height: 60, 
+        width: '100%',
+        shadowColor: "#000",
+        shadowOpacity: 0.1,
+        shadowOffset: { width: 0, height: 4 },
+        shadowRadius: 10,
+        elevation: 3,
+        marginBottom: 20
+    },
+    editBtnText: { color: '#FFF', fontSize: 16, fontWeight: '800' },
+    cancelBtnOutline: { 
+        alignItems: 'center', 
+        justifyContent: 'center', 
+        borderWidth: 1.5, 
+        borderColor: '#EF4444', 
+        borderRadius: 20, 
+        height: 60, 
+        width: '100%' 
+    },
+    cancelBtnOutlineText: { color: '#EF4444', fontSize: 16, fontWeight: '800' },
 });

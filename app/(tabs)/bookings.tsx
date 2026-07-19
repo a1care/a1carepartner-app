@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, RefreshControl, Dimensions } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, RefreshControl, Dimensions, Animated, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -8,13 +8,25 @@ import * as Location from 'expo-location';
 import { partnerBookingService } from '../../lib/bookings';
 import { MessageCircle, MapPin, Navigation, Calendar, Clock, CreditCard } from 'lucide-react-native';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
-import { io, Socket } from 'socket.io-client';
+import { getSocket } from "../../lib/socket";
 import { LinearGradient } from "expo-linear-gradient";
 import { useAuthStore } from "../../stores/auth";
 
 const { width } = Dimensions.get("window");
 
-const TABS = ["Pending", "Confirmed", "Completed", "Cancelled"];
+const TABS = ["Pending", "Missing", "Confirmed", "Completed", "Cancelled"];
+
+const confirmAction = (title: string, message: string, onConfirm: () => void) => {
+    if (Platform.OS === 'web') {
+        const ok = window.confirm(`${title}\n\n${message}`);
+        if (ok) onConfirm();
+    } else {
+        Alert.alert(title, message, [
+            { text: "Cancel", style: "cancel" },
+            { text: "Confirm", style: "destructive", onPress: onConfirm }
+        ]);
+    }
+};
 
 // Map API statuses to tab names so no booking goes missing
 const STATUS_TO_TAB: Record<string, string> = {
@@ -24,6 +36,21 @@ const STATUS_TO_TAB: Record<string, string> = {
     IN_PROGRESS: "Confirmed", Active: "Confirmed",
     COMPLETED: "Completed", Completed: "Completed",
     CANCELLED: "Cancelled", Cancelled: "Cancelled",
+    Missing: "Missing", MISSING: "Missing",
+};
+
+const formatDate = (dateString?: string) => {
+    if (!dateString) return "";
+    try {
+        const d = new Date(dateString);
+        if (isNaN(d.getTime())) return "";
+        return d.toLocaleDateString("en-US", {
+            day: "numeric",
+            month: "short",
+        });
+    } catch {
+        return "";
+    }
 };
 
 const statusColors: Record<string, { bg: string; text: string; icon: string; label: string }> = {
@@ -39,9 +66,29 @@ const statusColors: Record<string, { bg: string; text: string; icon: string; lab
     COMPLETED: { bg: "#F0F9FF", text: "#0369A1", icon: "star-circle", label: "Completed" },
     Cancelled: { bg: "#FEF2F2", text: "#B91C1C", icon: "close-circle-outline", label: "Cancelled" },
     CANCELLED: { bg: "#FEF2F2", text: "#B91C1C", icon: "close-circle-outline", label: "Cancelled" },
+    Missing: { bg: "#FEF3C7", text: "#D97706", icon: "alert-circle-outline", label: "Missing" },
+    MISSING: { bg: "#FEF3C7", text: "#D97706", icon: "alert-circle-outline", label: "Missing" },
 };
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL?.replace('/api', '') || 'https://api.a1carehospital.in';
+
+const BookingsSkeleton = ({ pulseAnim }: { pulseAnim: Animated.Value }) => {
+    return (
+        <View style={{ gap: 16 }}>
+            {[1, 2, 3].map((i) => (
+                <Animated.View 
+                    key={i} 
+                    style={{ 
+                        opacity: pulseAnim, 
+                        height: 160, 
+                        backgroundColor: '#E2E8F0', 
+                        borderRadius: 24 
+                    }} 
+                />
+            ))}
+        </View>
+    );
+};
 
 export default function BookingsScreen() {
     const queryClient = useQueryClient();
@@ -51,28 +98,48 @@ export default function BookingsScreen() {
     const [activeTab, setActiveTab] = useState("Pending");
     const primaryColor = "#2D935C";
 
+    const pulseAnim = useRef(new Animated.Value(0.3)).current;
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+                Animated.timing(pulseAnim, { toValue: 0.3, duration: 800, useNativeDriver: true })
+            ])
+        ).start();
+    }, []);
+
     const [isTracking, setIsTracking] = useState<string | null>(null);
     const trackingInterval = useRef<any>(null);
-    const socketRef = useRef<Socket | null>(null);
 
     useEffect(() => {
         if (status && TABS.includes(status)) {
             setActiveTab(status);
         }
-        socketRef.current = io(API_URL, { auth: { token } });
-        return () => {
-            socketRef.current?.disconnect();
-        };
-    }, [status, token]);
+    }, [status]);
 
     const { data: allBookings = [], isLoading, refetch, isRefetching } = useQuery({
         queryKey: ["bookings"],
         queryFn: async () => {
-            const res = await api.get("/appointment/provider/feed");
+            const res = await api.get("/appointment/provider/feed", { params: { status: 'all' } });
             return res.data.data || [];
         },
-        refetchInterval: 30000,
+        refetchInterval: 15000,
     });
+
+    // Immediately refresh list when admin assigns a booking via socket
+    useEffect(() => {
+        const sock = getSocket();
+        if (!sock) return;
+        const onAssigned = () => {
+            queryClient.invalidateQueries({ queryKey: ["bookings"] });
+        };
+        sock.on("booking:assignment_request", onAssigned);
+        sock.on("booking:assigned", onAssigned);
+        return () => {
+            sock.off("booking:assignment_request", onAssigned);
+            sock.off("booking:assigned", onAssigned);
+        };
+    }, []);
 
     // Client-side tab filtering using the STATUS_TO_TAB map so nothing is ever silently dropped
     const bookings = allBookings.filter((b: any) =>
@@ -103,9 +170,12 @@ export default function BookingsScreen() {
     const updateStatusMutation = useMutation({
         mutationFn: ({ id, status, bookingType }: { id: string, status: string, bookingType: 'Doctor' | 'Service' }) =>
             partnerBookingService.updateStatus(id, status, bookingType),
-        onSuccess: () => {
+        onSuccess: (data, variables) => {
             queryClient.invalidateQueries({ queryKey: ["bookings"] });
             queryClient.invalidateQueries({ queryKey: ["homeStats"] });
+            if (variables.status === 'Completed' || variables.status === 'COMPLETED') {
+                setActiveTab("Completed");
+            }
         },
         onError: (err: any) => {
             Alert.alert("Error", err?.response?.data?.message || "Action failed");
@@ -125,6 +195,17 @@ export default function BookingsScreen() {
         },
         onError: (err: any) => {
             Alert.alert("Error", err?.response?.data?.message || "Could not mark cash as collected");
+        }
+    });
+
+    const rejectServiceMutation = useMutation({
+        mutationFn: async (id: string) => partnerBookingService.rejectServiceRequest(id),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["bookings"] });
+            Alert.alert("Job Rejected", "The booking has been returned to admin.");
+        },
+        onError: (err: any) => {
+            Alert.alert("Error", err?.response?.data?.message || "Could not reject booking");
         }
     });
 
@@ -171,7 +252,7 @@ export default function BookingsScreen() {
                     speed: loc.coords.speed || 0,
                 };
                 await partnerBookingService.updateLocation(coords);
-                socketRef.current?.emit('update_location', { roomId: id, ...coords });
+                getSocket()?.emit('update_location', { roomId: id, ...coords });
             } catch (err) {
                 console.error("Tracking error", err);
             }
@@ -229,10 +310,7 @@ export default function BookingsScreen() {
                 showsVerticalScrollIndicator={false}
             >
                 {isLoading ? (
-                    <View style={styles.loaderBox}>
-                        <ActivityIndicator size="large" color={primaryColor} />
-                        <Text style={styles.loaderText}>Syncing Feed...</Text>
-                    </View>
+                    <BookingsSkeleton pulseAnim={pulseAnim} />
                 ) : bookings.length === 0 ? (
                     <View style={styles.empty}>
                         <LinearGradient colors={["#F8FAFC", "#F1F5F9"]} style={styles.emptyIconBox}>
@@ -267,8 +345,10 @@ export default function BookingsScreen() {
 
                                 <View style={styles.detailsRow}>
                                     <View style={styles.detailItem}>
-                                        <Clock size={16} color="#64748B" />
-                                        <Text style={styles.detailText}>{b.timeSlot || "Anytime"}</Text>
+                                         <Clock size={16} color="#64748B" />
+                                         <Text style={styles.detailText}>
+                                             {b.date ? `${formatDate(b.date)} | ` : ""}{b.timeSlot || "Anytime"}
+                                         </Text>
                                     </View>
                                     <View style={styles.detailItem}>
                                         <CreditCard size={16} color="#2D935C" />
@@ -285,144 +365,172 @@ export default function BookingsScreen() {
                                 </View>
                             </TouchableOpacity>
 
-                            <View style={styles.actions}>
-                                {b.status?.toLowerCase?.() === "broadcasted" && (
-                                    <View>
+                            <View style={styles.actionsContainer}>
+                                {(b.status?.toLowerCase?.() === "broadcasted" || b.status?.toLowerCase?.() === "missing") && (
+                                     <View style={{ flex: 1 }}>
                                         <Text style={{ fontSize: 11, color: '#7C3AED', fontWeight: '600', marginBottom: 6 }}>📢 Open to all partners — first to accept gets it</Text>
                                         {!hasActiveSub && (
                                             <Text style={{ fontSize: 11, color: '#EF4444', fontWeight: '600', marginBottom: 4 }}>⚠️ Active subscription required to claim jobs</Text>
                                         )}
-                                        <TouchableOpacity
-                                            style={[styles.mainBtn, { backgroundColor: hasActiveSub ? '#8B5CF6' : '#94A3B8' }]}
-                                            onPress={() => {
-                                                if (!hasActiveSub) {
-                                                    Alert.alert("Subscription Required", "You need an active subscription to accept jobs.", [
-                                                        { text: "View Plans", onPress: () => router.push("/subscriptions" as any) },
-                                                        { text: "Cancel", style: "cancel" }
-                                                    ]);
-                                                    return;
-                                                }
-                                                acceptServiceMutation.mutate(b._id);
-                                            }}
-                                        >
-                                            <Text style={styles.mainBtnText}>⚡ Accept & Claim Job</Text>
-                                        </TouchableOpacity>
+                                        <View style={styles.dualActions}>
+                                            <TouchableOpacity
+                                                style={[styles.mainBtn, { flex: 1, backgroundColor: hasActiveSub ? '#8B5CF6' : '#94A3B8' }]}
+                                                onPress={() => {
+                                                    if (!hasActiveSub) {
+                                                        Alert.alert("Subscription Required", "You need an active subscription to accept jobs.", [
+                                                            { text: "View Plans", onPress: () => router.push("/subscriptions" as any) },
+                                                            { text: "Cancel", style: "cancel" }
+                                                        ]);
+                                                        return;
+                                                    }
+                                                    acceptServiceMutation.mutate(b._id);
+                                                }}
+                                            >
+                                                <Text style={styles.mainBtnText}>⚡ Accept</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                style={styles.declineBtn}
+                                                onPress={() => rejectServiceMutation.mutate(b._id)}
+                                            >
+                                                <Ionicons name="close" size={20} color="#EF4444" />
+                                            </TouchableOpacity>
+                                        </View>
+                                     </View>
+                                )}
+
+                                {b.status === "PARTNER_ASSIGNED" && (
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={{ fontSize: 11, color: '#2D935C', fontWeight: '600', marginBottom: 6 }}>📋 Admin assigned this job to you</Text>
+                                        <View style={styles.dualActions}>
+                                            <TouchableOpacity
+                                                style={[styles.mainBtn, { flex: 1, backgroundColor: '#2D935C' }]}
+                                                onPress={() => acceptServiceMutation.mutate(b._id)}
+                                            >
+                                                <Text style={styles.mainBtnText}>✅ Accept Job</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                style={styles.declineBtn}
+                                                onPress={() => rejectServiceMutation.mutate(b._id)}
+                                            >
+                                                <Ionicons name="close" size={20} color="#EF4444" />
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                style={styles.commBtn}
+                                                onPress={() => router.push({ pathname: '/booking_chat' as any, params: { id: b._id, name: b.patientName || 'Patient' } })}
+                                            >
+                                                <MessageCircle size={22} color="#2D935C" />
+                                                {unreadByBooking[b._id] > 0 && <View style={styles.chatDot} />}
+                                            </TouchableOpacity>
+                                        </View>
                                     </View>
                                 )}
 
                                 {b.status === "Pending" && (
                                     <View style={styles.dualActions}>
                                         <TouchableOpacity
-                                            style={styles.mainBtn}
+                                            style={[styles.mainBtn, { flex: 1 }]}
                                             onPress={() => updateStatusMutation.mutate({ id: b._id, status: "Confirmed", bookingType: b.bookingType })}
                                         >
                                             <Text style={styles.mainBtnText}>Confirm Visit</Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity
                                             style={styles.declineBtn}
-                                            onPress={() => Alert.alert(
-                                                "Decline Booking?",
-                                                "Are you sure you want to decline this job? It will go back to admin.",
-                                                [
-                                                    { text: "Keep It", style: "cancel" },
-                                                    { text: "Decline", style: "destructive", onPress: () => updateStatusMutation.mutate({ id: b._id, status: "Cancelled", bookingType: b.bookingType }) }
-                                                ]
-                                            )}
+                                            onPress={() => updateStatusMutation.mutate({ id: b._id, status: "Cancelled", bookingType: b.bookingType })}
                                         >
                                             <Ionicons name="close" size={20} color="#EF4444" />
                                         </TouchableOpacity>
-                                    </View>
-                                )}
-                                
-                                {/* Collect cash button for OFFLINE payment bookings */}
-                                {(b.status === "Confirmed" || b.status === "ACCEPTED" || b.status === "IN_PROGRESS" || b.status === "COMPLETED") &&
-                                    b.paymentMode === "OFFLINE" && b.paymentStatus !== "COMPLETED" && (
-                                    <TouchableOpacity
-                                        style={[styles.mainBtn, { backgroundColor: '#F59E0B', marginBottom: 8 }]}
-                                        onPress={() => Alert.alert(
-                                            "Confirm Cash Received",
-                                            "Have you collected the cash payment from the patient?",
-                                            [
-                                                { text: "Not Yet", style: "cancel" },
-                                                { text: "Yes, Collected", onPress: () => collectCashMutation.mutate({ id: b._id, bookingType: b.bookingType }) }
-                                            ]
-                                        )}
-                                    >
-                                        <Text style={styles.mainBtnText}>💵 Collect Cash</Text>
-                                    </TouchableOpacity>
-                                )}
-
-                                {(b.status === "Confirmed" || b.status === "ACCEPTED" || b.status === "IN_PROGRESS" || b.status === "Active" || b.status === "PARTNER_ASSIGNED") && (
-                                    <View style={styles.activeActions}>
-                                        {isTracking !== b._id ? (
-                                            <TouchableOpacity
-                                                style={[styles.mainBtn, { backgroundColor: '#3B82F6' }]}
-                                                onPress={async () => {
-                                                    if (b.status !== "IN_PROGRESS") {
-                                                        try {
-                                                            await updateStatusMutation.mutateAsync({ id: b._id, status: "IN_PROGRESS", bookingType: b.bookingType });
-                                                        } catch { /* status update failure shouldn't block navigation */ }
-                                                    }
-                                                    startTracking(b._id, b.location?.address);
-                                                }}
-                                            >
-                                                <Navigation size={18} color="#FFF" />
-                                                <Text style={styles.mainBtnText}>Navigate</Text>
-                                            </TouchableOpacity>
-                                        ) : (
-                                            <TouchableOpacity
-                                                style={[styles.mainBtn, { backgroundColor: '#EF4444' }]}
-                                                onPress={stopTracking}
-                                            >
-                                                <Text style={styles.mainBtnText}>Stop Track</Text>
-                                            </TouchableOpacity>
-                                        )}
-                                        <TouchableOpacity
-                                            style={[styles.mainBtn, { flex: 1.2 }]}
-                                            onPress={() => {
-                                                Alert.alert(
-                                                    "Mark Service Complete?",
-                                                    "Confirm that you have finished the service for this patient.",
-                                                    [
-                                                        { text: "Not Yet", style: "cancel" },
-                                                        {
-                                                            text: "Yes, Complete",
-                                                            style: "default",
-                                                            onPress: async () => {
-                                                                try {
-                                                                    await updateStatusMutation.mutateAsync({
-                                                                        id: b._id,
-                                                                        status: b.bookingType === 'Doctor' ? "Completed" : "COMPLETED",
-                                                                        bookingType: b.bookingType
-                                                                    });
-                                                                    router.push({ pathname: '/booking_feedback' as any, params: { bookingId: b._id, patientName: b.patientName || 'Patient', type: b.bookingType } });
-                                                                } catch { /* error handled by mutation onError */ }
-                                                            }
-                                                        }
-                                                    ]
-                                                );
-                                            }}
-                                        >
-                                            <Text style={styles.mainBtnText}>Mark Complete</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                )}
-
-                                {b.status !== "Pending" && b.status !== "Broadcasted" && (
-                                    <View style={styles.commsRow}>
                                         <TouchableOpacity
                                             style={styles.commBtn}
-                                            onPress={() => router.push({
-                                                pathname: '/booking_chat' as any,
-                                                params: { id: b._id, name: b.patientName || 'Patient' }
-                                            })}
+                                            onPress={() => router.push({ pathname: '/booking_chat' as any, params: { id: b._id, name: b.patientName || 'Patient' } })}
                                         >
                                             <MessageCircle size={22} color="#2D935C" />
                                             {unreadByBooking[b._id] > 0 && <View style={styles.chatDot} />}
                                         </TouchableOpacity>
-
                                     </View>
                                 )}
+                                
+                                {/* Active Actions (Navigate + Complete + Chat in a single horizontal row) */}
+                                {(b.status === "Confirmed" || b.status === "ACCEPTED" || b.status === "IN_PROGRESS" || b.status === "Active") && (
+                                    <View style={{ flex: 1, gap: 8 }}>
+                                        {/* Collect cash button for OFFLINE payment bookings */}
+                                        {b.paymentMode === "OFFLINE" && b.paymentStatus !== "COMPLETED" && (
+                                            <View style={{ gap: 4 }}>
+                                                <Text style={{ fontSize: 12, color: '#D97706', fontWeight: '800', textAlign: 'center', marginBottom: 2 }}>
+                                                    ⚠️ Please collect cash from patient
+                                                </Text>
+                                                <TouchableOpacity
+                                                    style={[styles.mainBtn, { backgroundColor: '#F59E0B' }]}
+                                                    onPress={() => confirmAction(
+                                                        "Confirm Cash Received",
+                                                        "Have you collected the cash payment from the patient?",
+                                                        () => collectCashMutation.mutate({ id: b._id, bookingType: b.bookingType })
+                                                    )}
+                                                >
+                                                    <Text style={styles.mainBtnText}>💵 Collect Cash</Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        )}
+                                        
+                                        <View style={styles.activeActions}>
+                                            {isTracking !== b._id ? (
+                                                <TouchableOpacity
+                                                    style={[styles.mainBtn, { backgroundColor: '#3B82F6', flex: 1.2 }]}
+                                                    onPress={async () => {
+                                                        if (b.status !== "IN_PROGRESS") {
+                                                            try {
+                                                                await updateStatusMutation.mutateAsync({ id: b._id, status: "IN_PROGRESS", bookingType: b.bookingType });
+                                                            } catch { /* status update failure shouldn't block navigation */ }
+                                                        }
+                                                        startTracking(b._id, b.location?.address);
+                                                    }}
+                                                >
+                                                    <Navigation size={18} color="#FFF" />
+                                                    <Text style={styles.mainBtnText}>Navigate</Text>
+                                                </TouchableOpacity>
+                                            ) : (
+                                                <TouchableOpacity
+                                                    style={[styles.mainBtn, { backgroundColor: '#EF4444', flex: 1.2 }]}
+                                                    onPress={stopTracking}
+                                                >
+                                                    <Text style={styles.mainBtnText}>Stop Track</Text>
+                                                </TouchableOpacity>
+                                            )}
+                                            
+                                            <TouchableOpacity
+                                                style={[styles.mainBtn, { flex: 1.2 }]}
+                                                onPress={async () => {
+                                                    if (b.paymentMode === 'OFFLINE' && b.paymentStatus !== 'COMPLETED') {
+                                                        Alert.alert("Collect Cash First", `Please collect the cash payment of ₹${b.totalAmount || 0} first.`);
+                                                        return;
+                                                    }
+                                                    try {
+                                                        await updateStatusMutation.mutateAsync({
+                                                            id: b._id,
+                                                            status: b.bookingType === 'Doctor' ? "Completed" : "COMPLETED",
+                                                            bookingType: b.bookingType
+                                                        });
+                                                        router.push({ pathname: '/booking_feedback' as any, params: { bookingId: b._id, patientName: b.patientName || 'Patient', type: b.bookingType } });
+                                                    } catch { /* error handled by mutation onError */ }
+                                                }}
+                                            >
+                                                <Text style={styles.mainBtnText}>Complete</Text>
+                                            </TouchableOpacity>
+
+                                            <TouchableOpacity
+                                                style={styles.commBtn}
+                                                onPress={() => router.push({
+                                                    pathname: '/booking_chat' as any,
+                                                    params: { id: b._id, name: b.patientName || 'Patient' }
+                                                })}
+                                            >
+                                                <MessageCircle size={22} color="#2D935C" />
+                                                {unreadByBooking[b._id] > 0 && <View style={styles.chatDot} />}
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                )}
+
+                                {/* Chat button for Completed / Cancelled bookings removed as requested */}
                             </View>
                         </View>
                     ))
@@ -466,6 +574,7 @@ const styles = StyleSheet.create({
     detailText: { fontSize: 14, color: "#475569", fontWeight: '600' },
     addressRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FFF5F5', padding: 12, borderRadius: 12 },
     addressText: { fontSize: 13, color: "#B91C1C", fontWeight: '700', flex: 1 },
+    actionsContainer: { width: '100%', gap: 12 },
     actions: { flexDirection: 'row', gap: 12 },
     mainBtn: { flex: 2, height: 50, backgroundColor: "#2D935C", borderRadius: 16, flexDirection: 'row', alignItems: "center", justifyContent: "center", gap: 8 },
     mainBtnText: { fontSize: 14, fontWeight: "800", color: "#fff" },

@@ -64,10 +64,6 @@ export default function TermsConditionsScreen() {
                             </Text>
                         </>
                     )}
-
-                    <View style={styles.footer}>
-                        <Text style={styles.footerText}>By continuing to use the app, you accept these terms in full.</Text>
-                    </View>
                 </View>
             </ScrollView>
         </SafeAreaView>

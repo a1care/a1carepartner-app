@@ -1,9 +1,10 @@
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Switch, ActivityIndicator, RefreshControl, Image, Platform, NativeModules, Alert } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Switch, ActivityIndicator, RefreshControl, Image, Platform, NativeModules, Alert, Modal } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useAuthStore } from "../../stores/auth";
+import { getRolePath } from "../../lib/roleApi";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../lib/api";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
@@ -13,18 +14,19 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getFirebaseMessaging } from "../../lib/nativeFirebase";
 
 // Global persistence to prevent flickering during tab switches
-let cachedLocationText = "";
-
-// Global persistence to prevent flickering during tab switches
-let cachedCity = "";
+let cachedLocationArea = "";
+let cachedLocationCity = "";
 
 export default function HomeScreen() {
     const router = useRouter();
     const { user, setUser, token } = useAuthStore() as any;
     const [isOnline, setIsOnline] = useState(user?.status === "Active");
+    const [showAreaPicker, setShowAreaPicker] = useState(false);
     const [isStatusLoading, setIsStatusLoading] = useState(!user); // loading until user hydrates
     const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
-    const [locationAddress, setLocationAddress] = useState(cachedLocationText || "...");
+    const statusInitializedRef = useRef(false);
+    const [locationArea, setLocationArea] = useState(cachedLocationArea || "...");
+    const [locationCity, setLocationCity] = useState(cachedLocationCity || "...");
     const role = user?.role ?? "doctor";
     const primaryColor = "#2D935C";
     const queryClient = useQueryClient();
@@ -58,7 +60,11 @@ export default function HomeScreen() {
 
         return () => {
             isMounted = false;
-            locationWatcherRef.current?.remove();
+            try {
+                locationWatcherRef.current?.remove();
+            } catch (err) {
+                console.log("[Location Cleanup] Watcher remove failed:", err);
+            }
             locationWatcherRef.current = null;
             if (locationIntervalRef.current) {
                 clearInterval(locationIntervalRef.current);
@@ -99,15 +105,18 @@ export default function HomeScreen() {
         }
     };
 
-    const syncCurrentLocation = async () => {
+    const syncCurrentLocation = async (coordsParam?: { latitude: number; longitude: number; heading?: number | null; speed?: number | null }) => {
         try {
-            const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-            const coords = {
-                latitude: loc.coords.latitude,
-                longitude: loc.coords.longitude,
-                heading: loc.coords.heading,
-                speed: loc.coords.speed,
-            };
+            let coords = coordsParam;
+            if (!coords) {
+                const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+                coords = {
+                    latitude: loc.coords.latitude,
+                    longitude: loc.coords.longitude,
+                    heading: loc.coords.heading,
+                    speed: loc.coords.speed,
+                };
+            }
 
             await AsyncStorage.setItem("last_location", JSON.stringify(coords));
             await api.post("/appointment/location/update", {
@@ -129,7 +138,7 @@ export default function HomeScreen() {
                 clearInterval(locationIntervalRef.current);
             }
 
-            locationIntervalRef.current = setInterval(syncCurrentLocation, 5 * 60 * 1000);
+            locationIntervalRef.current = setInterval(() => syncCurrentLocation(), 5 * 60 * 1000);
         } catch (e) {
             console.log("[Location] Setup error:", e);
         }
@@ -137,20 +146,34 @@ export default function HomeScreen() {
 
     const setupLocation = async () => {
         try {
-            const cached = await AsyncStorage.getItem("last_location_text");
-            if (cached) setLocationAddress(cached);
+            const cachedArea = await AsyncStorage.getItem("last_location_area");
+            const cachedCityLocal = await AsyncStorage.getItem("last_location_city");
+            if (cachedArea) setLocationArea(cachedArea);
+            if (cachedCityLocal) setLocationCity(cachedCityLocal);
 
             const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
             if (location) {
-                await updateLocationOnBackend(location.coords.latitude, location.coords.longitude);
+                await syncCurrentLocation({
+                    latitude: location.coords.latitude,
+                    longitude: location.coords.longitude,
+                    heading: location.coords.heading,
+                    speed: location.coords.speed,
+                });
                 await reverseGeocode(location.coords.latitude, location.coords.longitude);
             }
 
-            locationWatcherRef.current?.remove();
+            try {
+                locationWatcherRef.current?.remove();
+            } catch (err) {}
             locationWatcherRef.current = await Location.watchPositionAsync(
                 { accuracy: Location.Accuracy.Balanced, distanceInterval: 100 },
                 (loc) => {
-                    updateLocationOnBackend(loc.coords.latitude, loc.coords.longitude);
+                    syncCurrentLocation({
+                        latitude: loc.coords.latitude,
+                        longitude: loc.coords.longitude,
+                        heading: loc.coords.heading,
+                        speed: loc.coords.speed,
+                    });
                     reverseGeocode(loc.coords.latitude, loc.coords.longitude);
                 }
             );
@@ -160,41 +183,63 @@ export default function HomeScreen() {
     };
     const reverseGeocode = async (lat: number, lng: number) => {
         try {
+            let city = "Unknown City";
+            let area = "Unknown Area";
+
+            // reverseGeocodeAsync is not supported on web in Expo SDK - use Nominatim fallback
+            if (Platform.OS === 'web') {
+                const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`, {
+                    headers: { 'Accept': 'application/json' }
+                });
+                const data = await res.json();
+                if (data && data.address) {
+                    const addr = data.address;
+                    city = addr.city || addr.town || addr.village || addr.county || addr.state || "Unknown City";
+                    area = addr.suburb || addr.neighbourhood || addr.quarter || addr.road || "Unknown Area";
+                    
+                    setLocationArea(area);
+                    setLocationCity(city);
+                    cachedLocationArea = area;
+                    cachedLocationCity = city;
+                    await AsyncStorage.setItem("last_location_area", area);
+                    await AsyncStorage.setItem("last_location_city", city);
+                    return;
+                }
+            }
+
             const address = await Location.reverseGeocodeAsync({ latitude: lat, longitude: lng });
             if (address && address[0]) {
-                const { city, region, district } = address[0];
-                const cityText = city || district || region || "Unknown City";
-                setLocationAddress(cityText);
-                cachedLocationText = cityText; // Update global cache
-                await AsyncStorage.setItem("last_location_text", cityText);
+                const geo = address[0];
+                city = geo.city || geo.region || "Unknown City";
+                area = geo.district || geo.subregion || geo.street || "Unknown Area";
+                
+                setLocationArea(area);
+                setLocationCity(city);
+                cachedLocationArea = area;
+                cachedLocationCity = city;
+                await AsyncStorage.setItem("last_location_area", area);
+                await AsyncStorage.setItem("last_location_city", city);
             }
-        } catch (e) { }
-    };
-
-    const updateLocationOnBackend = async (lat: number, lng: number) => {
-        try {
-            await api.put("/doctor/auth/register", {
-                location: {
-                    type: "Point",
-                    coordinates: [lng, lat] // MongoDB uses [lng, lat]
-                }
-            });
         } catch (e) {
-            console.log("Failed to update location on backend", e);
+            console.log("[Location] Geocoding failed:", e);
         }
     };
 
     const { data: staffData, isLoading: loadingUser, refetch: refetchUser } = useQuery({
         queryKey: ["staffDetails"],
         queryFn: async () => {
-            const res = await api.get("/doctor/auth/details");
+            const res = await api.get(`/${getRolePath()}/auth/details`);
             return res.data.data;
-        }
+        },
+        enabled: !!token,
     });
 
     useEffect(() => {
         if (staffData) {
-            setIsOnline(staffData.status === "Active");
+            if (!statusInitializedRef.current) {
+                statusInitializedRef.current = true;
+                setIsOnline(staffData.status === "Active");
+            }
             setIsStatusLoading(false);
             setUser({ ...user, ...staffData }); // Sync to global store to unlock tabs/layout
         }
@@ -205,12 +250,22 @@ export default function HomeScreen() {
     const { data: bookings = [], isLoading: loadingStats, refetch: refetchStats, isRefetching } = useQuery({
         queryKey: ["homeStats", period],
         queryFn: async () => {
-            // Fetch all statuses so earnings/completed stats are accurate
+            // Fetch ALL statuses including completed for accurate home stats count
             const res = await api.get("/appointment/provider/feed", {
-                params: { period }
+                params: { status: 'all' }
             });
             return res.data.data || [];
-        }
+        },
+        enabled: !!token,
+    });
+
+    const { data: earningsSummary, refetch: refetchEarnings } = useQuery({
+        queryKey: ["staff_earnings"],
+        queryFn: async () => {
+            const res = await api.get(`/${getRolePath()}/earnings/summary`);
+            return res.data.data;
+        },
+        enabled: !!token,
     });
 
     // Unread notifications count
@@ -238,18 +293,21 @@ export default function HomeScreen() {
     const totalUnread = unreadCount + unreadChats;
 
     const stats = useMemo(() => {
-        const completed = bookings.filter((b: any) => b.status === "Completed").length;
-        const earnings = bookings
-            .filter((b: any) => b.status === "Completed")
-            .reduce((acc: number, b: any) => acc + (b.totalAmount || 0), 0);
+        // Use real completed count from earnings summary (includes both Doctor + Service)
+        const completed = earningsSummary?.stats?.jobsCompleted ??
+            bookings.filter((b: any) => b.status === "Completed" || b.status === "COMPLETED").length;
+        const earnings = earningsSummary?.stats?.totalEarnings ??
+            bookings
+                .filter((b: any) => b.status === "Completed" || b.status === "COMPLETED")
+                .reduce((acc: number, b: any) => acc + (b.partnerEarning ?? b.totalAmount ?? 0), 0);
 
         return [
             { label: "Bookings", value: bookings.length.toString(), icon: "calendar-outline", color: "#6366F1" },
-            { label: "Earning", value: `₹${earnings}`, icon: "cash-outline", color: "#2D935C" },
+            { label: "Earning", value: `₹${Number(earnings).toLocaleString('en-IN')}`, icon: "cash-outline", color: "#2D935C" },
             { label: "Completed", value: completed.toString(), icon: "checkmark-circle-outline", color: "#10B981" },
             { label: "Rating", value: staffData?.rating ? staffData.rating.toFixed(1) : "N/A", icon: "star-outline", color: "#F59E0B" },
         ];
-    }, [bookings, staffData]);
+    }, [bookings, staffData, earningsSummary]);
 
     const handleToggleOnline = async (val: boolean) => {
         if (isUpdatingStatus) return;
@@ -258,9 +316,32 @@ export default function HomeScreen() {
         setIsOnline(val);
 
         try {
-            const newStatus = val ? "Active" : "Inactive";
-            await api.put("/doctor/auth/register", { status: newStatus });
-            setUser({ ...user, status: newStatus });
+            // Use cached location; if absent or zeroed, try to get a fresh fix
+            const cachedRaw = await AsyncStorage.getItem("last_location");
+            let coords = cachedRaw ? JSON.parse(cachedRaw) : null;
+
+            const hasValidCoords = coords && (coords.latitude !== 0 || coords.longitude !== 0);
+            if (!hasValidCoords) {
+                try {
+                    const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+                    coords = {
+                        latitude: loc.coords.latitude,
+                        longitude: loc.coords.longitude,
+                        heading: loc.coords.heading ?? 0,
+                        speed: loc.coords.speed ?? 0,
+                    };
+                } catch {
+                    // Location unavailable — proceed with zeros; backend decides
+                }
+            }
+
+            await api.post("/appointment/location/update", {
+                latitude: coords?.latitude ?? 0,
+                longitude: coords?.longitude ?? 0,
+                heading: coords?.heading ?? 0,
+                speed: coords?.speed ?? 0,
+                isOnline: val,
+            });
             Toast.show({
                 type: "success",
                 text1: val ? "You are now Online" : "You are now Offline",
@@ -317,10 +398,67 @@ export default function HomeScreen() {
             >
                 <View style={styles.header}>
                     <View style={styles.locationBar}>
-                        <View style={styles.locationInfo}>
-                            <View style={styles.locationPin}><Ionicons name="location" size={16} color="#2D935C" /></View>
-                            <Text style={styles.locationLabel} numberOfLines={1}>{locationAddress}</Text>
-                        </View>
+                        <TouchableOpacity style={styles.locationInfo} onPress={() => setShowAreaPicker(true)} activeOpacity={0.8}>
+                            <View style={styles.locationPin}><Ionicons name="location-sharp" size={18} color="#1A7FD4" /></View>
+                            <View style={styles.locationTextContainer}>
+                                <Text style={styles.locationArea} numberOfLines={1}>{locationArea}</Text>
+                                <Text style={styles.locationCity} numberOfLines={1}>{locationCity}</Text>
+                            </View>
+                        </TouchableOpacity>
+
+                        {/* Area Picker Modal */}
+                        <Modal visible={showAreaPicker} transparent animationType="slide" onRequestClose={() => setShowAreaPicker(false)}>
+                            <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} activeOpacity={1} onPress={() => setShowAreaPicker(false)} />
+                            <View style={{ backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32, position: 'absolute', bottom: 0, left: 0, right: 0 }}>
+                                <View style={{ alignItems: 'center', paddingVertical: 12 }}>
+                                    <View style={{ width: 40, height: 4, backgroundColor: '#e0e0e0', borderRadius: 2 }} />
+                                    <Text style={{ fontSize: 16, fontWeight: '700', marginTop: 10, color: '#1a1a1a' }}>Select Your Area</Text>
+                                </View>
+                                {[
+                                    'Safilguda',
+                                    'Neredmet',
+                                    'Malkajgiri',
+                                    'Anand Bagh',
+                                    'Dayanand Nagar',
+                                    'Moula Ali',
+                                    'A.S. Rao Nagar',
+                                    'Sainikpuri',
+                                ].map((area) => (
+                                    <TouchableOpacity
+                                        key={area}
+                                        onPress={async () => {
+                                            setLocationArea(area);
+                                            setLocationCity('Hyderabad');
+                                            cachedLocationArea = area;
+                                            cachedLocationCity = 'Hyderabad';
+                                            await AsyncStorage.setItem('last_location_area', area);
+                                            await AsyncStorage.setItem('last_location_city', 'Hyderabad');
+                                            setShowAreaPicker(false);
+                                        }}
+                                        style={{
+                                            flexDirection: 'row',
+                                            alignItems: 'center',
+                                            paddingHorizontal: 24,
+                                            paddingVertical: 14,
+                                            borderBottomWidth: 1,
+                                            borderBottomColor: '#f0f0f0',
+                                            backgroundColor: locationArea === area ? '#EBF5FB' : '#fff',
+                                        }}
+                                    >
+                                        <Ionicons name="location-sharp" size={16} color="#1A7FD4" style={{ marginRight: 12 }} />
+                                        <Text style={{ fontSize: 15, color: '#1a1a1a', fontWeight: locationArea === area ? '700' : '400' }}>{area}</Text>
+                                        {locationArea === area && <Text style={{ marginLeft: 'auto', color: '#1A7FD4', fontSize: 18 }}>✓</Text>}
+                                    </TouchableOpacity>
+                                ))}
+                                <TouchableOpacity
+                                    onPress={() => { setShowAreaPicker(false); setupLocation(); }}
+                                    style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 14, borderTopWidth: 1, borderTopColor: '#f0f0f0' }}
+                                >
+                                    <Ionicons name="location-sharp" size={16} color="#1A7FD4" style={{ marginRight: 12 }} />
+                                    <Text style={{ fontSize: 15, color: '#1A7FD4', fontWeight: '600' }}>Use my current location</Text>
+                                </TouchableOpacity>
+                            </View>
+                        </Modal>
                         <TouchableOpacity style={styles.notificationBtn} onPress={() => router.push("/notifications")}>
                             <Ionicons name="notifications-outline" size={24} color="#1E293B" />
                             {totalUnread > 0 && <View style={styles.badgeDot} />}
@@ -436,9 +574,9 @@ export default function HomeScreen() {
                                     <Text style={styles.requestName}>{item.patientName || "New Patient"}</Text>
                                     <Text style={styles.requestTime}>{item.date ? new Date(item.date).toLocaleDateString() : item.scheduledTime ? new Date(item.scheduledTime).toLocaleDateString() : "Date TBD"} • {item.timeSlot || item.appointmentTime || item.startingTime || "Time TBD"}</Text>
                                 </View>
-                                <View style={[styles.statusBadge, { backgroundColor: { PENDING: '#FEF3C7', Pending: '#FEF3C7', BROADCASTED: '#F3E8FF', ACCEPTED: '#D1FAE5', Confirmed: '#D1FAE5', IN_PROGRESS: '#DBEAFE', COMPLETED: '#D1FAE5', Completed: '#D1FAE5' }[item.status] || '#F1F5F9' }]}>
-                                    <Text style={[styles.statusBadgeText, { color: { PENDING: '#92400E', Pending: '#92400E', BROADCASTED: '#6B21A8', ACCEPTED: '#065F46', Confirmed: '#065F46', IN_PROGRESS: '#1E40AF', COMPLETED: '#065F46', Completed: '#065F46' }[item.status] || '#64748B' }]}>
-                                        {{ PENDING: 'Pending', Pending: 'Pending', BROADCASTED: 'Open', ACCEPTED: 'Accepted', Confirmed: 'Confirmed', IN_PROGRESS: 'In Progress', COMPLETED: 'Completed', Completed: 'Completed' }[item.status] || (item.status || 'Pending')}
+                                <View style={[styles.statusBadge, { backgroundColor: ({ PENDING: '#FEF3C7', Pending: '#FEF3C7', PARTNER_ASSIGNED: '#D1FAE5', BROADCASTED: '#F3E8FF', ACCEPTED: '#D1FAE5', Confirmed: '#D1FAE5', IN_PROGRESS: '#DBEAFE', COMPLETED: '#D1FAE5', Completed: '#D1FAE5' } as Record<string, string>)[item.status] || '#F1F5F9' }]}>
+                                    <Text style={[styles.statusBadgeText, { color: ({ PENDING: '#92400E', Pending: '#92400E', PARTNER_ASSIGNED: '#065F46', BROADCASTED: '#6B21A8', ACCEPTED: '#065F46', Confirmed: '#065F46', IN_PROGRESS: '#1E40AF', COMPLETED: '#065F46', Completed: '#065F46' } as Record<string, string>)[item.status] || '#64748B' }]}>
+                                        {({ PENDING: 'Pending', Pending: 'Pending', PARTNER_ASSIGNED: 'Assigned', BROADCASTED: 'Open', ACCEPTED: 'Accepted', Confirmed: 'Confirmed', IN_PROGRESS: 'In Progress', COMPLETED: 'Completed', Completed: 'Completed' } as Record<string, string>)[item.status] || (item.status || 'Pending')}
                                     </Text>
                                 </View>
                             </TouchableOpacity>
@@ -461,9 +599,11 @@ const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: "#F8FAFC" },
     header: { backgroundColor: "#FFF", paddingHorizontal: 15, paddingBottom: 25, borderBottomLeftRadius: 32, borderBottomRightRadius: 32, elevation: 4 },
     locationBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 15, marginBottom: 20 },
-    locationInfo: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F5F9', paddingVertical: 8, paddingHorizontal: 12, borderRadius: 20, marginRight: 'auto' },
-    locationPin: { width: 28, height: 28, borderRadius: 14, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', marginRight: 8, elevation: 1 },
-    locationLabel: { fontSize: 13, fontWeight: '700', color: '#334155' },
+    locationInfo: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F1F5F9', paddingVertical: 6, paddingHorizontal: 12, borderRadius: 20, marginRight: 'auto' },
+    locationPin: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#E8F4FD', justifyContent: 'center', alignItems: 'center', marginRight: 8, elevation: 0 },
+    locationTextContainer: { flexDirection: 'column', justifyContent: 'center' },
+    locationArea: { fontSize: 13, fontWeight: '800', color: '#0D2E4D' },
+    locationCity: { fontSize: 10, fontWeight: '600', color: '#6B8A9E', marginTop: 1 },
     notificationBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', marginLeft: 10 },
     profileBtn: { width: 44, height: 44, borderRadius: 22, overflow: 'hidden', borderWidth: 2, borderColor: '#F1F5F9' },
     avatarPlaceholder: { flex: 1, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center' },

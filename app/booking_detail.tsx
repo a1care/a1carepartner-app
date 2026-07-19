@@ -1,12 +1,26 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Linking, Image, Alert } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Linking, Image, Alert, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useLocalSearchParams } from "expo-router";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { Phone, MapPin, Navigation, MessageCircle, Calendar, Clock, CreditCard, Tag, FileText } from "lucide-react-native";
 import { partnerBookingService } from "../lib/bookings";
+import { api } from "../lib/api";
+import { useAuthStore } from "../stores/auth";
 
 const PRIMARY = "#2D935C";
+
+const confirmAction = (title: string, message: string, onConfirm: () => void) => {
+    if (Platform.OS === 'web') {
+        const ok = window.confirm(`${title}\n\n${message}`);
+        if (ok) onConfirm();
+    } else {
+        Alert.alert(title, message, [
+            { text: "Cancel", style: "cancel" },
+            { text: "Confirm", style: "destructive", onPress: onConfirm }
+        ]);
+    }
+};
 
 const statusColors: Record<string, { bg: string; text: string; label: string }> = {
     Pending: { bg: "#FFFBEB", text: "#D97706", label: "Pending" },
@@ -18,6 +32,8 @@ const statusColors: Record<string, { bg: string; text: string; label: string }> 
     COMPLETED: { bg: "#F0F9FF", text: "#0369A1", label: "Completed" },
     Cancelled: { bg: "#FEF2F2", text: "#B91C1C", label: "Cancelled" },
     CANCELLED: { bg: "#FEF2F2", text: "#B91C1C", label: "Cancelled" },
+    Missing: { bg: "#FEF3C7", text: "#D97706", label: "Missing" },
+    MISSING: { bg: "#FEF3C7", text: "#D97706", label: "Missing" },
 };
 
 const getStatusLabel = (status: string) =>
@@ -30,11 +46,22 @@ export default function BookingDetailScreen() {
     const id = params.bookingId || params.id;
     const bookingType = ((params.bookingType || params.type) === "Doctor" ? "Doctor" : "Service") as "Doctor" | "Service";
 
+    const { user } = useAuthStore() as any;
+
     const { data: booking, isLoading, isError, refetch } = useQuery({
         queryKey: ["booking-detail", id],
         queryFn: () => partnerBookingService.getBookingDetail(String(id), bookingType),
         enabled: !!id,
     });
+
+    const { data: activeSub } = useQuery({
+        queryKey: ["myActiveSubscription"],
+        queryFn: async () => {
+            const res = await api.get("/subscription/my-active");
+            return res.data.data;
+        },
+    });
+    const hasActiveSub = !!activeSub;
 
     const collectCash = useMutation({
         mutationFn: () => partnerBookingService.markCashCollected(String(id), bookingType),
@@ -62,13 +89,62 @@ export default function BookingDetailScreen() {
         },
     });
 
+    const acceptService = useMutation({
+        mutationFn: async () => {
+            return partnerBookingService.acceptServiceRequest(String(id), user?.roleId);
+        },
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["bookings"] });
+            queryClient.invalidateQueries({ queryKey: ["booking-detail", id] });
+            queryClient.invalidateQueries({ queryKey: ["homeStats"] });
+            Alert.alert("Job Claimed! ✅", "Booking moved to your Confirmed tab. Navigate to the patient's location to begin.");
+            refetch();
+        },
+        onError: (err: any) => {
+            Alert.alert("Error", err?.response?.data?.message || "Someone else just claimed this job.");
+        }
+    });
+
+    const rejectService = useMutation({
+        mutationFn: async () => partnerBookingService.rejectServiceRequest(String(id)),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["bookings"] });
+            queryClient.invalidateQueries({ queryKey: ["booking-detail", id] });
+            Alert.alert("Job Rejected", "The booking has been returned to admin.");
+            router.back();
+        },
+        onError: (err: any) => {
+            Alert.alert("Error", err?.response?.data?.message || "Could not reject booking");
+        }
+    });
+
     const call = (mobile?: string | null) => { if (mobile) Linking.openURL(`tel:${mobile}`); };
     const openMaps = () => {
         if (!booking?.address) return;
-        const q = booking.address.coords
-            ? `${booking.address.coords.lat},${booking.address.coords.lng}`
-            : encodeURIComponent(booking.address.label || "");
-        Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${q}`);
+        const coords = booking.address.coords;
+        if (coords?.lat && coords?.lng) {
+            const lat = coords.lat;
+            const lng = coords.lng;
+            
+            const scheme = Platform.select({
+                ios: `maps://app?saddr=&daddr=${lat},${lng}`,
+                android: `google.navigation:q=${lat},${lng}`,
+                default: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`
+            });
+            
+            Linking.canOpenURL(scheme).then(supported => {
+                if (supported) {
+                    Linking.openURL(scheme);
+                } else {
+                    Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`);
+                }
+            }).catch(() => {
+                Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`);
+            });
+        } else {
+            const q = encodeURIComponent(booking.address.label || "");
+            Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${q}`);
+        }
     };
 
     if (isLoading) {
@@ -91,8 +167,10 @@ export default function BookingDetailScreen() {
     }
 
     const sc = statusColors[booking.status] || { bg: "#F1F5F9", text: "#64748B" };
-    const isActive = ["Confirmed", "ACCEPTED", "IN_PROGRESS", "Active", "PARTNER_ASSIGNED"].includes(booking.status);
+    const isActive = ["Confirmed", "ACCEPTED", "IN_PROGRESS", "Active"].includes(booking.status);
     const isPending = booking.status === "Pending";
+    const isBroadcasted = booking.status?.toLowerCase?.() === "broadcasted" || booking.status?.toLowerCase?.() === "missing";
+    const isPartnerAssigned = booking.status === "PARTNER_ASSIGNED";
 
     return (
         <SafeAreaView style={styles.container}>
@@ -100,7 +178,7 @@ export default function BookingDetailScreen() {
                 <TouchableOpacity onPress={() => router.back()} style={styles.backBtn}>
                     <Ionicons name="arrow-back" size={24} color="#1E293B" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Job Details</Text>
+                <Text style={styles.headerTitle}>Booking Details</Text>
                 <View style={[styles.statusBadge, { backgroundColor: sc.bg }]}>
                     <Text style={[styles.statusText, { color: sc.text }]}>{getStatusLabel(booking.status)}</Text>
                 </View>
@@ -148,7 +226,7 @@ export default function BookingDetailScreen() {
                 </View>
 
                 {/* Location */}
-                <View style={styles.card}>
+                <TouchableOpacity style={styles.card} onPress={openMaps} activeOpacity={0.9}>
                     <Text style={styles.sectionTitle}>Location</Text>
                     <View style={styles.addressRow}>
                         <MapPin size={18} color="#EF4444" />
@@ -156,9 +234,9 @@ export default function BookingDetailScreen() {
                     </View>
                     <TouchableOpacity style={styles.mapBtn} onPress={openMaps}>
                         <Navigation size={16} color="#FFF" />
-                        <Text style={styles.mapBtnText}>Open in Maps</Text>
+                        <Text style={styles.mapBtnText}>Start Turn-by-Turn Navigation</Text>
                     </TouchableOpacity>
-                </View>
+                </TouchableOpacity>
 
                 {/* Notes */}
                 {booking.notes ? (
@@ -181,16 +259,16 @@ export default function BookingDetailScreen() {
 
             {/* Collect cash row — only for OFFLINE unpaid bookings */}
             {booking.paymentMode === "OFFLINE" && booking.paymentStatus !== "COMPLETED" && (
-                <View style={{ paddingHorizontal: 20, paddingBottom: 8, backgroundColor: "#FFF" }}>
+                <View style={{ paddingHorizontal: 20, paddingBottom: 8, backgroundColor: "#FFF", gap: 6 }}>
+                    <Text style={{ fontSize: 12, color: '#D97706', fontWeight: '800', textAlign: 'center' }}>
+                        ⚠️ Please collect cash from patient
+                    </Text>
                     <TouchableOpacity
                         style={[styles.primaryBtn, { backgroundColor: '#F59E0B', borderRadius: 14 }]}
-                        onPress={() => Alert.alert(
+                        onPress={() => confirmAction(
                             "Confirm Cash Received",
                             "Have you collected the cash payment from the patient?",
-                            [
-                                { text: "Not Yet", style: "cancel" },
-                                { text: "Yes, Collected", onPress: () => collectCash.mutate() }
-                            ]
+                            () => collectCash.mutate()
                         )}
                         disabled={collectCash.isPending}
                     >
@@ -207,27 +285,72 @@ export default function BookingDetailScreen() {
                 >
                     <MessageCircle size={22} color={PRIMARY} />
                 </TouchableOpacity>
+
+                {isBroadcasted && (
+                    <View style={{ flex: 1, flexDirection: 'row', gap: 10 }}>
+                        <TouchableOpacity
+                            style={[styles.primaryBtn, { flex: 1, backgroundColor: hasActiveSub ? '#8B5CF6' : '#94A3B8' }]}
+                            onPress={() => {
+                                if (!hasActiveSub) {
+                                    Alert.alert("Subscription Required", "You need an active subscription to accept jobs.", [
+                                        { text: "View Plans", onPress: () => router.push("/subscriptions" as any) },
+                                        { text: "Cancel", style: "cancel" }
+                                    ]);
+                                    return;
+                                }
+                                acceptService.mutate();
+                            }}
+                            disabled={acceptService.isPending}
+                        >
+                            <Text style={styles.primaryBtnText}>{acceptService.isPending ? "..." : "⚡ Accept"}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: '#FEF2F2', justifyContent: 'center', alignItems: 'center' }}
+                            onPress={() => rejectService.mutate()}
+                            disabled={rejectService.isPending}
+                        >
+                            <Ionicons name="close" size={24} color="#EF4444" />
+                        </TouchableOpacity>
+                    </View>
+                )}
+
+                {isPartnerAssigned && (
+                    <View style={{ flex: 1, flexDirection: 'row', gap: 10 }}>
+                        <TouchableOpacity
+                            style={[styles.primaryBtn, { flex: 1 }]}
+                            onPress={() => acceptService.mutate()}
+                            disabled={acceptService.isPending}
+                        >
+                            <Text style={styles.primaryBtnText}>{acceptService.isPending ? "..." : "⚡ Accept"}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: '#FEF2F2', justifyContent: 'center', alignItems: 'center' }}
+                            onPress={() => rejectService.mutate()}
+                            disabled={rejectService.isPending}
+                        >
+                            <Ionicons name="close" size={24} color="#EF4444" />
+                        </TouchableOpacity>
+                    </View>
+                )}
+
                 {isPending && (
                     <TouchableOpacity style={styles.primaryBtn} onPress={() => updateStatus.mutate("Confirmed")} disabled={updateStatus.isPending}>
                         <Text style={styles.primaryBtnText}>{updateStatus.isPending ? "..." : "Confirm Visit"}</Text>
                     </TouchableOpacity>
                 )}
-                {isActive && (
+                {isActive && !isPartnerAssigned && (
                     <TouchableOpacity
                         style={styles.primaryBtn}
                         onPress={() => {
-                            Alert.alert(
-                                "Mark Service Complete?",
-                                "Confirm you have finished the service for this patient.",
-                                [
-                                    { text: "Not Yet", style: "cancel" },
-                                    { text: "Yes, Complete", onPress: () => updateStatus.mutate(bookingType === "Doctor" ? "Completed" : "COMPLETED") }
-                                ]
-                            );
+                            if (booking.paymentMode === 'OFFLINE' && booking.paymentStatus !== 'COMPLETED') {
+                                Alert.alert("Collect Cash First", `Please collect the cash payment of ₹${booking.totalAmount || 0} first.`);
+                                return;
+                            }
+                            updateStatus.mutate(bookingType === "Doctor" ? "Completed" : "COMPLETED");
                         }}
                         disabled={updateStatus.isPending}
                     >
-                        <Text style={styles.primaryBtnText}>{updateStatus.isPending ? "..." : "Mark Complete"}</Text>
+                        <Text style={styles.primaryBtnText}>{updateStatus.isPending ? "..." : "Complete"}</Text>
                     </TouchableOpacity>
                 )}
             </View>

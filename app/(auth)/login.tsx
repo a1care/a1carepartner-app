@@ -127,14 +127,19 @@ const LoginScreen = () => {
             if (otpValue) payload.otp = otpValue;
             if (role) payload.role = role;
 
-            const res = await api.post("/doctor/auth/verify-otp", payload);
+            const selectedRole = role?.toLowerCase() || 'doctor';
+            const rolePath = selectedRole.includes('nurse') ? 'nurse' :
+                             selectedRole.includes('ambulance') ? 'ambulance' :
+                             selectedRole.includes('rental') ? 'rental' : 'doctor';
+
+            const res = await api.post(`/${rolePath}/auth/verify-otp`, payload);
             const authToken = res.data?.data?.token;
 
             if (!authToken) throw new Error("No auth token received");
 
             // Partner verify-otp currently returns only the JWT token.
             // Fetch the actual partner profile separately for routing decisions.
-            const detailsRes = await api.get("/doctor/auth/details", {
+            const detailsRes = await api.get(`/${rolePath}/auth/details`, {
                 headers: { Authorization: `Bearer ${authToken}` }
             });
             const userData = detailsRes.data?.data;
@@ -179,9 +184,14 @@ const LoginScreen = () => {
         if (cleaned.startsWith('91') && cleaned.length > 10) cleaned = cleaned.slice(-10);
         if (cleaned.length < 10) return Toast.show({ type: 'error', text1: 'Invalid Mobile' });
 
+        const selectedRole = role?.toLowerCase() || 'doctor';
+        const rolePath = selectedRole.includes('nurse') ? 'nurse' :
+                         selectedRole.includes('ambulance') ? 'ambulance' :
+                         selectedRole.includes('rental') ? 'rental' : 'doctor';
+
         setLoading(true);
         try {
-            await api.post("/doctor/auth/send-otp", { mobileNumber: cleaned });
+            await api.post(`/${rolePath}/auth/send-otp`, { mobileNumber: cleaned });
             setOtpSessionId("ACTIVE");
             setResendTimer(30);
             Toast.show({ type: 'success', text1: 'OTP Sent', text2: 'Enter the 6-digit code sent to your number.' });

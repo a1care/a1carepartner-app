@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
     View,
     Text,
@@ -9,6 +9,7 @@ import {
     TouchableOpacity,
     Alert,
     Platform,
+    Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -16,6 +17,7 @@ import { useRouter, useFocusEffect } from 'expo-router';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { api } from '../lib/api';
 import { LinearGradient } from 'expo-linear-gradient';
+import { useAuthStore } from '../stores/auth';
 
 // ── Icon/Color Mapping (Matching Partner app aesthetics) ─────────────────
 const TYPE_META: Record<string, { icon: any; color: string; bgColor: string }> = {
@@ -47,10 +49,38 @@ function timeAgo(dateStr: string) {
     }
 }
 
+const NotificationsSkeleton = () => {
+    const pulseAnim = useRef(new Animated.Value(0.3)).current;
+    useEffect(() => {
+        Animated.loop(
+            Animated.sequence([
+                Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+                Animated.timing(pulseAnim, { toValue: 0.3, duration: 800, useNativeDriver: true })
+            ])
+        ).start();
+    }, []);
+
+    return (
+        <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+            {[1, 2, 3, 4, 5, 6].map((i) => (
+                <Animated.View 
+                    key={i} 
+                    style={[
+                        styles.card, 
+                        { opacity: pulseAnim, backgroundColor: '#E2E8F0', height: 86, elevation: 0 }
+                    ]}
+                />
+            ))}
+        </ScrollView>
+    );
+};
+
 export default function PartnerNotificationsScreen() {
     const router = useRouter();
     const qc = useQueryClient();
     const [localList, setLocalList] = useState<any[]>([]);
+
+    const { token } = useAuthStore() as any;
 
     const { data, isLoading, isRefetching, refetch } = useQuery({
         queryKey: ['partner_notifications'],
@@ -58,6 +88,7 @@ export default function PartnerNotificationsScreen() {
             const res = await api.get('/notifications?limit=40');
             return res.data?.data;
         },
+        enabled: !!token,
     });
 
     useEffect(() => {
@@ -114,7 +145,7 @@ export default function PartnerNotificationsScreen() {
     });
 
     const ALLOWED_SCREENS = [
-        '/(tabs)/bookings', '/booking_detail', '/wallet_history',
+        '/(tabs)/bookings', '/booking_detail', '/wallet',
         '/my_tickets', '/subscriptions', '/(tabs)/profile',
     ];
 
@@ -135,7 +166,7 @@ export default function PartnerNotificationsScreen() {
                 }
                 break;
             case 'Wallet':
-                router.push('/wallet_history' as any);
+                router.push('/wallet' as any);
                 break;
             case 'Ticket':
                 router.push('/my_tickets' as any); // navigate to ticket list, not new ticket form
@@ -175,9 +206,7 @@ export default function PartnerNotificationsScreen() {
             </View>
 
             {isLoading ? (
-                <View style={styles.center}>
-                    <ActivityIndicator size="large" color="#2D935C" />
-                </View>
+                <NotificationsSkeleton />
             ) : (
                 <ScrollView 
                     contentContainerStyle={styles.list}

@@ -6,7 +6,7 @@ import { getFirebaseMessaging } from './lib/nativeFirebase';
 // Register background handler
 const messaging = getFirebaseMessaging();
 if (messaging) {
-  messaging().setBackgroundMessageHandler(async remoteMessage => {
+  messaging().setBackgroundMessageHandler(async (remoteMessage: any) => {
     console.log('Message handled in the background!', remoteMessage);
   });
 }

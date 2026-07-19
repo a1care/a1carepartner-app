@@ -63,7 +63,9 @@ export default function OnboardingScreen() {
 
     const handleNext = () => {
         if (currentIndex < slides.length - 1) {
-            flatListRef.current?.scrollToIndex({ index: currentIndex + 1 });
+            const nextIdx = currentIndex + 1;
+            flatListRef.current?.scrollToIndex({ index: nextIdx });
+            setCurrentIndex(nextIdx);
         } else {
             router.replace("/(auth)/role-select");
         }

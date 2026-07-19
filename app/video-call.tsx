@@ -1,17 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ActivityIndicator, Alert, TouchableOpacity, Text } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-// import AgoraUIKit from 'agora-rn-uikit'; // This crashes in Expo Go!
-let AgoraUIKit: any = null;
-try {
-    AgoraUIKit = require('agora-rn-uikit').default;
-} catch (e) {
-    console.warn("AgoraUIKit not available (Expo Go?)");
-}
-
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { api } from '../lib/api';
+import AgoraCall from '../components/AgoraCall';
 
 /**
  * Partner App Video Consultation Screen.
@@ -27,7 +20,7 @@ export default function VideoCallScreen() {
     useEffect(() => {
         async function fetchToken() {
             try {
-                // Request token from Agora backend module we just created
+                // Request token from Agora backend
                 const res = await api.get(`/agora/token?channelName=${channelName || bookingId}`);
                 setTokenData(res.data.data);
             } catch (err: any) {
@@ -62,20 +55,6 @@ export default function VideoCallScreen() {
         );
     }
 
-    const connectionData = {
-        appId: tokenData.appId,
-        channel: tokenData.channelName,
-        token: tokenData.token,
-        uid: 0,
-    };
-
-    const callbacks = {
-        EndCall: () => {
-            Alert.alert("Consultation Finished", "End of session.");
-            router.back();
-        },
-    };
-
     return (
         <SafeAreaView style={styles.container}>
             <View style={[styles.header, { top: insets.top + 8, marginHorizontal: 15 }]}>
@@ -85,19 +64,7 @@ export default function VideoCallScreen() {
                 <Text style={styles.headerText}>Video Consultation</Text>
             </View>
             <View style={{ flex: 1 }}>
-                {AgoraUIKit ? (
-                    <AgoraUIKit connectionData={connectionData} rtcCallbacks={callbacks} />
-                ) : (
-                    <View style={styles.centered}>
-                        <Text style={{ textAlign: 'center', padding: 20 }}>
-                            Video calls are not available in Expo Go. 
-                            Please use a Development Build or Release APK to test this feature.
-                        </Text>
-                        <TouchableOpacity onPress={() => router.back()} style={styles.retryButton}>
-                            <Text style={{ color: '#2D935C', fontWeight: 'bold' }}>Go Back</Text>
-                        </TouchableOpacity>
-                    </View>
-                )}
+                <AgoraCall tokenData={tokenData} />
             </View>
         </SafeAreaView>
     );
@@ -114,7 +81,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 15,
         backgroundColor: 'rgba(0,0,0,0.6)',
         position: 'absolute',
-        top: 0, // uses SafeAreaView insets via paddingTop
+        top: 0,
         left: 0,
         right: 0,
         zIndex: 10,

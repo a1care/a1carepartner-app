@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { Toast } from "../../components/CustomToast";
 import {
     View, Text, TextInput, TouchableOpacity, StyleSheet,
     ScrollView, KeyboardAvoidingView, Platform, Alert, ActivityIndicator, Image,
@@ -270,6 +271,28 @@ export default function RegisterScreen() {
             const value = form[field];
             if (value === undefined || value === null || String(value).trim().length === 0) {
                 nextErrors[field] = `${fieldLabels[field] || field} is required.`;
+                return;
+            }
+
+            if (field === "name") {
+                if (/^\d+$/.test(String(value).trim())) {
+                    nextErrors[field] = "Full name cannot be numbers only.";
+                }
+                return;
+            }
+
+            if (field === "email") {
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value).trim())) {
+                    nextErrors[field] = "Enter a valid email address.";
+                }
+                return;
+            }
+
+            if (["serviceRadius", "homeConsultationFee", "onlineConsultationFee"].includes(field)) {
+                if (Number(value) <= 0) {
+                    nextErrors[field] = `${fieldLabels[field]} must be greater than 0.`;
+                }
+                return;
             }
         });
         setFieldErrors(prev => ({ ...prev, ...nextErrors }));

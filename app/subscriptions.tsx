@@ -37,6 +37,28 @@ export default function SubscriptionsScreen() {
         return `${days} Days`;
     };
 
+    const getPlanFeatures = (plan: any) => {
+        if (plan?.features && plan.features.length > 0) {
+            return plan.features;
+        }
+        if (plan?.tier === "Premium") {
+            return [
+                "Featured profile placement (Higher search ranking)",
+                "Verified Partner Digital Badge on Patient App",
+                "Direct bookings queue & 24/7 client match",
+                "Advanced scheduling & calendar management",
+                "Dedicated manager & priority payouts"
+            ];
+        }
+        return [
+            "Standard profile listing visible to patients",
+            "Access to patient booking requests queue",
+            "Direct digital wallet payments & tracking",
+            "Basic chat and call support",
+            "Standard 100 Days validity"
+        ];
+    };
+
     // Fetch Available Plans for this category
     const { data: plansData, isLoading: loadingPlans } = useQuery({
         queryKey: ["subscriptionPlans", role],
@@ -119,6 +141,7 @@ export default function SubscriptionsScreen() {
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 {activeTab === "Plans" ? (
                     <View style={styles.plansList}>
+
                         {loadingPlans ? (
                             <ActivityIndicator size="large" color="#2D935C" style={{ marginTop: 40 }} />
                         ) : plansData?.length > 0 ? (
@@ -144,8 +167,15 @@ export default function SubscriptionsScreen() {
                                         </Text>
                                     </View>
 
-                                    {/* Features removed from card, moved to popup only */}
-                                    <View style={{ height: 20 }} />
+                                    {/* Inline benefits list */}
+                                    <View style={styles.featuresListInline}>
+                                        {getPlanFeatures(plan).map((feature: string, idx: number) => (
+                                            <View key={idx} style={styles.featureItemInline}>
+                                                <Ionicons name="checkmark-circle" size={16} color={plan.tier === "Premium" ? "#FFF" : "#2D935C"} style={{ marginRight: 6 }} />
+                                                <Text style={[styles.featureTextInline, plan.tier === "Premium" && { color: "#FFF" }]}>{feature}</Text>
+                                            </View>
+                                        ))}
+                                    </View>
 
                                     <View style={styles.planBody}>
                                         <View>
@@ -211,11 +241,16 @@ export default function SubscriptionsScreen() {
                             <ActivityIndicator size="large" color="#2D935C" style={{ marginTop: 40 }} />
                         ) : historyData?.length > 0 ? (
                             historyData.map((item: any) => (
-                                <View key={item._id} style={[
-                                    styles.planCard,
-                                    item.planId?.tier === "Premium" && styles.premiumCard,
-                                    { opacity: item.status === "Active" ? 1 : 0.8 }
-                                ]}>
+                                <TouchableOpacity 
+                                    key={item._id} 
+                                    style={[
+                                        styles.planCard,
+                                        item.planId?.tier === "Premium" && styles.premiumCard,
+                                        { opacity: item.status === "Active" ? 1 : 0.8 }
+                                    ]}
+                                    onPress={() => setSelectedPlanForFeatures(item.planId)}
+                                    activeOpacity={0.8}
+                                >
                                     <View style={styles.planHeader}>
                                         <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                                             <Text style={[styles.planCategory, item.planId?.tier === "Premium" && { color: "#FFF" }]}>
@@ -233,6 +268,16 @@ export default function SubscriptionsScreen() {
                                         </Text>
                                     </View>
 
+                                    {/* Inline benefits list */}
+                                    <View style={styles.featuresListInline}>
+                                        {getPlanFeatures(item.planId).map((feature: string, idx: number) => (
+                                            <View key={idx} style={styles.featureItemInline}>
+                                                <Ionicons name="checkmark-circle" size={16} color={item.planId?.tier === "Premium" ? "#FFF" : "#2D935C"} style={{ marginRight: 6 }} />
+                                                <Text style={[styles.featureTextInline, item.planId?.tier === "Premium" && { color: "#FFF" }]}>{feature}</Text>
+                                            </View>
+                                        ))}
+                                    </View>
+
                                     <View style={styles.planBody}>
                                         <View>
                                             <Text style={[styles.planPriceLabel, item.planId?.tier === "Premium" && { color: "rgba(255,255,255,0.7)" }]}>Paid Amount</Text>
@@ -244,7 +289,7 @@ export default function SubscriptionsScreen() {
                                             </Text>
                                         </View>
                                     </View>
-                                </View>
+                                </TouchableOpacity>
                             ))
                         ) : (
                             <View style={styles.emptyState}>
@@ -282,7 +327,7 @@ export default function SubscriptionsScreen() {
 
                         <ScrollView style={styles.modalBody} showsVerticalScrollIndicator={false}>
                             <Text style={styles.modalBodyTitle}>What's included in this plan?</Text>
-                            {selectedPlanForFeatures?.features?.map((feature: string, idx: number) => (
+                            {getPlanFeatures(selectedPlanForFeatures).map((feature: string, idx: number) => (
                                 <View key={idx} style={styles.modalFeatureItem}>
                                     <View style={styles.checkIconBox}>
                                         <Ionicons name="checkmark" size={16} color="#FFF" />
@@ -346,6 +391,85 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: "#F3F4F9",
+    },
+    featuresListInline: {
+        marginTop: 10,
+        marginBottom: 16,
+        paddingHorizontal: 4,
+        gap: 8,
+    },
+    featureItemInline: {
+        flexDirection: "row",
+        alignItems: "center",
+    },
+    featureTextInline: {
+        fontSize: 13,
+        fontWeight: "600",
+        color: "#475569",
+        flex: 1,
+    },
+    currentPlanContainer: {
+        marginBottom: 20,
+        backgroundColor: "#FFFFFF",
+        borderRadius: 16,
+        padding: 16,
+        borderWidth: 1.5,
+        borderColor: "#E2E8F0",
+        shadowColor: "#000",
+        shadowOpacity: 0.05,
+        shadowOffset: { width: 0, height: 2 },
+        shadowRadius: 8,
+        elevation: 2,
+    },
+    sectionHeaderTitle: {
+        fontSize: 14,
+        fontWeight: "800",
+        color: "#1E293B",
+        marginBottom: 12,
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
+    },
+    currentPlanTable: {
+        backgroundColor: "#F8FAFC",
+        borderRadius: 12,
+        overflow: "hidden",
+        borderWidth: 1,
+        borderColor: "#E2E8F0",
+    },
+    tableHeaderRow: {
+        flexDirection: "row",
+        backgroundColor: "#F1F5F9",
+        paddingVertical: 10,
+        paddingHorizontal: 8,
+        borderBottomWidth: 1,
+        borderBottomColor: "#E2E8F0",
+    },
+    tableBodyRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingVertical: 14,
+        paddingHorizontal: 8,
+    },
+    headerCell: {
+        fontSize: 10,
+        fontWeight: "800",
+        color: "#64748B",
+        letterSpacing: 0.5,
+    },
+    bodyCell: {
+        fontSize: 12,
+        fontWeight: "600",
+        color: "#475569",
+    },
+    tierBadge: {
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 6,
+    },
+    tierBadgeText: {
+        fontSize: 10,
+        fontWeight: "800",
+        letterSpacing: 0.5,
     },
     header: {
         flexDirection: "row",

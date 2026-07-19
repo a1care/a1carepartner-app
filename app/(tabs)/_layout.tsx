@@ -2,6 +2,7 @@ import { Tabs, useFocusEffect } from "expo-router";
 import { StyleSheet } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuthStore } from "../../stores/auth";
+import { getRolePath } from "../../lib/roleApi";
 import { api } from "../../lib/api";
 import { useCallback, useRef } from "react";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -19,7 +20,7 @@ export default function TabsLayout() {
             const refresh = async () => {
                 if (!user?._id || hasRefetched.current) return;
                 try {
-                    const res = await api.get("/doctor/auth/details");
+                    const res = await api.get(`/${getRolePath()}/auth/details`);
                     if (res?.data?.data) {
                         await setUser(res.data.data);
                     }

@@ -8,6 +8,7 @@ import { useRouter } from "expo-router";
 import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
+import { getRolePath } from "../lib/roleApi";
 import { LinearGradient } from "expo-linear-gradient";
 import { Toast } from "../components/CustomToast";
 
@@ -34,36 +35,54 @@ export default function BankDetailsScreen() {
     const [form, setForm] = useState(INITIAL_FORM);
     const [showBankDropdown, setShowBankDropdown] = useState(false);
     const [bankSearch, setBankSearch] = useState("");
+    const [isEditMode, setIsEditMode] = useState(false);
 
     useEffect(() => {
         const backAction = () => {
-            router.navigate("/(tabs)/profile" as any);
+            if (isEditMode && form.accountNumber) {
+                setIsEditMode(false);
+            } else {
+                if (router.canGoBack()) {
+                    router.back();
+                } else {
+                    router.navigate("/(tabs)/profile" as any);
+                }
+            }
             return true;
         };
         const backHandler = BackHandler.addEventListener("hardwareBackPress", backAction);
         return () => backHandler.remove();
-    }, []);
+    }, [isEditMode, form.accountNumber]);
 
     const filteredBanks = COMMON_BANKS.filter(b => b.toLowerCase().includes(bankSearch.toLowerCase()));
 
     const { isLoading } = useQuery({
         queryKey: ["bankStaffDetails"],
         queryFn: async () => {
-            const res = await api.get("/doctor/auth/details");
+            const res = await api.get(`/${getRolePath()}/auth/details`);
             const data = res.data.data;
-            if (data?.bankDetails) setForm(data.bankDetails);
+            if (data?.bankDetails) {
+                setForm(data.bankDetails);
+                if (data.bankDetails.accountNumber) {
+                    setIsEditMode(false);
+                } else {
+                    setIsEditMode(true);
+                }
+            } else {
+                setIsEditMode(true);
+            }
             return data;
         },
     });
 
     const updateMutation = useMutation({
         mutationFn: async (updatedForm: typeof form) => {
-            return await api.put("/doctor/auth/register", { bankDetails: updatedForm });
+            return await api.put(`/${getRolePath()}/auth/register`, { bankDetails: updatedForm });
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["bankStaffDetails"] });
             Toast.show({ type: "success", text1: "Bank Details Saved" });
-            router.back();
+            setIsEditMode(false);
         },
         onError: (err: any) => {
             const msg = err?.response?.data?.message || "Failed to save bank details. Please try again.";
@@ -84,9 +103,25 @@ export default function BankDetailsScreen() {
     return (
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.navigate("/(tabs)/profile" as any)} style={styles.backBtn}><Ionicons name="arrow-back" size={22} color="#1E293B" /></TouchableOpacity>
+                <TouchableOpacity onPress={() => {
+                    if (isEditMode && form.accountNumber) {
+                        setIsEditMode(false);
+                    } else {
+                        if (router.canGoBack()) {
+                            router.back();
+                        } else {
+                            router.navigate("/(tabs)/profile" as any);
+                        }
+                    }
+                }} style={styles.backBtn}><Ionicons name="arrow-back" size={22} color="#1E293B" /></TouchableOpacity>
                 <View><Text style={styles.headerTitle}>Settlement Details</Text><Text style={styles.headerSub}>Bank account for receiving payments</Text></View>
-                <View style={{ width: 40 }} />
+                {!isEditMode && form.accountNumber ? (
+                    <TouchableOpacity onPress={() => setIsEditMode(true)} style={styles.editHeaderBtn}>
+                        <Text style={styles.editHeaderText}>Edit</Text>
+                    </TouchableOpacity>
+                ) : (
+                    <View style={{ width: 40 }} />
+                )}
             </View>
 
             <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
@@ -102,41 +137,68 @@ export default function BankDetailsScreen() {
                     </LinearGradient>
 
                     {isLoading ? <ActivityIndicator size="large" color="#2D935C" /> : (
-                        <View style={styles.form}>
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Account Holder Name</Text>
-                                <TextInput style={styles.input} value={form.accountHolderName} onChangeText={(v) => setForm({ ...form, accountHolderName: v.replace(/[^a-zA-Z\s]/g, "") })} placeholder="As per bank records" />
+                        !isEditMode && form.accountNumber ? (
+                            <View style={styles.viewContainer}>
+                                <View style={styles.viewItem}>
+                                    <Text style={styles.viewLabel}>Account Holder Name</Text>
+                                    <Text style={styles.viewValue}>{form.accountHolderName}</Text>
+                                </View>
+                                <View style={styles.viewItem}>
+                                    <Text style={styles.viewLabel}>Bank Name</Text>
+                                    <Text style={styles.viewValue}>{form.bankName}</Text>
+                                </View>
+                                <View style={styles.viewItem}>
+                                    <Text style={styles.viewLabel}>Account Number</Text>
+                                    <Text style={styles.viewValue}>{form.accountNumber}</Text>
+                                </View>
+                                <View style={styles.viewItem}>
+                                    <Text style={styles.viewLabel}>IFSC Code</Text>
+                                    <Text style={styles.viewValue}>{form.ifscCode}</Text>
+                                </View>
+                                {!!form.upiId && (
+                                    <View style={styles.viewItem}>
+                                        <Text style={styles.viewLabel}>UPI ID</Text>
+                                        <Text style={styles.viewValue}>{form.upiId}</Text>
+                                    </View>
+                                )}
                             </View>
+                        ) : (
+                            <View style={styles.form}>
+                                <View style={styles.inputGroup}>
+                                    <Text style={styles.label}>Account Holder Name</Text>
+                                    <TextInput style={styles.input} value={form.accountHolderName} onChangeText={(v) => setForm({ ...form, accountHolderName: v.replace(/[^a-zA-Z\s]/g, "") })} placeholder="As per bank records" />
+                                </View>
 
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Bank Name</Text>
-                                <TouchableOpacity style={styles.dropdownToggle} onPress={() => setShowBankDropdown(true)}>
-                                    <Text style={[styles.dropdownValue, !form.bankName && { color: "#A0AABB" }]}>{form.bankName || "Select your bank"}</Text>
-                                    <Ionicons name="chevron-down" size={18} color="#94A3B8" />
+                                <View style={styles.inputGroup}>
+                                    <Text style={styles.label}>Bank Name</Text>
+                                    <TouchableOpacity style={styles.dropdownToggle} onPress={() => setShowBankDropdown(true)}>
+                                        <Text style={[styles.dropdownValue, !form.bankName && { color: "#A0AABB" }]}>{form.bankName || "Select your bank"}</Text>
+                                        <Ionicons name="chevron-down" size={18} color="#94A3B8" />
+                                    </TouchableOpacity>
+                                </View>
+
+                                <View style={styles.inputGroup}>
+                                    <Text style={styles.label}>Account Number</Text>
+                                    <TextInput style={styles.input} value={form.accountNumber} onChangeText={(v) => setForm({ ...form, accountNumber: v.replace(/\D/g, "").slice(0, 18) })} placeholder="9-18 digit account number" keyboardType="number-pad" />
+                                </View>
+
+                                <View style={styles.inputGroup}>
+                                    <Text style={styles.label}>IFSC Code</Text>
+                                    <TextInput style={styles.input} value={form.ifscCode} onChangeText={(v) => setForm({ ...form, ifscCode: v.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 11) })} placeholder="e.g. SBIN0001234" autoCapitalize="characters" />
+                                </View>
+
+                                <View style={styles.inputGroup}>
+                                    <Text style={styles.label}>UPI ID (optional)</Text>
+                                    <TextInput style={styles.input} value={form.upiId} onChangeText={(v) => setForm({ ...form, upiId: v.trim() })} placeholder="e.g. yourname@upi" keyboardType="email-address" autoCapitalize="none" />
+                                </View>
+
+                                <TouchableOpacity style={[styles.saveBtn, updateMutation.isPending && { opacity: 0.6 }]} onPress={handleSave} disabled={updateMutation.isPending}>
+                                    <LinearGradient colors={["#2D935C", "#1B6B3A"]} style={styles.saveBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                                        {updateMutation.isPending ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveBtnText}>Save Bank Account</Text>}
+                                    </LinearGradient>
                                 </TouchableOpacity>
                             </View>
-
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.label}>Account Number</Text>
-                                <TextInput style={styles.input} value={form.accountNumber} onChangeText={(v) => setForm({ ...form, accountNumber: v.replace(/\D/g, "").slice(0, 18) })} placeholder="9-18 digit account number" keyboardType="number-pad" />
-                            </View>
-
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.label}>IFSC Code</Text>
-                                <TextInput style={styles.input} value={form.ifscCode} onChangeText={(v) => setForm({ ...form, ifscCode: v.replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 11) })} placeholder="e.g. SBIN0001234" autoCapitalize="characters" />
-                            </View>
-
-                            <View style={styles.inputGroup}>
-                                <Text style={styles.label}>UPI ID (optional)</Text>
-                                <TextInput style={styles.input} value={form.upiId} onChangeText={(v) => setForm({ ...form, upiId: v.trim() })} placeholder="e.g. yourname@upi" keyboardType="email-address" autoCapitalize="none" />
-                            </View>
-
-                            <TouchableOpacity style={[styles.saveBtn, updateMutation.isPending && { opacity: 0.6 }]} onPress={handleSave} disabled={updateMutation.isPending}>
-                                <LinearGradient colors={["#2D935C", "#1B6B3A"]} style={styles.saveBtnGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-                                    {updateMutation.isPending ? <ActivityIndicator color="#FFF" /> : <Text style={styles.saveBtnText}>Save Bank Account</Text>}
-                                </LinearGradient>
-                            </TouchableOpacity>
-                        </View>
+                        )
                     )}
                 </ScrollView>
 
@@ -200,5 +262,11 @@ const styles = StyleSheet.create({
     modalItem: { padding: 18, flexDirection: 'row', justifyContent: 'space-between', borderBottomWidth: 1, borderBottomColor: '#F8FAFC' },
     modalItemText: { fontSize: 15, color: '#475569', fontWeight: '600' },
     modalItemTextActive: { color: '#2D935C', fontWeight: '800' },
-    customAddBtn: { padding: 18, alignItems: 'center', backgroundColor: '#F0FDF4', borderRadius: 12, marginTop: 10 }
+    customAddBtn: { padding: 18, alignItems: 'center', backgroundColor: '#F0FDF4', borderRadius: 12, marginTop: 10 },
+    editHeaderBtn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 12, backgroundColor: "#E8F8EF" },
+    editHeaderText: { color: "#2D935C", fontSize: 14, fontWeight: "800" },
+    viewContainer: { backgroundColor: "#FFF", borderRadius: 24, padding: 20, gap: 16, elevation: 1, borderWidth: 1.5, borderColor: "#F1F5F9" },
+    viewItem: { borderBottomWidth: 1, borderBottomColor: "#F8FAFC", paddingBottom: 10 },
+    viewLabel: { fontSize: 11, fontWeight: "800", color: "#94A3B8", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 4 },
+    viewValue: { fontSize: 15, fontWeight: "700", color: "#1E293B" }
 });

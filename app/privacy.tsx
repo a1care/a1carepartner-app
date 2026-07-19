@@ -26,10 +26,15 @@ export default function PrivacyPolicyScreen() {
                     <Ionicons name="arrow-back" size={24} color="#1E293B" />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Privacy Policy</Text>
+                <View style={{ width: 24 }} />
             </View>
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 <View style={styles.card}>
+                    <View style={styles.iconContainer}>
+                        <Ionicons name="shield-checkmark" size={32} color="#2D935C" />
+                    </View>
+                    
                     <Text style={styles.lastUpdate}>Last Updated: February 2026</Text>
 
                     {config?.contact.privacyPolicy ? (
@@ -65,10 +70,6 @@ export default function PrivacyPolicyScreen() {
                             </Text>
                         </>
                     )}
-
-                    <TouchableOpacity style={styles.supportLink} onPress={() => router.push("/raise_ticket")}>
-                        <Text style={styles.supportText}>Questions? Contact Privacy Team</Text>
-                    </TouchableOpacity>
                 </View>
             </ScrollView>
         </SafeAreaView>
@@ -77,14 +78,15 @@ export default function PrivacyPolicyScreen() {
 
 const styles = StyleSheet.create({
     container: { flex: 1, backgroundColor: "#F8FAFC" },
-    header: { flexDirection: "row", alignItems: "center", padding: 20, backgroundColor: "#FFF", borderBottomWidth: 1, borderBottomColor: "#F1F5F9" },
-    backButton: { marginRight: 15 },
-    headerTitle: { fontSize: 20, fontWeight: "900", color: "#1E293B" },
-    scrollContent: { padding: 20 },
-    card: { backgroundColor: "#FFF", padding: 25, borderRadius: 28, borderWidth: 1, borderColor: "#F1F5F9", elevation: 2, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 10 },
-    lastUpdate: { fontSize: 13, color: "#94A3B8", fontWeight: "700", marginBottom: 20 },
-    sectionTitle: { fontSize: 17, fontWeight: "900", color: "#1E293C", marginTop: 20, marginBottom: 10 },
-    paragraph: { fontSize: 15, lineHeight: 24, color: "#475569", marginBottom: 15 },
-    supportLink: { marginTop: 30, padding: 15, backgroundColor: "#F1F5F9", borderRadius: 15, alignItems: 'center' },
+    header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 15, backgroundColor: "#FFF", borderBottomWidth: 1, borderBottomColor: "#E2E8F0" },
+    backButton: { padding: 5 },
+    headerTitle: { fontSize: 18, fontWeight: "800", color: "#1E293B" },
+    scrollContent: { padding: 20, paddingBottom: 40 },
+    card: { backgroundColor: "#FFF", padding: 24, borderRadius: 24, borderWidth: 1.5, borderColor: "#F1F5F9", elevation: 1, shadowColor: "#000", shadowOpacity: 0.02, shadowOffset: { width: 0, height: 2 }, shadowRadius: 8 },
+    iconContainer: { width: 64, height: 64, borderRadius: 32, backgroundColor: "#E8F8EF", justifyContent: 'center', alignItems: 'center', alignSelf: 'center', marginBottom: 15 },
+    lastUpdate: { fontSize: 13, color: "#94A3B8", fontWeight: "800", marginBottom: 20, textAlign: 'center' },
+    sectionTitle: { fontSize: 16, fontWeight: "800", color: "#1E293B", marginTop: 20, marginBottom: 10 },
+    paragraph: { fontSize: 14, lineHeight: 24, color: "#475569", fontWeight: "600", marginBottom: 15 },
+    supportLink: { marginTop: 25, padding: 14, backgroundColor: "#E8F8EF", borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
     supportText: { color: "#2D935C", fontWeight: "800", fontSize: 14 }
 });

@@ -4,10 +4,18 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 const { width, height } = Dimensions.get("window");
 import { useAuthStore } from "../../stores/auth";
+import { getRolePath } from "../../lib/roleApi";
 import { useRouter } from "expo-router";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../lib/api";
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-icons";
+
+const API_ORIGIN = (process.env.EXPO_PUBLIC_API_URL ?? 'https://api.a1carehospital.in/api').replace(/\/api\/?$/, '');
+const resolvePhoto = (url?: string | null) => {
+    if (!url) return null;
+    if (url.startsWith('http')) return url;
+    return `${API_ORIGIN}${url.startsWith('/') ? url : `/${url}`}`;
+};
 
 export default function ProfileScreen() {
     const { user, logout } = useAuthStore() as any;
@@ -16,7 +24,7 @@ export default function ProfileScreen() {
     const { data: staffData, isLoading: loadingStaff } = useQuery({
         queryKey: ["profileStaffDetails"],
         queryFn: async () => {
-            const res = await api.get("/doctor/auth/details");
+            const res = await api.get(`/${getRolePath()}/auth/details`);
             return res.data.data;
         }
     });
@@ -37,6 +45,16 @@ export default function ProfileScreen() {
             return res.data.data;
         }
     });
+
+    // Fetch real wallet balance from earnings summary
+    const { data: earningsSummary } = useQuery({
+        queryKey: ["staff_earnings"],
+        queryFn: async () => {
+            const res = await api.get(`/${getRolePath()}/earnings/summary`);
+            return res.data.data;
+        }
+    });
+    const walletBalance = earningsSummary?.balance ?? staffData?.walletBalance ?? 0;
 
     const pendingCount = bookings.filter((b: any) => b.status === "Pending").length;
     const confirmedCount = bookings.filter((b: any) => b.status === "Confirmed" || b.status === "Active").length;
@@ -68,7 +86,7 @@ export default function ProfileScreen() {
                     onPress: async () => {
                         setIsDeleting(true);
                         try {
-                            const res = await api.post("/doctor/auth/request-deletion");
+                            const res = await api.post(`/${getRolePath()}/auth/request-deletion`);
                             Alert.alert("Success", res.data.message || "Deletion request submitted. Admin will review your request.");
                         } catch (err: any) {
                             setIsDeleting(false);
@@ -117,9 +135,9 @@ export default function ProfileScreen() {
                         <Text style={styles.infoSubText}>{user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) + " A1care Partner" : "A1care Partner"}</Text>
                     </View>
                     <View style={styles.avatarPlaceholder}>
-                        {staffData?.profileImage || user?.profileImage ? (
+                        {resolvePhoto(staffData?.profileImage || user?.profileImage) ? (
                             <Image
-                                source={{ uri: staffData?.profileImage || user?.profileImage }}
+                                source={{ uri: resolvePhoto(staffData?.profileImage || user?.profileImage)! }}
                                 style={{ width: "100%", height: "100%", borderRadius: 40 }}
                             />
                         ) : (
@@ -143,17 +161,18 @@ export default function ProfileScreen() {
                 ) : null}
 
                 {/* Wallet Card - Matched Gradient to Mockup */}
-                <TouchableOpacity onPress={() => router.push("/wallet_history")}>
+                <TouchableOpacity onPress={() => router.push("/wallet")}>
                     <LinearGradient
                         colors={["#417D77", "#9EBB58"]}
                         start={{ x: 0, y: 0.5 }}
                         end={{ x: 1, y: 0.5 }}
                         style={styles.walletCard}
                     >
+                        <View>
                         <Text style={styles.walletTitle}>A1Care Wallet</Text>
                         <Text style={styles.balanceLabel}>Balance</Text>
-                        <Text style={styles.balanceAmount}>₹{staffData?.walletBalance ?? "0"}</Text>
-
+                        <Text style={styles.balanceAmount}>₹{walletBalance.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+                        </View>
                         <View style={styles.walletFooter}>
                             <View>
                                 <Text style={styles.walletId}>WLT-{(staffData?._id || user?._id || user?.id || "").slice(-12).toUpperCase() || "XXXXXXXXXXXX"}</Text>
@@ -255,13 +274,6 @@ export default function ProfileScreen() {
                         title="Raise Ticket"
                         subtitle="Report an issue or get assistance"
                         onPress={() => handleNavigation("raise-ticket")}
-                    />
-
-                    <MenuLink
-                        icon={<MaterialCommunityIcons name="format-list-checks" size={22} color="#15803D" />}
-                        title="My Tickets"
-                        subtitle="Track your support requests"
-                        onPress={() => handleNavigation("my-tickets")}
                     />
 
                     <MenuLink
@@ -411,6 +423,8 @@ const styles = StyleSheet.create({
         shadowColor: "#417D77",
         shadowOpacity: 0.3,
         shadowRadius: 20,
+        flexDirection: 'column',
+        justifyContent: 'space-between',
     },
     walletTitle: {
         color: 'rgba(255,255,255,0.9)',
@@ -433,7 +447,6 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'flex-end',
-        marginTop: 'auto',
     },
     walletId: {
         color: 'rgba(255,255,255,0.8)',

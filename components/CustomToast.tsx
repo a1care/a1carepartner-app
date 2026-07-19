@@ -6,8 +6,6 @@ const { width } = Dimensions.get('window');
 
 let showToastFn: any = null;
 
-// This provides the exact same API as react-native-toast-message, 
-// so you don't need to change much in your code!
 export const Toast = {
     show: (options: { type: 'success' | 'error' | 'info', text1: string, text2?: string }) => {
         if (showToastFn) {
@@ -18,40 +16,54 @@ export const Toast = {
 
 export function ToastProvider({ children }: { children?: React.ReactNode }) {
     const [toast, setToast] = useState<{ type: string; text1: string; text2?: string, id: number } | null>(null);
-    const slideAnim = useRef(new Animated.Value(width)).current;
+    const fadeAnim = useRef(new Animated.Value(0)).current;
+    const translateAnim = useRef(new Animated.Value(-40)).current;
 
     useEffect(() => {
         showToastFn = (options: any) => {
             const id = Date.now();
             setToast({ ...options, id });
 
-            // Instantly reset position to off-screen right
-            slideAnim.setValue(width);
+            fadeAnim.setValue(0);
+            translateAnim.setValue(-40);
 
-            // Animate sliding in from Right to Left
-            Animated.spring(slideAnim, {
-                toValue: 0,
-                useNativeDriver: true,
-                damping: 15,
-                stiffness: 100,
-            }).start();
+            // Smooth fade + slide down animation
+            Animated.parallel([
+                Animated.timing(fadeAnim, {
+                    toValue: 1,
+                    duration: 350,
+                    useNativeDriver: true,
+                }),
+                Animated.spring(translateAnim, {
+                    toValue: 0,
+                    useNativeDriver: true,
+                    tension: 40,
+                    friction: 7,
+                })
+            ]).start();
 
-            // Auto hide after 3 seconds
+            // Auto hide after 3.5 seconds
             setTimeout(() => {
                 hideToast(id);
-            }, 3000);
+            }, 3500);
         };
     }, []);
 
     const hideToast = (idToHide: number) => {
         setToast((currentToast) => {
             if (currentToast && currentToast.id === idToHide) {
-                // Animate sliding back out to the Right
-                Animated.timing(slideAnim, {
-                    toValue: width,
-                    duration: 300,
-                    useNativeDriver: true,
-                }).start(() => {
+                Animated.parallel([
+                    Animated.timing(fadeAnim, {
+                        toValue: 0,
+                        duration: 300,
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(translateAnim, {
+                        toValue: -30,
+                        duration: 300,
+                        useNativeDriver: true,
+                    })
+                ]).start(() => {
                     setToast(null);
                 });
             }
@@ -63,17 +75,17 @@ export function ToastProvider({ children }: { children?: React.ReactNode }) {
         <>
             {children}
             {toast ? (
-                <SafeAreaView pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+                <SafeAreaView pointerEvents="box-none" style={styles.overlay}>
                     <Animated.View style={[
                         styles.toastContainer,
-                        { transform: [{ translateX: slideAnim }] },
+                        { opacity: fadeAnim, transform: [{ translateY: translateAnim }] },
                         toast.type === 'error' ? styles.errorBg :
                             toast.type === 'info' ? styles.infoBg : styles.successBg
                     ]}>
-                        <TouchableOpacity onPress={() => hideToast(toast.id)} activeOpacity={0.8}>
+                        <TouchableOpacity onPress={() => hideToast(toast.id)} activeOpacity={0.9}>
                             <View style={styles.content}>
-                                <Text style={[styles.text1, toast.type === 'success' && { color: '#0D2E4D' }]}>{toast.text1}</Text>
-                                {toast.text2 ? <Text style={[styles.text2, toast.type === 'success' && { color: '#4A6E8A', opacity: 1 }]}>{toast.text2}</Text> : null}
+                                <Text style={[styles.text1, toast.type === 'success' && { color: '#0F2C59' }]}>{toast.text1}</Text>
+                                {toast.text2 ? <Text style={[styles.text2, toast.type === 'success' && { color: '#3A5B80' }]}>{toast.text2}</Text> : null}
                             </View>
                         </TouchableOpacity>
                     </Animated.View>
@@ -84,47 +96,55 @@ export function ToastProvider({ children }: { children?: React.ReactNode }) {
 }
 
 const styles = StyleSheet.create({
-    toastContainer: {
+    overlay: {
         position: 'absolute',
-        top: 60,     // Shows below the status bar area
-        right: 16,   // Anchored to the right side
-        width: width * 0.85,
-        padding: 16,
-        borderRadius: 20, // More rounded like home page cards
-        shadowColor: "#1E293B",
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.15,
-        shadowRadius: 15,
-        elevation: 10,
-        zIndex: 9999,
-        borderWidth: 1,
-        borderColor: 'rgba(255,255,255,0.2)',
+        top: 20,
+        left: 0,
+        right: 0,
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 99999,
+    },
+    toastContainer: {
+        width: Math.min(width - 32, 400),
+        paddingVertical: 14,
+        paddingHorizontal: 18,
+        borderRadius: 16,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.12,
+        shadowRadius: 10,
+        elevation: 8,
+        borderWidth: 1.5,
+        alignSelf: 'center',
     },
     successBg: {
-        backgroundColor: '#EBF5FB', // A1Care Light Blue
-        borderColor: '#1A7FD4', 
-        borderWidth: 1.5,
+        backgroundColor: '#ECFDF5', 
+        borderColor: '#10B981',
     },
     errorBg: {
-        backgroundColor: '#EF4444', // Home Action Red
+        backgroundColor: '#FEF2F2',
+        borderColor: '#EF4444',
     },
     infoBg: {
-        backgroundColor: '#6366F1', // Home Indigo
+        backgroundColor: '#EFF6FF',
+        borderColor: '#3B82F6',
     },
     content: {
-        paddingRight: 8,
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     text1: {
-        color: 'white',
-        fontWeight: '900',
-        fontSize: 16,
-        letterSpacing: 0.3,
+        fontWeight: '700',
+        fontSize: 15,
+        color: '#1E293B',
+        textAlign: 'center',
     },
     text2: {
-        color: 'white',
         fontSize: 13,
-        fontWeight: '600',
-        marginTop: 2,
-        opacity: 0.9,
+        fontWeight: '500',
+        marginTop: 4,
+        color: '#64748B',
+        textAlign: 'center',
     }
 });

@@ -5,6 +5,7 @@ import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { api } from "../../lib/api";
 import { useAuthStore } from "../../stores/auth";
+import { getRolePath } from "../../lib/roleApi";
 import { Toast } from "../../components/CustomToast";
 import { missingRequiredDocuments, needsKycUpload, roleFromPartner } from "../../lib/partnerOnboarding";
 
@@ -25,7 +26,7 @@ const ReviewStatusScreen = () => {
     const handleCheckUpdate = async () => {
         setLoading(true);
         try {
-            const res = await api.get("/doctor/auth/details");
+            const res = await api.get(`/${getRolePath()}/auth/details`);
             const staff = res.data.data;
             const partnerRole = roleFromPartner(staff, user?.role);
             await setAuth(token || "", { ...staff, role: partnerRole });

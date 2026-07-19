@@ -195,6 +195,14 @@ function AuthGuard() {
         }
     };
 
+    const handlePressPopup = (bookingId: string) => {
+        setAssignmentRequest(null);
+        router.push({
+            pathname: '/booking_detail' as any,
+            params: { bookingId, bookingType: 'Service' }
+        });
+    };
+
     if (!isAppReady || isLoading) {
         return (
             <View style={{ flex: 1, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center' }}>
@@ -208,8 +216,8 @@ function AuthGuard() {
             <Slot />
             <BookingAssignmentPopup
                 request={assignmentRequest}
-                onAccept={handleAccept}
-                onReject={handleReject}
+                onDecline={handleReject}
+                onPress={handlePressPopup}
             />
         </>
     );
