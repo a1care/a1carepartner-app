@@ -46,7 +46,8 @@ export default function HomeScreen() {
             const { status } = await Location.requestForegroundPermissionsAsync();
             if (status !== 'granted') {
                 if (isMounted) {
-                    setLocationAddress("Location access denied");
+                    setLocationArea("Location access denied");
+                    setLocationCity("Please enable in settings");
                     Toast.show({ type: 'info', text1: 'Location Required', text2: 'Please enable location to receive nearby bookings.' });
                 }
                 return;
@@ -109,21 +110,33 @@ export default function HomeScreen() {
         try {
             let coords = coordsParam;
             if (!coords) {
-                const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-                coords = {
-                    latitude: loc.coords.latitude,
-                    longitude: loc.coords.longitude,
-                    heading: loc.coords.heading,
-                    speed: loc.coords.speed,
-                };
+                let loc = await Location.getLastKnownPositionAsync();
+                if (!loc) {
+                    loc = await Promise.race([
+                        Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+                        new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000))
+                    ]);
+                }
+                if (loc) {
+                    coords = {
+                        latitude: loc.coords.latitude,
+                        longitude: loc.coords.longitude,
+                        heading: loc.coords.heading,
+                        speed: loc.coords.speed,
+                    };
+                }
             }
 
-            await AsyncStorage.setItem("last_location", JSON.stringify(coords));
-            await api.post("/appointment/location/update", {
-                ...coords,
-                isOnline: isOnline // use actual toggle state, not hardcoded true
-            });
-            console.log("[Location] Synced:", coords.latitude, coords.longitude);
+            if (coords) {
+                await AsyncStorage.setItem("last_location", JSON.stringify(coords));
+                await api.post("/appointment/location/update", {
+                    ...coords,
+                    isOnline: isOnline // use actual toggle state, not hardcoded true
+                });
+                console.log("[Location] Synced:", coords.latitude, coords.longitude);
+            } else {
+                console.log("[Location] No coordinates resolved yet.");
+            }
             return coords;
         } catch (err) {
             console.log("[Location] Sync failed:", err);
@@ -151,7 +164,16 @@ export default function HomeScreen() {
             if (cachedArea) setLocationArea(cachedArea);
             if (cachedCityLocal) setLocationCity(cachedCityLocal);
 
-            const location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+            // Try last known position first (fastest)
+            let location = await Location.getLastKnownPositionAsync();
+            if (!location) {
+                // If last known position is not available, request a fresh one with a strict 3-second timeout constraint to avoid 6000ms hang
+                location = await Promise.race([
+                    Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
+                    new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000))
+                ]);
+            }
+
             if (location) {
                 await syncCurrentLocation({
                     latitude: location.coords.latitude,

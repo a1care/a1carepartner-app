@@ -366,7 +366,7 @@ export default function BookingsScreen() {
                             </TouchableOpacity>
 
                             <View style={styles.actionsContainer}>
-                                {(b.status?.toLowerCase?.() === "broadcasted" || b.status?.toLowerCase?.() === "missing") && (
+                                {b.status?.toLowerCase?.() === "broadcasted" && (
                                      <View style={{ flex: 1 }}>
                                         <Text style={{ fontSize: 11, color: '#7C3AED', fontWeight: '600', marginBottom: 6 }}>📢 Open to all partners — first to accept gets it</Text>
                                         {!hasActiveSub && (
@@ -397,6 +397,7 @@ export default function BookingsScreen() {
                                         </View>
                                      </View>
                                 )}
+
 
                                 {b.status === "PARTNER_ASSIGNED" && (
                                     <View style={{ flex: 1 }}>

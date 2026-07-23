@@ -94,7 +94,7 @@ export default function ProfileEditScreen() {
     const [debugToken, setDebugToken] = useState("");
     const [showDebug, setShowDebug] = useState(false);
     const [activeTab, setActiveTab] = useState<"personal" | "professional">("personal");
-    const [isEditing, setIsEditing] = useState(false);
+    const [isEditing, setIsEditing] = useState(true);
 
     useEffect(() => {
         const backAction = () => {
@@ -412,27 +412,6 @@ export default function ProfileEditScreen() {
                                 {isEditing && <Text style={styles.avatarLabel}>{isUploading ? "Uploading..." : "Tap to change photo"}</Text>}
                             </View>
 
-                            {/* Registration Details Grid */}
-                            <Text style={styles.sectionTitle}>Overview</Text>
-                            <View style={styles.detailsGrid}>
-                                {detailsList.filter(item => ["Name", "Mobile", "Email", "Gender", "City"].includes(item.label)).map((item, idx) => (
-                                    <View key={idx} style={styles.detailCard}>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                                            {getDetailIcon(item.label)}
-                                            <Text style={styles.detailLabel}>{item.label}</Text>
-                                        </View>
-                                        <Text style={styles.detailValue} numberOfLines={1}>{String(item.value)}</Text>
-                                    </View>
-                                ))}
-                            </View>
-
-                            {!isEditing && (
-                                <TouchableOpacity style={styles.editBtn} onPress={() => setIsEditing(true)}>
-                                    <Ionicons name="create-outline" size={20} color="#FFF" style={{ marginRight: 8 }} />
-                                    <Text style={styles.editBtnText}>Edit Profile</Text>
-                                </TouchableOpacity>
-                            )}
-
                             {isEditing && (
                                 <View>
                                     <Text style={styles.sectionTitle}>Edit Personal Info</Text>
@@ -493,27 +472,6 @@ export default function ProfileEditScreen() {
                         </View>
                     ) : (
                         <View>
-                            {/* Registration Details Grid */}
-                            <Text style={styles.sectionTitle}>Overview</Text>
-                            <View style={styles.detailsGrid}>
-                                {detailsList.filter(item => !["Name", "Mobile", "Email", "Gender", "City"].includes(item.label)).map((item, idx) => (
-                                    <View key={idx} style={styles.detailCard}>
-                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                                            {getDetailIcon(item.label)}
-                                            <Text style={styles.detailLabel}>{item.label}</Text>
-                                        </View>
-                                        <Text style={styles.detailValue} numberOfLines={1}>{String(item.value)}</Text>
-                                    </View>
-                                ))}
-                            </View>
-
-                            {!isEditing && (
-                                <TouchableOpacity style={styles.editBtn} onPress={() => setIsEditing(true)}>
-                                    <Ionicons name="create-outline" size={20} color="#FFF" style={{ marginRight: 8 }} />
-                                    <Text style={styles.editBtnText}>Edit Profile</Text>
-                                </TouchableOpacity>
-                            )}
-
                             {isEditing && (
                                 <View>
                                     <Text style={styles.sectionTitle}>Edit Professional Info</Text>

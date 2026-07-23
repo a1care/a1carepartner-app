@@ -68,14 +68,17 @@ export default function BookingChatScreen() {
     const socketRef = useRef<any>(null);
     const patientName = Array.isArray(name) ? name[0] : (name || 'Patient');
 
-    const { isLoading } = useQuery({
+    const { data: initialData, isLoading } = useQuery({
         queryKey: ['booking-chat', id],
         queryFn: () => partnerBookingService.getMessages(id!),
         enabled: !!id,
-        onSuccess: (data: any[]) => {
-            if (data?.length > 0) setChatMessages(data);
+    });
+
+    useEffect(() => {
+        if (initialData?.length > 0) {
+            setChatMessages(initialData);
         }
-    } as any);
+    }, [initialData]);
 
     useEffect(() => {
         if (!id) return;
@@ -84,7 +87,7 @@ export default function BookingChatScreen() {
         socketRef.current = socket;
         socket.emit('join_room', id);
         const handleMsg = (data: any) => {
-            if (data.roomId === id) {
+            if (data.roomId === id || data.bookingId === id) {
                 setChatMessages(prev => {
                     if (prev.find((m: any) => m._id && m._id === data._id)) return prev;
                     return [...prev, data];
@@ -127,11 +130,19 @@ export default function BookingChatScreen() {
 
     const initials = patientName.split(' ').slice(0, 2).map((w: string) => w[0]).join('').toUpperCase();
 
+    const handleBack = () => {
+        if (router.canGoBack()) {
+            router.back();
+        } else {
+            router.replace('/(tabs)/bookings' as any);
+        }
+    };
+
     return (
         <SafeAreaView style={styles.root} edges={['top']}>
             {/* ── Header ── */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <TouchableOpacity onPress={handleBack} style={styles.backBtn} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
                     <Ionicons name="arrow-back" size={22} color="#fff" />
                 </TouchableOpacity>
 

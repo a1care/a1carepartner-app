@@ -95,6 +95,8 @@ export default function EarningsScreen() {
         setUpiAccountName('');
     };
 
+    const [activeTab, setActiveTab] = useState<'PAYOUTS' | 'BOOKINGS'>('PAYOUTS');
+
     const { data: summary, isLoading, refetch } = useQuery({
         queryKey: ['staff_earnings'],
         queryFn: async () => {
@@ -103,10 +105,18 @@ export default function EarningsScreen() {
         }
     });
 
-    const { data: payouts } = useQuery({
+    const { data: payouts, refetch: refetchPayouts } = useQuery({
         queryKey: ['staff_payouts'],
         queryFn: async () => {
             const res = await api.get(`/${getRolePath()}/earnings/payouts`);
+            return res.data.data;
+        }
+    });
+
+    const { data: bookingHistory, refetch: refetchHistory } = useQuery({
+        queryKey: ['staff_booking_earnings'],
+        queryFn: async () => {
+            const res = await api.get(`/${getRolePath()}/earnings/history`);
             return res.data.data;
         }
     });
@@ -169,7 +179,7 @@ export default function EarningsScreen() {
 
     const onRefresh = async () => {
         setRefreshing(true);
-        await refetch();
+        await Promise.all([refetch(), refetchPayouts(), refetchHistory()]);
         setRefreshing(false);
     };
 
@@ -225,39 +235,77 @@ export default function EarningsScreen() {
                     <StatCard title="Withdrawn" amount={stats.withdrawn || 0} icon="bank-transfer-out" color="#EC4899" />
                 </View>
 
-                <View style={styles.historyHeader}>
-                    <Text style={styles.historyTitle}>Payout History</Text>
+                {/* Sub Tab Switcher */}
+                <View style={styles.tabSwitcher}>
+                    <TouchableOpacity 
+                        style={[styles.tabButton, activeTab === 'PAYOUTS' && styles.tabButtonActive]}
+                        onPress={() => setActiveTab('PAYOUTS')}
+                    >
+                        <Text style={[styles.tabButtonText, activeTab === 'PAYOUTS' && styles.tabButtonTextActive]}>Payout Requests</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                        style={[styles.tabButton, activeTab === 'BOOKINGS' && styles.tabButtonActive]}
+                        onPress={() => setActiveTab('BOOKINGS')}
+                    >
+                        <Text style={[styles.tabButtonText, activeTab === 'BOOKINGS' && styles.tabButtonTextActive]}>Booking Earnings</Text>
+                    </TouchableOpacity>
                 </View>
 
                 {/* History List */}
-                {payouts?.length > 0 ? (
-                    payouts.map((p: any) => (
-                        <View key={p._id} style={styles.payoutItem}>
-                            <View style={styles.payoutIcon}>
-                                <Ionicons name="wallet-outline" size={20} color="#64748B" />
-                            </View>
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.payoutAmount}>₹{Number(p.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
-                                <Text style={styles.payoutDate}>{new Date(p.createdAt).toLocaleDateString()}</Text>
-                            </View>
-                            <View style={[
-                                styles.statusBadge,
-                                { backgroundColor: p.status === 'COMPLETED' ? '#ECFDF5' : p.status === 'PENDING' ? '#FFFBEB' : p.status === 'APPROVED' ? '#EFF6FF' : '#FEF2F2' }
-                            ]}>
-                                <Text style={[
-                                    styles.statusText,
-                                    { color: p.status === 'COMPLETED' ? '#10B981' : p.status === 'PENDING' ? '#D97706' : p.status === 'APPROVED' ? '#3B82F6' : '#EF4444' }
+                {activeTab === 'PAYOUTS' ? (
+                    payouts?.length > 0 ? (
+                        payouts.map((p: any) => (
+                            <View key={p._id} style={styles.payoutItem}>
+                                <View style={styles.payoutIcon}>
+                                    <Ionicons name="wallet-outline" size={20} color="#64748B" />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.payoutAmount}>₹{Number(p.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+                                    <Text style={styles.payoutDate}>{new Date(p.createdAt).toLocaleDateString()}</Text>
+                                </View>
+                                <View style={[
+                                    styles.statusBadge,
+                                    { backgroundColor: p.status === 'COMPLETED' ? '#ECFDF5' : p.status === 'PENDING' ? '#FFFBEB' : p.status === 'APPROVED' ? '#EFF6FF' : '#FEF2F2' }
                                 ]}>
-                                    {p.status === 'COMPLETED' ? 'Paid' : p.status === 'PENDING' ? 'Pending' : p.status === 'APPROVED' ? 'Approved' : p.status === 'REJECTED' ? 'Rejected' : p.status}
-                                </Text>
+                                    <Text style={[
+                                        styles.statusText,
+                                        { color: p.status === 'COMPLETED' ? '#10B981' : p.status === 'PENDING' ? '#D97706' : p.status === 'APPROVED' ? '#3B82F6' : '#EF4444' }
+                                    ]}>
+                                        {p.status === 'COMPLETED' ? 'Paid' : p.status === 'PENDING' ? 'Pending' : p.status === 'APPROVED' ? 'Approved' : p.status === 'REJECTED' ? 'Rejected' : p.status}
+                                    </Text>
+                                </View>
                             </View>
+                        ))
+                    ) : (
+                        <View style={styles.emptyState}>
+                            <Ionicons name="receipt-outline" size={48} color="#CBD5E1" />
+                            <Text style={styles.emptyText}>No payout history found yet.</Text>
                         </View>
-                    ))
+                    )
                 ) : (
-                    <View style={styles.emptyState}>
-                        <Ionicons name="receipt-outline" size={48} color="#CBD5E1" />
-                        <Text style={styles.emptyText}>No payout history found yet.</Text>
-                    </View>
+                    bookingHistory?.length > 0 ? (
+                        bookingHistory.map((bh: any) => (
+                            <View key={bh._id} style={styles.payoutItem}>
+                                <View style={[styles.payoutIcon, { backgroundColor: '#F0FDF4' }]}>
+                                    <Ionicons name="checkmark-circle-outline" size={20} color="#16A34A" />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.serviceTitleText}>{bh.type}</Text>
+                                    <Text style={styles.serviceDetailsText}>{bh.details}</Text>
+                                    <Text style={styles.payoutDate}>{new Date(bh.createdAt).toLocaleDateString("en-IN", { day: '2-digit', month: 'short', year: 'numeric' })}</Text>
+                                </View>
+                                <View style={{ alignItems: 'flex-end' }}>
+                                    <Text style={styles.earningText}>+₹{Number(bh.partnerEarning || 0).toFixed(2)}</Text>
+                                    <Text style={styles.totalBookingVal}>Val: ₹{bh.totalAmount || 0}</Text>
+                                </View>
+                            </View>
+                        ))
+                    ) : (
+                        <View style={styles.emptyState}>
+                            <Ionicons name="shield-checkmark-outline" size={48} color="#CBD5E1" />
+                            <Text style={styles.emptyText}>No booking earnings completed yet.</Text>
+                        </View>
+                    )
                 )}
             </ScrollView>
 
@@ -520,6 +568,15 @@ const styles = StyleSheet.create({
     statusText: { fontSize: 10, fontWeight: '800' },
     emptyState: { alignItems: 'center', marginTop: 40 },
     emptyText: { color: '#94A3B8', marginTop: 12, fontWeight: '600' },
+    tabSwitcher: { flexDirection: 'row', backgroundColor: '#F1F5F9', padding: 4, borderRadius: 14, marginBottom: 16 },
+    tabButton: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10 },
+    tabButtonActive: { backgroundColor: '#FFF', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 3 },
+    tabButtonText: { fontSize: 13, fontWeight: '700', color: '#64748B' },
+    tabButtonTextActive: { color: '#1E293B' },
+    serviceTitleText: { fontSize: 14, fontWeight: '800', color: '#1E293B' },
+    serviceDetailsText: { fontSize: 12, color: '#64748B', marginTop: 2 },
+    earningText: { fontSize: 15, fontWeight: '900', color: '#16A34A' },
+    totalBookingVal: { fontSize: 11, color: '#94A3B8', marginTop: 2, fontWeight: '700' },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
     modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, minHeight: 450 },
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },

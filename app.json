@@ -29,7 +29,7 @@
         "backgroundColor": "#EBF5FB"
       },
       "package": "com.a1care.partner",
-      "versionCode": 57,
+      "versionCode": 59,
       "googleServicesFile": "./google-services.json",
       "config": {
         "googleMaps": {

@@ -12,6 +12,7 @@ import { ToastProvider } from '../components/CustomToast';
 import { needsKycUpload, roleFromPartner } from "../lib/partnerOnboarding";
 import { connectSocket, disconnectSocket } from "../lib/socket";
 import BookingAssignmentPopup, { AssignmentRequest } from "../components/BookingAssignmentPopup";
+import FloatingBookingAlert from "../components/FloatingBookingAlert";
 import { partnerBookingService } from "../lib/bookings";
 import { api } from "../lib/api";
 
@@ -52,7 +53,6 @@ function AuthGuard() {
     const segments = useSegments();
     const router = useRouter();
     const [isAppReady, setIsAppReady] = useState(false);
-    const [assignmentRequest, setAssignmentRequest] = useState<AssignmentRequest | null>(null);
 
     useEffect(() => {
         const init = async () => {
@@ -131,7 +131,7 @@ function AuthGuard() {
             const socket = connectSocket(token, user._id);
             socket.on("booking:assignment_request", (data: AssignmentRequest) => {
                 console.log("[Layout] 🚨 Assignment request received in layout:", data);
-                setAssignmentRequest(data);
+                queryClient.invalidateQueries({ queryKey: ["bookings"] });
             });
             return () => {
                 socket.off("booking:assignment_request");
@@ -174,34 +174,6 @@ function AuthGuard() {
         return () => { unsubscribeFg(); unsubscribeBg(); };
     }, []);
 
-    const handleAccept = async (bookingId: string) => {
-        try {
-            await partnerBookingService.acceptServiceRequest(bookingId);
-            setAssignmentRequest(null);
-            queryClient.invalidateQueries({ queryKey: ["bookings"] });
-            queryClient.invalidateQueries({ queryKey: ["homeStats"] });
-            Alert.alert("✅ Accepted!", "You have accepted the job. Check My Bookings.");
-        } catch (err: any) {
-            Alert.alert("Error", err?.response?.data?.message || "Failed to accept booking.");
-        }
-    };
-
-    const handleReject = async (bookingId: string) => {
-        setAssignmentRequest(null);
-        try {
-            await partnerBookingService.rejectServiceRequest(bookingId);
-        } catch (err) {
-            // Silent - backend handles timeout cleanup
-        }
-    };
-
-    const handlePressPopup = (bookingId: string) => {
-        setAssignmentRequest(null);
-        router.push({
-            pathname: '/booking_detail' as any,
-            params: { bookingId, bookingType: 'Service' }
-        });
-    };
 
     if (!isAppReady || isLoading) {
         return (
@@ -214,11 +186,7 @@ function AuthGuard() {
     return (
         <>
             <Slot />
-            <BookingAssignmentPopup
-                request={assignmentRequest}
-                onDecline={handleReject}
-                onPress={handlePressPopup}
-            />
+            <FloatingBookingAlert />
         </>
     );
 }

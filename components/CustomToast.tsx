@@ -101,14 +101,14 @@ const styles = StyleSheet.create({
         top: 20,
         left: 0,
         right: 0,
-        alignItems: 'center',
-        justifyContent: 'center',
+        alignItems: 'flex-end', // Align elements to the right side
+        paddingRight: 16,
         zIndex: 99999,
     },
     toastContainer: {
-        width: Math.min(width - 32, 400),
-        paddingVertical: 14,
-        paddingHorizontal: 18,
+        width: Math.min(width - 48, 280), // narrower toast card suitable for right-side alignment
+        paddingVertical: 12,
+        paddingHorizontal: 16,
         borderRadius: 16,
         shadowColor: "#000",
         shadowOffset: { width: 0, height: 8 },
@@ -116,7 +116,6 @@ const styles = StyleSheet.create({
         shadowRadius: 10,
         elevation: 8,
         borderWidth: 1.5,
-        alignSelf: 'center',
     },
     successBg: {
         backgroundColor: '#ECFDF5', 
@@ -131,20 +130,19 @@ const styles = StyleSheet.create({
         borderColor: '#3B82F6',
     },
     content: {
-        alignItems: 'center',
-        justifyContent: 'center',
+        alignItems: 'flex-start', // Align text elements to start (left-align text inside the right-aligned card)
     },
     text1: {
         fontWeight: '700',
-        fontSize: 15,
+        fontSize: 14,
         color: '#1E293B',
-        textAlign: 'center',
+        textAlign: 'left',
     },
     text2: {
-        fontSize: 13,
+        fontSize: 12,
         fontWeight: '500',
         marginTop: 4,
         color: '#64748B',
-        textAlign: 'center',
+        textAlign: 'left',
     }
 });

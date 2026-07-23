@@ -1,5 +1,5 @@
 import { Tabs, useFocusEffect } from "expo-router";
-import { StyleSheet } from "react-native";
+import { StyleSheet, View, TouchableOpacity, Platform } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuthStore } from "../../stores/auth";
 import { getRolePath } from "../../lib/roleApi";
@@ -57,7 +57,7 @@ export default function TabsLayout() {
                 tabBarStyle: [
                     styles.tabBar,
                     {
-                        height: 62 + bottomInset,
+                        height: 64 + bottomInset,
                         paddingBottom: bottomInset,
                     },
                 ],
@@ -65,7 +65,7 @@ export default function TabsLayout() {
                 tabBarLabelStyle: styles.label,
                 tabBarIconStyle: styles.icon,
                 tabBarItemStyle: styles.item,
-                tabBarActiveTintColor: "#2D935C",
+                tabBarActiveTintColor: "#1E3A8A", // Blue active style matching screenshot
                 tabBarInactiveTintColor: "#94A3B8",
             }}
         >
@@ -74,16 +74,7 @@ export default function TabsLayout() {
                 options={{
                     title: "Home",
                     tabBarIcon: ({ focused, color }) => (
-                        <Ionicons name={focused ? "home" : "home-outline"} size={26} color={color} />
-                    ),
-                }}
-            />
-            <Tabs.Screen
-                name="bookings"
-                options={{
-                    title: "Bookings",
-                    tabBarIcon: ({ focused, color }) => (
-                        <Ionicons name={focused ? "calendar" : "calendar-outline"} size={26} color={color} />
+                        <Ionicons name={focused ? "home" : "home-outline"} size={24} color={color} />
                     ),
                 }}
             />
@@ -92,17 +83,48 @@ export default function TabsLayout() {
                 options={{
                     title: "Earnings",
                     tabBarIcon: ({ focused, color }) => (
-                        <Ionicons name={focused ? "wallet" : "wallet-outline"} size={26} color={color} />
+                        <Ionicons name={focused ? "wallet" : "wallet-outline"} size={24} color={color} />
                     ),
+                }}
+            />
+            <Tabs.Screen
+                name="bookings"
+                options={{
+                    title: "Bookings",
+                    tabBarLabel: () => null, // Hide label to allow floating icon spacing
+                    tabBarButton: (props) => (
+                        <TouchableOpacity
+                            {...props}
+                            activeOpacity={0.8}
+                            style={{
+                                top: -18,
+                                justifyContent: "center",
+                                alignItems: "center",
+                                width: 68,
+                                height: 68,
+                                borderRadius: 34,
+                                backgroundColor: "#1E3A8A", // Elevated primary blue container
+                                borderWidth: 4,
+                                borderColor: "#FFFFFF",
+                                shadowColor: "#000",
+                                shadowOffset: { width: 0, height: 6 },
+                                shadowOpacity: 0.18,
+                                shadowRadius: 6,
+                                elevation: 8,
+                            }}
+                        >
+                            <Ionicons name="calendar" size={28} color="#FFFFFF" />
+                        </TouchableOpacity>
+                    )
                 }}
             />
             <Tabs.Screen
                 name="notifications"
                 options={{
-                    title: "Notifications",
+                    title: "Alerts", // Matching Alerts label
                     tabBarBadge: unreadCount > 0 ? unreadCount : undefined,
                     tabBarIcon: ({ focused, color }) => (
-                        <Ionicons name={focused ? "notifications" : "notifications-outline"} size={26} color={color} />
+                        <Ionicons name={focused ? "notifications" : "notifications-outline"} size={24} color={color} />
                     ),
                 }}
             />
@@ -111,7 +133,7 @@ export default function TabsLayout() {
                 options={{
                     title: "Profile",
                     tabBarIcon: ({ focused, color }) => (
-                        <Ionicons name={focused ? "person" : "person-outline"} size={26} color={color} />
+                        <Ionicons name={focused ? "person" : "person-outline"} size={24} color={color} />
                     ),
                 }}
             />
@@ -124,15 +146,21 @@ const styles = StyleSheet.create({
         backgroundColor: "#FFFFFF",
         borderTopWidth: 1,
         borderTopColor: '#F1F5F9',
-        paddingTop: 6,
-        elevation: 12,
+        borderTopLeftRadius: 28, // Curved top boundaries matching screenshot
+        borderTopRightRadius: 28,
+        paddingTop: 8,
+        position: "absolute",
+        bottom: 0,
+        left: 0,
+        right: 0,
+        elevation: 16,
         shadowColor: "#0F172A",
         shadowOpacity: 0.08,
-        shadowRadius: 10,
+        shadowRadius: 12,
         shadowOffset: { width: 0, height: -4 },
     },
     label: {
-        fontSize: 11,
+        fontSize: 10,
         fontWeight: "700",
         marginTop: 2,
         marginBottom: 0,
@@ -142,9 +170,8 @@ const styles = StyleSheet.create({
         marginBottom: -2,
     },
     item: {
-        paddingVertical: 6,
+        paddingVertical: 4,
         alignItems: "center",
         justifyContent: "center",
     },
-
 });
