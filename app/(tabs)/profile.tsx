@@ -38,7 +38,7 @@ export default function ProfileScreen() {
     });
 
     // Fetch Active Subscription
-    const { data: mySub } = useQuery({
+    const { data: mySub, isLoading: loadingMySub } = useQuery({
         queryKey: ["myActiveSubscription"],
         queryFn: async () => {
             const res = await api.get("/subscription/my-active");
@@ -149,7 +149,7 @@ export default function ProfileScreen() {
                 </View>
 
                 {/* Subscription Status Banner */}
-                {(!mySub || daysLeft <= 0) ? (
+                {loadingMySub ? null : (!mySub || daysLeft <= 0) ? (
                     <TouchableOpacity style={styles.warningBanner} onPress={() => handleNavigation("subscriptions")}>
                         <Ionicons name="alert-circle" size={20} color="#991B1B" />
                         <Text style={styles.warningText}>Subscription Expired. Re-activate to accept jobs.</Text>
@@ -203,8 +203,10 @@ export default function ProfileScreen() {
                             <Ionicons name="ribbon-outline" size={30} color="#15803D" />
                         </View>
                         <Text style={styles.actionLabel}>Subscriptions</Text>
-                        <View style={[styles.actionBadge, daysLeft <= 0 && { backgroundColor: '#EF4444' }]}>
-                            <Text style={styles.actionBadgeText}>{daysLeft > 0 ? daysLeft : "!"}</Text>
+                        <View style={[styles.actionBadge, daysLeft <= 0 && { backgroundColor: '#EF4444' }, daysLeft > 1000 && { backgroundColor: '#15803D' }]}>
+                            <Text style={styles.actionBadgeText}>
+                                {daysLeft > 1000 ? "∞" : (daysLeft > 0 ? daysLeft : "!")}
+                            </Text>
                         </View>
                     </TouchableOpacity>
 

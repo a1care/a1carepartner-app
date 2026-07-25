@@ -24,7 +24,7 @@ interface AuthState {
     isLoading: boolean;
     confirmationResult: any | null;
     setConfirmationResult: (result: any) => void;
-    setAuth: (token: string, user: PartnerUser) => Promise<void>;
+    setAuth: (token: string, user: PartnerUser, refreshToken?: string) => Promise<void>;
     setUser: (user: PartnerUser) => Promise<void>;
     logout: () => Promise<void>;
     loadFromStorage: () => Promise<void>;
@@ -36,8 +36,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     isLoading: true,
     confirmationResult: null,
     setConfirmationResult: (result: any) => set({ confirmationResult: result }),
-    setAuth: async (token, user) => {
+    setAuth: async (token, user, refreshToken) => {
         await AsyncStorage.setItem("partner_token", token);
+        if (refreshToken) {
+            await AsyncStorage.setItem("partner_refresh_token", refreshToken);
+        }
         await AsyncStorage.setItem("partner_user", JSON.stringify(user));
         set({ token, user, confirmationResult: null });
     },
@@ -47,6 +50,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     },
     logout: async () => {
         await AsyncStorage.removeItem("partner_token");
+        await AsyncStorage.removeItem("partner_refresh_token");
         await AsyncStorage.removeItem("partner_user");
         set({ token: null, user: null, confirmationResult: null });
     },

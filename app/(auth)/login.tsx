@@ -134,6 +134,7 @@ const LoginScreen = () => {
 
             const res = await api.post(`/${rolePath}/auth/verify-otp`, payload);
             const authToken = res.data?.data?.token;
+            const refreshToken = res.data?.data?.refreshToken;
 
             if (!authToken) throw new Error("No auth token received");
 
@@ -154,7 +155,7 @@ const LoginScreen = () => {
             await setAuth(authToken, {
                 ...userData,
                 role: partnerRole as PartnerRole
-            });
+            }, refreshToken);
 
             Toast.show({ type: 'success', text1: 'Login Successful' });
 

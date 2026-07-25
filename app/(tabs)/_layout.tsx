@@ -57,8 +57,8 @@ export default function TabsLayout() {
                 tabBarStyle: [
                     styles.tabBar,
                     {
-                        height: 64 + bottomInset,
-                        paddingBottom: bottomInset,
+                        height: 70 + bottomInset,
+                        paddingBottom: bottomInset + 8,
                     },
                 ],
                 tabBarShowLabel: true,
@@ -170,7 +170,6 @@ const styles = StyleSheet.create({
         marginBottom: -2,
     },
     item: {
-        paddingVertical: 4,
         alignItems: "center",
         justifyContent: "center",
     },

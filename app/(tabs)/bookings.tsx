@@ -170,6 +170,15 @@ export default function BookingsScreen() {
     const updateStatusMutation = useMutation({
         mutationFn: ({ id, status, bookingType }: { id: string, status: string, bookingType: 'Doctor' | 'Service' }) =>
             partnerBookingService.updateStatus(id, status, bookingType),
+        onMutate: async ({ id, status }) => {
+            await queryClient.cancelQueries({ queryKey: ["bookings"] });
+            const previousBookings = queryClient.getQueryData(["bookings"]);
+            queryClient.setQueryData(["bookings"], (old: any) => {
+                if (!old) return old;
+                return old.map((b: any) => b._id === id ? { ...b, status } : b);
+            });
+            return { previousBookings };
+        },
         onSuccess: (data, variables) => {
             queryClient.invalidateQueries({ queryKey: ["bookings"] });
             queryClient.invalidateQueries({ queryKey: ["homeStats"] });
@@ -177,7 +186,10 @@ export default function BookingsScreen() {
                 setActiveTab("Completed");
             }
         },
-        onError: (err: any) => {
+        onError: (err: any, variables, context: any) => {
+            if (context?.previousBookings) {
+                queryClient.setQueryData(["bookings"], context.previousBookings);
+            }
             Alert.alert("Error", err?.response?.data?.message || "Action failed");
         }
     });
@@ -189,22 +201,46 @@ export default function BookingsScreen() {
                 : `/service/booking/cash/${id}`;
             return api.patch(path);
         },
+        onMutate: async ({ id }) => {
+            await queryClient.cancelQueries({ queryKey: ["bookings"] });
+            const previousBookings = queryClient.getQueryData(["bookings"]);
+            queryClient.setQueryData(["bookings"], (old: any) => {
+                if (!old) return old;
+                return old.map((b: any) => b._id === id ? { ...b, paymentStatus: 'Completed' } : b);
+            });
+            return { previousBookings };
+        },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["bookings"] });
             Alert.alert("Cash Collected ✅", "Payment has been marked as received.");
         },
-        onError: (err: any) => {
+        onError: (err: any, variables, context: any) => {
+            if (context?.previousBookings) {
+                queryClient.setQueryData(["bookings"], context.previousBookings);
+            }
             Alert.alert("Error", err?.response?.data?.message || "Could not mark cash as collected");
         }
     });
 
     const rejectServiceMutation = useMutation({
         mutationFn: async (id: string) => partnerBookingService.rejectServiceRequest(id),
+        onMutate: async (id) => {
+            await queryClient.cancelQueries({ queryKey: ["bookings"] });
+            const previousBookings = queryClient.getQueryData(["bookings"]);
+            queryClient.setQueryData(["bookings"], (old: any) => {
+                if (!old) return old;
+                return old.filter((b: any) => b._id !== id);
+            });
+            return { previousBookings };
+        },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["bookings"] });
             Alert.alert("Job Rejected", "The booking has been returned to admin.");
         },
-        onError: (err: any) => {
+        onError: (err: any, id, context: any) => {
+            if (context?.previousBookings) {
+                queryClient.setQueryData(["bookings"], context.previousBookings);
+            }
             Alert.alert("Error", err?.response?.data?.message || "Could not reject booking");
         }
     });
@@ -214,13 +250,25 @@ export default function BookingsScreen() {
             const res = await partnerBookingService.acceptServiceRequest(id, user?.roleId);
             return res;
         },
+        onMutate: async (id) => {
+            await queryClient.cancelQueries({ queryKey: ["bookings"] });
+            const previousBookings = queryClient.getQueryData(["bookings"]);
+            queryClient.setQueryData(["bookings"], (old: any) => {
+                if (!old) return old;
+                return old.map((b: any) => b._id === id ? { ...b, status: "ACCEPTED" } : b);
+            });
+            return { previousBookings };
+        },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["bookings"] });
             queryClient.invalidateQueries({ queryKey: ["homeStats"] });
             setActiveTab("Confirmed");
             Alert.alert("Job Claimed! ✅", "Booking moved to your Confirmed tab. Navigate to the patient's location to begin.");
         },
-        onError: (err: any) => {
+        onError: (err: any, id, context: any) => {
+            if (context?.previousBookings) {
+                queryClient.setQueryData(["bookings"], context.previousBookings);
+            }
             Alert.alert("Busy!", err?.response?.data?.message || "Someone else just claimed this job.");
         }
     });
