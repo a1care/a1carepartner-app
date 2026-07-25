@@ -121,6 +121,8 @@ export default function ProfileScreen() {
             router.push("/privacy");
         } else if (path === "terms") {
             router.push("/terms");
+        } else if (path === "referral") {
+            router.push("/referral");
         }
     };
 
@@ -204,6 +206,13 @@ export default function ProfileScreen() {
                         <View style={[styles.actionBadge, daysLeft <= 0 && { backgroundColor: '#EF4444' }]}>
                             <Text style={styles.actionBadgeText}>{daysLeft > 0 ? daysLeft : "!"}</Text>
                         </View>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity style={styles.actionCard} onPress={() => handleNavigation("referral")}>
+                        <View style={styles.actionIconBg}>
+                            <Ionicons name="gift-outline" size={30} color="#15803D" />
+                        </View>
+                        <Text style={styles.actionLabel}>Refer & Earn</Text>
                     </TouchableOpacity>
                 </View>
 

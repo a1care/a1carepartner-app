@@ -1,3 +1,4 @@
+import { Toast } from '../components/CustomToast';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Linking, Image, Alert, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -68,10 +69,10 @@ export default function BookingDetailScreen() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["booking-detail", id] });
             queryClient.invalidateQueries({ queryKey: ["bookings"] });
-            Alert.alert("Cash Collected ✅", "Payment has been marked as received.");
+            Toast.show({ type: 'success', text1: "Cash Collected ✅", text2: "Payment has been marked as received." });
         },
         onError: (err: any) => {
-            Alert.alert("Error", err?.response?.data?.message || "Could not mark cash as collected");
+            Toast.show({ type: 'error', text1: "Error", text2: err?.response?.data?.message || "Could not mark cash as collected" });
         }
     });
 
@@ -97,11 +98,11 @@ export default function BookingDetailScreen() {
             queryClient.invalidateQueries({ queryKey: ["bookings"] });
             queryClient.invalidateQueries({ queryKey: ["booking-detail", id] });
             queryClient.invalidateQueries({ queryKey: ["homeStats"] });
-            Alert.alert("Job Claimed! ✅", "Booking moved to your Confirmed tab. Navigate to the patient's location to begin.");
+            Toast.show({ type: 'success', text1: "Job Claimed! ✅", text2: "Booking moved to your Confirmed tab. Navigate to the patient's location to begin." });
             refetch();
         },
         onError: (err: any) => {
-            Alert.alert("Error", err?.response?.data?.message || "Someone else just claimed this job.");
+            Toast.show({ type: 'error', text1: "Error", text2: err?.response?.data?.message || "Someone else just claimed this job." });
         }
     });
 
@@ -110,11 +111,11 @@ export default function BookingDetailScreen() {
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["bookings"] });
             queryClient.invalidateQueries({ queryKey: ["booking-detail", id] });
-            Alert.alert("Job Rejected", "The booking has been returned to admin.");
+            Toast.show({ type: 'info', text1: "Job Rejected", text2: "The booking has been returned to admin." });
             router.back();
         },
         onError: (err: any) => {
-            Alert.alert("Error", err?.response?.data?.message || "Could not reject booking");
+            Toast.show({ type: 'error', text1: "Error", text2: err?.response?.data?.message || "Could not reject booking" });
         }
     });
 
@@ -345,7 +346,7 @@ export default function BookingDetailScreen() {
                             style={styles.primaryBtn}
                             onPress={() => {
                                 if (booking.paymentMode === 'OFFLINE' && booking.paymentStatus !== 'COMPLETED') {
-                                    Alert.alert("Collect Cash First", `Please collect the cash payment of ₹${booking.totalAmount || 0} first.`);
+                                    Toast.show({ type: 'info', text1: "Collect Cash First", text2: `Please collect the cash payment of ₹${booking.totalAmount || 0} first.` });
                                     return;
                                 }
                                 updateStatus.mutate(bookingType === "Doctor" ? "Completed" : "COMPLETED");
@@ -428,3 +429,4 @@ const styles = StyleSheet.create({
     primaryBtn: { flex: 1, height: 52, backgroundColor: PRIMARY, borderRadius: 16, justifyContent: "center", alignItems: "center" },
     primaryBtnText: { color: "#FFF", fontSize: 15, fontWeight: "800" },
 });
+

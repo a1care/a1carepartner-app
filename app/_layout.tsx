@@ -5,7 +5,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
-import { NativeModules, View, ActivityIndicator, Alert } from "react-native";
+import { NativeModules, View, ActivityIndicator, Alert, AppState, StyleSheet } from "react-native";
+import { focusManager } from "@tanstack/react-query";
 import { useAuthStore } from "../stores/auth";
 import { useConfigStore } from "../stores/config.store";
 import { ToastProvider } from '../components/CustomToast';
@@ -15,6 +16,17 @@ import BookingAssignmentPopup, { AssignmentRequest } from "../components/Booking
 import FloatingBookingAlert from "../components/FloatingBookingAlert";
 import { partnerBookingService } from "../lib/bookings";
 import { api } from "../lib/api";
+import { syncPartnerLocation } from "../lib/partnerLocationSync";
+import { useFonts } from 'expo-font';
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+
+// React Query: refetch when app returns to foreground (critical for APK polling)
+focusManager.setEventListener((handleFocus) => {
+    const sub = AppState.addEventListener("change", (state) => {
+        handleFocus(state === "active");
+    });
+    return () => sub.remove();
+});
 
 // Conditional Firebase import
 let messaging: any;
@@ -131,13 +143,19 @@ function AuthGuard() {
             const socket = connectSocket(token, user._id);
             socket.on("booking:assignment_request", (data: AssignmentRequest) => {
                 console.log("[Layout] 🚨 Assignment request received in layout:", data);
-                queryClient.invalidateQueries({ queryKey: ["bookings"] });
+                queryClient.refetchQueries({ queryKey: ["bookings"] });
             });
             return () => {
                 socket.off("booking:assignment_request");
                 disconnectSocket();
             };
         }
+    }, [token, user?._id]);
+
+    // Sync location globally on login so APK geo-filter includes this partner in feed
+    useEffect(() => {
+        if (!token || !user?._id) return;
+        syncPartnerLocation(user?.status === "Active");
     }, [token, user?._id]);
 
     // FCM: register token when user logs in
@@ -155,10 +173,19 @@ function AuthGuard() {
     // FCM: handle push notification taps from background/killed state
     useEffect(() => {
         if (!messaging) return;
-        // Foreground messages — show an Alert so partner sees them while app is open
+        // Foreground messages — refresh booking feed so FloatingBookingAlert appears
         const unsubscribeFg = messaging().onMessage((remoteMessage: any) => {
             const { title, body } = remoteMessage?.notification || {};
-            if (title || body) Alert.alert(title || 'Notification', body || '');
+            const isBookingAlert =
+                remoteMessage?.data?.bookingId ||
+                remoteMessage?.data?.screen?.includes?.("/booking/") ||
+                title?.toLowerCase().includes("booking");
+
+            if (isBookingAlert) {
+                queryClient.refetchQueries({ queryKey: ["bookings"] });
+            } else if (title || body) {
+                Alert.alert(title || "Notification", body || "");
+            }
         });
         // App opened from background via notification tap
         const unsubscribeBg = messaging().onNotificationOpenedApp((remoteMessage: any) => {
@@ -184,14 +211,30 @@ function AuthGuard() {
     }
 
     return (
-        <>
+        <View style={styles.root}>
             <Slot />
-            <FloatingBookingAlert />
-        </>
+            <View style={styles.overlayLayer} pointerEvents="box-none">
+                <FloatingBookingAlert />
+            </View>
+        </View>
     );
 }
 
+const styles = StyleSheet.create({
+    root: { flex: 1 },
+    overlayLayer: {
+        ...StyleSheet.absoluteFillObject,
+        zIndex: 99999,
+        elevation: 99999,
+    },
+});
+
 export default function RootLayout() {
+    const [fontsLoaded] = useFonts({
+        ...Ionicons.font,
+        ...MaterialCommunityIcons.font,
+    });
+
     return (
         <GestureHandlerRootView style={{ flex: 1 }}>
             <SafeAreaProvider>

@@ -674,3 +674,4 @@ const styles = StyleSheet.create({
     kycCtaText: { fontSize: 16, fontWeight: "800", color: "#FFF" },
     badgeDot: { position: "absolute", top: 10, right: 10, width: 10, height: 10, borderRadius: 5, backgroundColor: "#EF4444", borderWidth: 2, borderColor: "#FFF" },
 });
+

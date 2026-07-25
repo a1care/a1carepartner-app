@@ -1,148 +1,140 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, Animated, Dimensions, TouchableOpacity } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
-const { width } = Dimensions.get('window');
-
-let showToastFn: any = null;
+import React from 'react';
+import { StyleSheet, View, Text, Platform } from 'react-native';
+import ToastMsg, { BaseToast, ErrorToast } from 'react-native-toast-message';
+import { CheckCircle, XCircle, Info, AlertTriangle } from 'lucide-react-native';
 
 export const Toast = {
-    show: (options: { type: 'success' | 'error' | 'info', text1: string, text2?: string }) => {
-        if (showToastFn) {
-            showToastFn(options);
-        }
+    show: (options: { type: 'success' | 'error' | 'info' | 'warning', text1: string, text2?: string }) => {
+        ToastMsg.show({
+            ...options,
+            position: 'top',
+            visibilityTime: 3500,
+            autoHide: true,
+            topOffset: Platform.OS === 'ios' ? 55 : 40,
+        });
     }
 };
 
 export function ToastProvider({ children }: { children?: React.ReactNode }) {
-    const [toast, setToast] = useState<{ type: string; text1: string; text2?: string, id: number } | null>(null);
-    const fadeAnim = useRef(new Animated.Value(0)).current;
-    const translateAnim = useRef(new Animated.Value(-40)).current;
-
-    useEffect(() => {
-        showToastFn = (options: any) => {
-            const id = Date.now();
-            setToast({ ...options, id });
-
-            fadeAnim.setValue(0);
-            translateAnim.setValue(-40);
-
-            // Smooth fade + slide down animation
-            Animated.parallel([
-                Animated.timing(fadeAnim, {
-                    toValue: 1,
-                    duration: 350,
-                    useNativeDriver: true,
-                }),
-                Animated.spring(translateAnim, {
-                    toValue: 0,
-                    useNativeDriver: true,
-                    tension: 40,
-                    friction: 7,
-                })
-            ]).start();
-
-            // Auto hide after 3.5 seconds
-            setTimeout(() => {
-                hideToast(id);
-            }, 3500);
-        };
-    }, []);
-
-    const hideToast = (idToHide: number) => {
-        setToast((currentToast) => {
-            if (currentToast && currentToast.id === idToHide) {
-                Animated.parallel([
-                    Animated.timing(fadeAnim, {
-                        toValue: 0,
-                        duration: 300,
-                        useNativeDriver: true,
-                    }),
-                    Animated.timing(translateAnim, {
-                        toValue: -30,
-                        duration: 300,
-                        useNativeDriver: true,
-                    })
-                ]).start(() => {
-                    setToast(null);
-                });
-            }
-            return currentToast;
-        });
-    };
-
     return (
         <>
             {children}
-            {toast ? (
-                <SafeAreaView pointerEvents="box-none" style={styles.overlay}>
-                    <Animated.View style={[
-                        styles.toastContainer,
-                        { opacity: fadeAnim, transform: [{ translateY: translateAnim }] },
-                        toast.type === 'error' ? styles.errorBg :
-                            toast.type === 'info' ? styles.infoBg : styles.successBg
-                    ]}>
-                        <TouchableOpacity onPress={() => hideToast(toast.id)} activeOpacity={0.9}>
-                            <View style={styles.content}>
-                                <Text style={[styles.text1, toast.type === 'success' && { color: '#0F2C59' }]}>{toast.text1}</Text>
-                                {toast.text2 ? <Text style={[styles.text2, toast.type === 'success' && { color: '#3A5B80' }]}>{toast.text2}</Text> : null}
+            <ToastMsg
+                config={{
+                    success: ({ text1, text2 }) => (
+                        <View style={[styles.toastBase, styles.toastSuccess]}>
+                            <View style={[styles.toastAccent, { backgroundColor: '#10B981' }]} />
+                            <View style={styles.toastIconWrap}>
+                                <CheckCircle size={20} color="#10B981" />
                             </View>
-                        </TouchableOpacity>
-                    </Animated.View>
-                </SafeAreaView>
-            ) : null}
+                            <View style={styles.toastContent}>
+                                <Text style={[styles.toastText1, { color: '#065F46' }]} numberOfLines={1}>{text1}</Text>
+                                {text2 ? <Text style={[styles.toastText2, { color: '#047857' }]} numberOfLines={2}>{text2}</Text> : null}
+                            </View>
+                        </View>
+                    ),
+                    error: ({ text1, text2 }) => (
+                        <View style={[styles.toastBase, styles.toastError]}>
+                            <View style={[styles.toastAccent, { backgroundColor: '#EF4444' }]} />
+                            <View style={styles.toastIconWrap}>
+                                <XCircle size={20} color="#EF4444" />
+                            </View>
+                            <View style={styles.toastContent}>
+                                <Text style={[styles.toastText1, { color: '#991B1B' }]} numberOfLines={1}>{text1}</Text>
+                                {text2 ? <Text style={[styles.toastText2, { color: '#B91C1C' }]} numberOfLines={2}>{text2}</Text> : null}
+                            </View>
+                        </View>
+                    ),
+                    info: ({ text1, text2 }) => (
+                        <View style={[styles.toastBase, styles.toastInfo]}>
+                            <View style={[styles.toastAccent, { backgroundColor: '#3B82F6' }]} />
+                            <View style={styles.toastIconWrap}>
+                                <Info size={20} color="#3B82F6" />
+                            </View>
+                            <View style={styles.toastContent}>
+                                <Text style={[styles.toastText1, { color: '#1E40AF' }]} numberOfLines={1}>{text1}</Text>
+                                {text2 ? <Text style={[styles.toastText2, { color: '#1D4ED8' }]} numberOfLines={2}>{text2}</Text> : null}
+                            </View>
+                        </View>
+                    ),
+                    warning: ({ text1, text2 }) => (
+                        <View style={[styles.toastBase, styles.toastWarning]}>
+                            <View style={[styles.toastAccent, { backgroundColor: '#F59E0B' }]} />
+                            <View style={styles.toastIconWrap}>
+                                <AlertTriangle size={20} color="#F59E0B" />
+                            </View>
+                            <View style={styles.toastContent}>
+                                <Text style={[styles.toastText1, { color: '#78350F' }]} numberOfLines={1}>{text1}</Text>
+                                {text2 ? <Text style={[styles.toastText2, { color: '#92400E' }]} numberOfLines={2}>{text2}</Text> : null}
+                            </View>
+                        </View>
+                    ),
+                }}
+            />
         </>
     );
 }
 
 const styles = StyleSheet.create({
-    overlay: {
-        position: 'absolute',
-        top: 20,
-        left: 0,
-        right: 0,
-        alignItems: 'flex-end', // Align elements to the right side
-        paddingRight: 16,
-        zIndex: 99999,
-    },
-    toastContainer: {
-        width: Math.min(width - 48, 280), // narrower toast card suitable for right-side alignment
-        paddingVertical: 12,
-        paddingHorizontal: 16,
+    toastBase: {
+        width: '92%',
+        maxWidth: 420,
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#FFFFFF',
         borderRadius: 16,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 8 },
+        overflow: 'hidden',
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.12,
-        shadowRadius: 10,
-        elevation: 8,
-        borderWidth: 1.5,
+        shadowRadius: 16,
+        elevation: 10,
+        borderWidth: 1,
+        borderColor: 'rgba(0,0,0,0.06)',
+        minHeight: 56,
     },
-    successBg: {
-        backgroundColor: '#ECFDF5', 
-        borderColor: '#10B981',
+    toastAccent: {
+        width: 5,
+        alignSelf: 'stretch',
     },
-    errorBg: {
-        backgroundColor: '#FEF2F2',
-        borderColor: '#EF4444',
+    toastIconWrap: {
+        paddingHorizontal: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
     },
-    infoBg: {
+    toastContent: {
+        flex: 1,
+        paddingVertical: 12,
+        paddingRight: 16,
+        justifyContent: 'center',
+    },
+    toastSuccess: {
+        backgroundColor: '#F0FDF4',
+        borderColor: 'rgba(16,185,129,0.15)',
+    },
+    toastError: {
+        backgroundColor: '#FFF1F2',
+        borderColor: 'rgba(239,68,68,0.15)',
+    },
+    toastInfo: {
         backgroundColor: '#EFF6FF',
-        borderColor: '#3B82F6',
+        borderColor: 'rgba(59,130,246,0.15)',
     },
-    content: {
-        alignItems: 'flex-start', // Align text elements to start (left-align text inside the right-aligned card)
+    toastWarning: {
+        backgroundColor: '#FFFBEB',
+        borderColor: 'rgba(245,158,11,0.15)',
     },
-    text1: {
-        fontWeight: '700',
+    toastText1: {
         fontSize: 14,
-        color: '#1E293B',
-        textAlign: 'left',
+        fontWeight: '700',
+        lineHeight: 20,
     },
-    text2: {
+    toastText2: {
         fontSize: 12,
-        fontWeight: '500',
-        marginTop: 4,
-        color: '#64748B',
-        textAlign: 'left',
-    }
+        fontWeight: '400',
+        marginTop: 2,
+        lineHeight: 17,
+        opacity: 0.85,
+    },
 });
+

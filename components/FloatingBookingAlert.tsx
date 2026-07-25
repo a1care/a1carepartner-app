@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
-    View, Text, TouchableOpacity, StyleSheet, Animated, Vibration, Platform, Dimensions, Alert
+    View, Text, TouchableOpacity, StyleSheet, Animated, Vibration, Platform, Dimensions, Alert, AppState
 } from "react-native";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useSegments } from "expo-router";
@@ -17,7 +17,7 @@ export default function FloatingBookingAlert() {
     const router = useRouter();
     const queryClient = useQueryClient();
     const { token, user } = useAuthStore();
-    // Track dismissed timestamps internally so they can expire after 20 minutes (1200s)
+    // Track dismissed timestamps internally so they can expire after 2 minutes (120s)
     const [dismissedTimes, setDismissedTimes] = useState<Record<string, number>>({});
     
     // Slide animation for the floating card
@@ -37,15 +37,27 @@ export default function FloatingBookingAlert() {
     const hasActiveSub = !!activeSub;
 
     // Fetch unified feed periodically to check for available bookings
-    const { data: allBookings = [] } = useQuery({
+    const { data: allBookings = [], refetch: refetchBookings } = useQuery({
         queryKey: ["bookings"],
         queryFn: async () => {
             const res = await api.get("/appointment/provider/feed", { params: { status: 'all' } });
             return res.data.data || [];
         },
         enabled: !!token,
-        refetchInterval: 10000, // Poll every 10 seconds for real-time responsiveness
+        refetchInterval: 10000,
+        refetchIntervalInBackground: true,
+        refetchOnMount: true,
+        refetchOnWindowFocus: true,
+        staleTime: 0,
     });
+
+    // Immediately refetch when app returns to foreground
+    useEffect(() => {
+        const sub = AppState.addEventListener("change", (state) => {
+            if (state === "active" && token) refetchBookings();
+        });
+        return () => sub.remove();
+    }, [token, refetchBookings]);
 
     const [nowTime, setNowTime] = useState(Date.now());
     
@@ -65,26 +77,26 @@ export default function FloatingBookingAlert() {
             b.status?.toUpperCase() === "PARTNER_ASSIGNED";
         
         const isDirect = b.status?.toUpperCase() === "PARTNER_ASSIGNED";
-        // Only float broadcasted/missing bookings if they are new (created in the last 20 minutes)
+        // Only float broadcasted/missing bookings if they are new (created in the last 2 minutes)
         // Direct assignments always float.
-        const isNew = isDirect || (b.createdAt ? (Date.now() - new Date(b.createdAt).getTime() < 1200000) : false);
+        const isNew = isDirect || (b.createdAt ? (Date.now() - new Date(b.createdAt).getTime() < 120000) : false);
         
-        // Expiration check: if it was dismissed within the last 20 minutes, filter it out
+        // Expiration check: if it was dismissed within the last 2 minutes, filter it out
         const dismissedAt = dismissedTimes[b._id];
-        const isCurrentlyDismissed = dismissedAt && (nowTime - dismissedAt < 1200000);
+        const isCurrentlyDismissed = dismissedAt && (nowTime - dismissedAt < 120000);
 
         return isActionable && isNew && !isCurrentlyDismissed;
     });
 
     const activeAlertBooking = availableBookings[0] || null;
     const prevAlertBookingId = useRef<string | null>(null);
-    const [secondsLeft, setSecondsLeft] = useState(1200);
+    const [secondsLeft, setSecondsLeft] = useState(120);
 
     useEffect(() => {
         if (!activeAlertBooking) return;
         
         const tick = () => {
-            let remaining = 1200; // 20 minutes default
+            let remaining = 120; // 2 minutes default
             const isDirect = activeAlertBooking.status?.toUpperCase() === "PARTNER_ASSIGNED";
             
             if (isDirect && activeAlertBooking.acceptanceDeadline) {
@@ -93,7 +105,7 @@ export default function FloatingBookingAlert() {
             } else {
                 const createdTime = activeAlertBooking.createdAt ? new Date(activeAlertBooking.createdAt).getTime() : Date.now();
                 const elapsed = Math.round((Date.now() - createdTime) / 1000);
-                remaining = Math.max(0, 1200 - elapsed); // 20 minutes window
+                remaining = Math.max(0, 120 - elapsed); // 2 minutes window
             }
             
             setSecondsLeft(remaining);
