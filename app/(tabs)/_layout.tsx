@@ -91,31 +91,9 @@ export default function TabsLayout() {
                 name="bookings"
                 options={{
                     title: "Bookings",
-                    tabBarLabel: () => null, // Hide label to allow floating icon spacing
-                    tabBarButton: (props) => (
-                        <TouchableOpacity
-                            {...props}
-                            activeOpacity={0.8}
-                            style={{
-                                top: -18,
-                                justifyContent: "center",
-                                alignItems: "center",
-                                width: 68,
-                                height: 68,
-                                borderRadius: 34,
-                                backgroundColor: "#1E3A8A", // Elevated primary blue container
-                                borderWidth: 4,
-                                borderColor: "#FFFFFF",
-                                shadowColor: "#000",
-                                shadowOffset: { width: 0, height: 6 },
-                                shadowOpacity: 0.18,
-                                shadowRadius: 6,
-                                elevation: 8,
-                            }}
-                        >
-                            <Ionicons name="calendar" size={28} color="#FFFFFF" />
-                        </TouchableOpacity>
-                    )
+                    tabBarIcon: ({ focused, color }) => (
+                        <Ionicons name={focused ? "calendar" : "calendar-outline"} size={24} color={color} />
+                    ),
                 }}
             />
             <Tabs.Screen

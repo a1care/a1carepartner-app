@@ -53,6 +53,24 @@ const formatDate = (dateString?: string) => {
     }
 };
 
+const formatDateTime = (dateString?: string) => {
+    if (!dateString) return "";
+    try {
+        const d = new Date(dateString);
+        if (isNaN(d.getTime())) return "";
+        return d.toLocaleString("en-US", {
+            day: "numeric",
+            month: "short",
+            year: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true
+        });
+    } catch {
+        return "";
+    }
+};
+
 const statusColors: Record<string, { bg: string; text: string; icon: string; label: string }> = {
     Pending: { bg: "#FFFBEB", text: "#D97706", icon: "clock-outline", label: "Pending" },
     PENDING: { bg: "#FFFBEB", text: "#D97706", icon: "clock-outline", label: "Pending" },
@@ -410,6 +428,13 @@ export default function BookingsScreen() {
                                 <View style={styles.addressRow}>
                                     <MapPin size={16} color="#EF4444" />
                                     <Text style={styles.addressText} numberOfLines={1}>{b.location?.address || "Location not provided"}</Text>
+                                </View>
+
+                                <View style={[styles.addressRow, { marginTop: 4 }]}>
+                                    <MaterialCommunityIcons name="clock-in" size={16} color="#64748B" />
+                                    <Text style={[styles.addressText, { color: '#64748B', fontSize: 12 }]} numberOfLines={1}>
+                                        Received: {b.createdAt ? formatDateTime(b.createdAt) : "N/A"}
+                                    </Text>
                                 </View>
                             </TouchableOpacity>
 

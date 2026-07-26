@@ -261,6 +261,15 @@ export default function HomeScreen() {
         enabled: !!token,
     });
 
+    const { data: mySubscription, refetch: refetchSubscription } = useQuery({
+        queryKey: ["mySubscription"],
+        queryFn: async () => {
+            const res = await api.get("/subscription/my-active");
+            return res.data?.data || null;
+        },
+        enabled: !!token,
+    });
+
     useEffect(() => {
         if (staffData) {
             if (!statusInitializedRef.current) {
@@ -338,6 +347,13 @@ export default function HomeScreen() {
 
     const handleToggleOnline = async (val: boolean) => {
         if (isUpdatingStatus) return;
+        
+        // Prevent going online if subscription is fully expired
+        if (val && mySubscription?.isExpired && !mySubscription?.isInGracePeriod) {
+            Toast.show({ type: "error", text1: "Subscription Expired", text2: "Please renew your plan to go online." });
+            return;
+        }
+
         setIsUpdatingStatus(true);
         const previousStatus = isOnline;
         setIsOnline(val);
@@ -384,6 +400,7 @@ export default function HomeScreen() {
     const onRefresh = () => {
         refetchUser();
         refetchStats();
+        refetchSubscription();
         syncCurrentLocation();
     };
 
@@ -416,6 +433,25 @@ export default function HomeScreen() {
                             <Text style={styles.kycCtaText}>Check Update</Text>
                         </TouchableOpacity>
                     </LinearGradient>
+                </View>
+            )}
+
+            {mySubscription?.isExpired && (
+                <View style={{ backgroundColor: '#FEE2E2', padding: 12, borderBottomWidth: 1, borderColor: '#FCA5A5', flexDirection: 'row', alignItems: 'center' }}>
+                    <Ionicons name="warning" size={20} color="#DC2626" />
+                    <View style={{ marginLeft: 8, flex: 1 }}>
+                        <Text style={{ color: '#991B1B', fontWeight: 'bold' }}>
+                            {mySubscription?.isInGracePeriod ? "Subscription Expired (Grace Period)" : "Subscription Expired"}
+                        </Text>
+                        <Text style={{ color: '#B91C1C', fontSize: 12, marginTop: 2 }}>
+                            {mySubscription?.isInGracePeriod 
+                                ? "You will stop receiving bookings soon. Please renew your plan." 
+                                : "You are currently blocked from receiving new bookings. Please renew your plan."}
+                        </Text>
+                    </View>
+                    <TouchableOpacity onPress={() => router.push("/subscription/plans")} style={{ backgroundColor: '#DC2626', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 }}>
+                        <Text style={{ color: '#FFF', fontWeight: '600', fontSize: 12 }}>Renew</Text>
+                    </TouchableOpacity>
                 </View>
             )}
 

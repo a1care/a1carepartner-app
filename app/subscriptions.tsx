@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Modal } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, ActivityIndicator, Alert, Modal, Platform } from "react-native";
+import { Toast } from '../components/CustomToast';
 import { WebView } from "react-native-webview";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -14,6 +15,7 @@ export default function SubscriptionsScreen() {
     const queryClient = useQueryClient();
     const [activeTab, setActiveTab] = useState<"Plans" | "History">("Plans");
     const [selectedPlanForFeatures, setSelectedPlanForFeatures] = useState<any>(null);
+    const [paymentSelectionPlan, setPaymentSelectionPlan] = useState<any>(null);
     const [paymentUrl, setPaymentUrl] = useState<string | null>(null);
 
     const { user } = useAuthStore() as any;
@@ -87,22 +89,52 @@ export default function SubscriptionsScreen() {
         enabled: activeTab === "History"
     });
 
-    // Payment gateway disabled: subscriptions will be activated manually by admin.
     const buySubscription = useMutation({
-        mutationFn: async (planId: string) => {
-            const res = await api.post("/subscription/subscribe", { planId, paymentBy: "ADMIN_MANUAL" });
-            return res.data.data;
+        mutationFn: async (args: { planId: string, mode: "WALLET" | "ONLINE" }) => {
+            const res = await api.post("/subscription/subscribe", { planId: args.planId, paymentMode: args.mode });
+            return res.data;
         },
-        onSuccess: async () => {
-            Alert.alert("Request Sent", "Admin will activate your subscription after manual wallet top-up.");
-            queryClient.invalidateQueries({ queryKey: ["myActiveSubscription"] });
-            queryClient.invalidateQueries({ queryKey: ["subscriptionHistory"] });
-            router.replace("/(tabs)/profile");
+        onSuccess: async (data, variables) => {
+            if (variables.mode === "WALLET") {
+                if (Platform.OS === 'web') window.alert("Subscription activated successfully via Wallet.");
+                else Alert.alert("Success", "Subscription activated successfully via Wallet.");
+                queryClient.invalidateQueries({ queryKey: ["myActiveSubscription"] });
+                queryClient.invalidateQueries({ queryKey: ["subscriptionHistory"] });
+                queryClient.invalidateQueries({ queryKey: ["partner-wallet"] });
+                router.replace("/(tabs)/profile");
+            } else {
+                if (data.data?.order?._id) {
+                    try {
+                        const initRes = await api.post("/payments/initiate", { orderId: data.data.order._id });
+                        const { accessKey, env } = initRes.data.data;
+                        
+                        router.push({
+                            pathname: "/checkout/easebuzz" as any,
+                            params: { accessKey, env, type: "SUBSCRIPTION" }
+                        });
+                    } catch (e: any) {
+                        if (Platform.OS === 'web') window.alert("Failed to initiate payment: " + e.message);
+                        else Alert.alert("Error", "Failed to initiate payment.");
+                    }
+                } else {
+                    if (Platform.OS === 'web') window.alert("Payment integration is pending or failed to generate order.");
+                    else Alert.alert("Payment Pending", "Online payment integration will be handled next.");
+                }
+            }
         },
         onError: (error: any) => {
-            Alert.alert("Error", error.response?.data?.message || "Failed to request subscription");
+            if (Platform.OS === 'web') window.alert(error.response?.data?.message || "Failed to request subscription");
+            else Alert.alert("Error", error.response?.data?.message || "Failed to request subscription");
         }
     });
+
+    const handleBuyClick = (plan: any) => {
+        if (plan.price === 0) {
+            buySubscription.mutate({ planId: plan._id, mode: "WALLET" });
+        } else {
+            setPaymentSelectionPlan(plan);
+        }
+    };
 
     const handleBack = () => {
         router.replace("/(tabs)/profile");
@@ -144,8 +176,8 @@ export default function SubscriptionsScreen() {
 
                         {loadingPlans ? (
                             <ActivityIndicator size="large" color="#2D935C" style={{ marginTop: 40 }} />
-                        ) : plansData?.length > 0 ? (
-                            plansData.map((plan: any) => (
+                        ) : plansData?.filter((p: any) => !p.isFree)?.length > 0 ? (
+                            plansData.filter((p: any) => !p.isFree).map((plan: any) => (
                                 <View key={plan._id} style={[
                                     styles.planCard,
                                     plan.tier === "Premium" && styles.premiumCard
@@ -196,7 +228,7 @@ export default function SubscriptionsScreen() {
                                                 plan.tier === "Premium" && styles.premiumBuyButton,
                                                 mySub?.planId?._id === plan._id && styles.activePlanButton
                                             ]}
-                                            onPress={() => buySubscription.mutate(plan._id)}
+                                            onPress={() => handleBuyClick(plan)}
                                             disabled={buySubscription.isPending || mySub?.planId?._id === plan._id}
                                         >
                                             {buySubscription.isPending ? (
@@ -207,9 +239,9 @@ export default function SubscriptionsScreen() {
                                                         ? "Pending Approval"
                                                         : mySub?.planId?._id === plan._id
                                                             ? "Current Plan"
-                                                            : plan.tier === "Basic"
-                                                                ? "Activate Free"
-                                                                : "Request Activation"}
+                                                            : plan.price === 0
+                                                                ? "Activate for Free"
+                                                                : "Choose Plan"}
                                                 </Text>
                                             )}
                                         </TouchableOpacity>
@@ -348,6 +380,63 @@ export default function SubscriptionsScreen() {
                             onPress={() => setSelectedPlanForFeatures(null)}
                         >
                             <Text style={styles.modalCloseButtonText}>Got it</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
+            {/* Payment Method Selection Modal */}
+            <Modal
+                visible={!!paymentSelectionPlan}
+                transparent={true}
+                animationType="slide"
+                onRequestClose={() => setPaymentSelectionPlan(null)}
+            >
+                <View style={styles.modalOverlay}>
+                    <View style={[styles.modalContent, { padding: 24 }]}>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                            <Text style={{ fontSize: 20, fontWeight: '900', color: '#1E293B' }}>Select Payment Method</Text>
+                            <TouchableOpacity onPress={() => setPaymentSelectionPlan(null)}>
+                                <Ionicons name="close-circle" size={28} color="#94A3B8" />
+                            </TouchableOpacity>
+                        </View>
+                        
+                        <Text style={{ fontSize: 15, color: '#475569', marginBottom: 24, lineHeight: 22 }}>
+                            How would you like to pay <Text style={{ fontWeight: '900', color: '#1E293B' }}>₹{paymentSelectionPlan?.price}</Text> for the <Text style={{ fontWeight: '900', color: '#1E293B' }}>{paymentSelectionPlan?.name}</Text> plan?
+                        </Text>
+
+                        <TouchableOpacity
+                            style={{ backgroundColor: '#2D935C', borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center', marginBottom: 12 }}
+                            onPress={() => {
+                                buySubscription.mutate({ planId: paymentSelectionPlan._id, mode: "WALLET" });
+                                setPaymentSelectionPlan(null);
+                            }}
+                        >
+                            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
+                                <Ionicons name="wallet" size={20} color="#FFF" />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '800' }}>Pay via Partner Wallet</Text>
+                                <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12, marginTop: 2 }}>Instant activation from your earnings</Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={20} color="#FFF" />
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                            style={{ backgroundColor: '#3B82F6', borderRadius: 16, padding: 16, flexDirection: 'row', alignItems: 'center' }}
+                            onPress={() => {
+                                buySubscription.mutate({ planId: paymentSelectionPlan._id, mode: "ONLINE" });
+                                setPaymentSelectionPlan(null);
+                            }}
+                        >
+                            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)', justifyContent: 'center', alignItems: 'center', marginRight: 12 }}>
+                                <Ionicons name="card" size={20} color="#FFF" />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={{ color: '#FFF', fontSize: 16, fontWeight: '800' }}>Pay Online</Text>
+                                <Text style={{ color: 'rgba(255,255,255,0.8)', fontSize: 12, marginTop: 2 }}>UPI, Credit/Debit Card, Netbanking</Text>
+                            </View>
+                            <Ionicons name="chevron-forward" size={20} color="#FFF" />
                         </TouchableOpacity>
                     </View>
                 </View>

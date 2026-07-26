@@ -6,7 +6,7 @@ const { width, height } = Dimensions.get("window");
 import { useAuthStore } from "../../stores/auth";
 import { getRolePath } from "../../lib/roleApi";
 import { useRouter } from "expo-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../../lib/api";
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-icons";
 
@@ -20,6 +20,7 @@ const resolvePhoto = (url?: string | null) => {
 export default function ProfileScreen() {
     const { user, logout } = useAuthStore() as any;
     const router = useRouter();
+    const queryClient = useQueryClient();
 
     const { data: staffData, isLoading: loadingStaff } = useQuery({
         queryKey: ["profileStaffDetails"],
@@ -70,7 +71,11 @@ export default function ProfileScreen() {
     const handleLogout = () => {
         Alert.alert("Logout", "Are you sure you want to log out?", [
             { text: "Cancel", style: "cancel" },
-            { text: "Logout", style: "destructive", onPress: () => { logout(); router.replace("/onboarding"); } },
+            { text: "Logout", style: "destructive", onPress: () => { 
+                queryClient.clear();
+                logout(); 
+                router.replace("/onboarding"); 
+            } },
         ]);
     };
 
@@ -87,7 +92,10 @@ export default function ProfileScreen() {
                         setIsDeleting(true);
                         try {
                             const res = await api.post(`/${getRolePath()}/auth/request-deletion`);
-                            Alert.alert("Success", res.data.message || "Deletion request submitted. Admin will review your request.");
+                            Alert.alert("Success", res.data.message || "Deletion request submitted. You have been logged out.");
+                            queryClient.clear();
+                            await logout();
+                            router.replace("/onboarding");
                         } catch (err: any) {
                             setIsDeleting(false);
                             Alert.alert("Error", err.response?.data?.message || "Failed to submit request.");

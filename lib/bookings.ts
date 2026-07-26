@@ -21,8 +21,9 @@ export const partnerBookingService = {
         return res.data.data;
     },
 
-    rejectServiceRequest: async (id: string) => {
-        return api.post(`/service/booking/reject/${id}`);
+    rejectServiceRequest: async (id: string, roleId?: string) => {
+        const body = roleId ? { roleId } : {};
+        return api.post(`/service/booking/reject/${id}`, body);
     },
 
     updateLocation: async (data: { latitude: number, longitude: number, heading?: number, speed?: number }) => {

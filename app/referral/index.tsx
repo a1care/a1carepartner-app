@@ -24,7 +24,15 @@ const referralService = {
   validate: async (code: string) => {
     const res = await api.post('/referral/validate', { code });
     return res.data.data;
-  }
+  },
+  getMyEarnings: async () => {
+    const res = await api.get('/referral/my-earnings');
+    return res.data.data as { 
+        totalEarned: number; 
+        totalPending: number; 
+        items: any[]; 
+    };
+  },
 };
 
 export default function ReferralScreen() {
@@ -36,6 +44,11 @@ export default function ReferralScreen() {
     const { data, isLoading, isError } = useQuery({
         queryKey: ['referral-code'],
         queryFn: referralService.getMyCode,
+    });
+
+    const { data: earningsData } = useQuery({
+        queryKey: ['referral-earnings'],
+        queryFn: referralService.getMyEarnings,
     });
 
     const handleShare = async () => {
@@ -111,6 +124,22 @@ export default function ReferralScreen() {
                             </TouchableOpacity>
                         </>
                     )}
+                </View>
+
+                {/* Earnings Summary */}
+                <View style={styles.card}>
+                    <Text style={styles.cardLabel}>EARNINGS SUMMARY</Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
+                        <View style={{ flex: 1, backgroundColor: '#F0FDF4', borderRadius: 12, padding: 16, marginRight: 8 }}>
+                            <Text style={{ fontSize: 12, color: '#16A34A', fontWeight: '700', marginBottom: 4 }}>TOTAL EARNED</Text>
+                            <Text style={{ fontSize: 24, fontWeight: '900', color: '#15803D' }}>₹{earningsData?.totalEarned || 0}</Text>
+                        </View>
+                        <View style={{ flex: 1, backgroundColor: '#FFF7ED', borderRadius: 12, padding: 16, marginLeft: 8 }}>
+                            <Text style={{ fontSize: 12, color: '#EA580C', fontWeight: '700', marginBottom: 4 }}>PENDING</Text>
+                            <Text style={{ fontSize: 24, fontWeight: '900', color: '#C2410C' }}>₹{earningsData?.totalPending || 0}</Text>
+                        </View>
+                    </View>
+                    <Text style={{ fontSize: 12, color: '#64748B', lineHeight: 18 }}>Pending rewards will unlock automatically when they complete their first service.</Text>
                 </View>
 
                 {/* How it works */}

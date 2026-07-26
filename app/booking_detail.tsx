@@ -107,7 +107,7 @@ export default function BookingDetailScreen() {
     });
 
     const rejectService = useMutation({
-        mutationFn: async () => partnerBookingService.rejectServiceRequest(String(id)),
+        mutationFn: async () => partnerBookingService.rejectServiceRequest(String(id), user?.roleId),
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["bookings"] });
             queryClient.invalidateQueries({ queryKey: ["booking-detail", id] });
@@ -121,8 +121,9 @@ export default function BookingDetailScreen() {
 
     const call = (mobile?: string | null) => { if (mobile) Linking.openURL(`tel:${mobile}`); };
     const openMaps = () => {
-        if (!booking?.address) return;
-        const coords = booking.address.coords;
+        const addr = booking?.address || booking?.addressId;
+        if (!addr) return;
+        const coords = addr.coords || addr.location;
         if (coords?.lat && coords?.lng) {
             const lat = coords.lat;
             const lng = coords.lng;
@@ -143,7 +144,8 @@ export default function BookingDetailScreen() {
                 Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`);
             });
         } else {
-            const q = encodeURIComponent(booking.address.label || "");
+            const addr = booking?.address || booking?.addressId;
+            const q = encodeURIComponent(addr?.label || "");
             Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${q}`);
         }
     };
@@ -230,8 +232,32 @@ export default function BookingDetailScreen() {
                 <TouchableOpacity style={styles.card} onPress={openMaps} activeOpacity={0.9}>
                     <Text style={styles.sectionTitle}>Location</Text>
                     <View style={styles.addressRow}>
-                        <MapPin size={18} color="#EF4444" />
-                        <Text style={styles.addressText}>{booking.address?.label || "Not provided"}</Text>
+                        <View style={{ marginTop: 2 }}>
+                            <MapPin size={22} color="#EF4444" />
+                        </View>
+                        <View style={{ flex: 1, gap: 4 }}>
+                            {(() => {
+                                const addr = booking.addressId || booking.address;
+                                return (
+                                    <>
+                                        <Text style={styles.addressLabel}>{addr?.label || "Location"}</Text>
+                                        <Text style={styles.addressText}>
+                                            {addr ? 
+                                                [
+                                                    addr.houseNo,
+                                                    addr.street,
+                                                    addr.landmark ? `Near ${addr.landmark}` : null,
+                                                    addr.city,
+                                                    addr.state,
+                                                    addr.pincode ? `- ${addr.pincode}` : null,
+                                                    addr.addressLine1
+                                                ].filter(Boolean).join(", ").replace(/, -/g, " -") 
+                                            : (booking.location?.address || "Location not provided")}
+                                        </Text>
+                                    </>
+                                );
+                            })()}
+                        </View>
                     </View>
                     <TouchableOpacity style={styles.mapBtn} onPress={openMaps}>
                         <Navigation size={16} color="#FFF" />
@@ -295,10 +321,15 @@ export default function BookingDetailScreen() {
                                 style={[styles.primaryBtn, { flex: 1, backgroundColor: hasActiveSub ? '#8B5CF6' : '#94A3B8' }]}
                                 onPress={() => {
                                     if (!hasActiveSub) {
-                                        Alert.alert("Subscription Required", "You need an active subscription to accept jobs.", [
-                                            { text: "View Plans", onPress: () => router.push("/subscriptions" as any) },
-                                            { text: "Cancel", style: "cancel" }
-                                        ]);
+                                        if (Platform.OS === 'web') {
+                                            const ok = window.confirm("Subscription Required\n\nYou need an active subscription to accept jobs. View Plans?");
+                                            if (ok) router.push("/subscriptions" as any);
+                                        } else {
+                                            Alert.alert("Subscription Required", "You need an active subscription to accept jobs.", [
+                                                { text: "View Plans", onPress: () => router.push("/subscriptions" as any) },
+                                                { text: "Cancel", style: "cancel" }
+                                            ]);
+                                        }
                                         return;
                                     }
                                     acceptService.mutate();
@@ -412,8 +443,9 @@ const styles = StyleSheet.create({
     rowLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
     rowLabel: { fontSize: 14, color: "#64748B", fontWeight: "600" },
     rowValue: { fontSize: 14, color: "#475569", fontWeight: "700" },
-    addressRow: { flexDirection: "row", alignItems: "flex-start", gap: 10, backgroundColor: "#FFF5F5", padding: 14, borderRadius: 14 },
-    addressText: { flex: 1, fontSize: 14, color: "#B91C1C", fontWeight: "700", lineHeight: 20 },
+    addressRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, backgroundColor: "#FFF5F5", padding: 16, borderRadius: 16 },
+    addressLabel: { fontSize: 14, color: "#991B1B", fontWeight: "900", textTransform: "uppercase", letterSpacing: 0.5 },
+    addressText: { fontSize: 15, color: "#B91C1C", fontWeight: "600", lineHeight: 22 },
     mapBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#3B82F6", height: 46, borderRadius: 14 },
     mapBtnText: { color: "#FFF", fontWeight: "800", fontSize: 14 },
     notesRow: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
@@ -429,4 +461,3 @@ const styles = StyleSheet.create({
     primaryBtn: { flex: 1, height: 52, backgroundColor: PRIMARY, borderRadius: 16, justifyContent: "center", alignItems: "center" },
     primaryBtnText: { color: "#FFF", fontSize: 15, fontWeight: "800" },
 });
-

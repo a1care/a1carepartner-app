@@ -165,6 +165,31 @@ export default function RegisterScreen() {
         try {
             const { status } = await ImagePicker.requestCameraPermissionsAsync();
             if (status !== 'granted') return Alert.alert("Permission", "Camera permission is required.");
+            
+            if (pickingDocType === 'Selfie') {
+                Alert.alert(
+                    "Profile Photo Guidelines", 
+                    "For the best professional profile, please ensure your face is well-lit and centered in the square.",
+                    [{
+                        text: "Take Photo",
+                        onPress: async () => {
+                            const result = await ImagePicker.launchCameraAsync({ 
+                                allowsEditing: true, 
+                                quality: 0.6,
+                                aspect: [1, 1] // Forces a square crop for selfies
+                            });
+                            if (!result.canceled) {
+                                const asset = result.assets[0];
+                                await uploadFile(pickingDocType, { uri: asset.uri, name: `selfie_${Date.now()}.jpg`, mimeType: 'image/jpeg' });
+                            }
+                            setPickingDocType(null);
+                        }
+                    }]
+                );
+                return; // Early return because the camera launches in the callback
+            }
+
+            // Normal flow for non-selfies
             const result = await ImagePicker.launchCameraAsync({ allowsEditing: true, quality: 0.6 });
             if (!result.canceled) {
                 const asset = result.assets[0];
@@ -180,7 +205,14 @@ export default function RegisterScreen() {
         try {
             const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
             if (status !== 'granted') return Alert.alert("Permission", "Gallery permission is required.");
-            const result = await ImagePicker.launchImageLibraryAsync({ allowsEditing: true, quality: 0.6 });
+            
+            const pickerOptions: ImagePicker.ImagePickerOptions = { 
+                allowsEditing: true, 
+                quality: 0.6,
+                aspect: pickingDocType === 'Selfie' ? [1, 1] : undefined
+            };
+
+            const result = await ImagePicker.launchImageLibraryAsync(pickerOptions);
             if (!result.canceled) {
                 const asset = result.assets[0];
                 await uploadFile(pickingDocType, { uri: asset.uri, name: asset.fileName || `selfie_${Date.now()}.jpg`, mimeType: 'image/jpeg' });
@@ -222,6 +254,7 @@ export default function RegisterScreen() {
                 ...form,
                 roleId: PARTNER_ROLE_IDS[role as keyof typeof PARTNER_ROLE_IDS] || PARTNER_ROLE_IDS.doctor,
                 documents: documents.map(d => ({ type: d.type, url: d.url })),
+                profileImage: documents.find(d => d.type === 'Selfie' || d.type === 'Profile Photo')?.url || undefined,
                 status: "Pending",
                 isRegistered: true,
                 experience: form.experience ? Number(form.experience) : undefined,
