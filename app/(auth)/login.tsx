@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
     View, Text, TextInput, TouchableOpacity, StyleSheet,
-    ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, NativeModules
+    ScrollView, KeyboardAvoidingView, Platform, ActivityIndicator, Alert, NativeModules, Modal
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter, useLocalSearchParams } from "expo-router";
@@ -45,6 +45,8 @@ const LoginScreen = () => {
     const [googleLoading, setGoogleLoading] = useState(false);
     const [verifying, setVerifying] = useState(false);
     const [resendTimer, setResendTimer] = useState(0);
+    const [showRestoreModal, setShowRestoreModal] = useState(false);
+    const [restoring, setRestoring] = useState(false);
 
     React.useEffect(() => {
         if (resendTimer <= 0) return;
@@ -197,9 +199,36 @@ const LoginScreen = () => {
             setResendTimer(30);
             Toast.show({ type: 'success', text1: 'OTP Sent', text2: 'Enter the 6-digit code sent to your number.' });
         } catch (err: any) {
-            Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to send OTP.' });
+            if (err?.response?.data?.message === "ACCOUNT_DELETED") {
+                setShowRestoreModal(true);
+            } else {
+                Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to send OTP.' });
+            }
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleRestoreAccount = async () => {
+        let cleaned = mobile.replace(/\D/g, '');
+        if (cleaned.startsWith('91') && cleaned.length > 10) cleaned = cleaned.slice(-10);
+
+        const selectedRole = role?.toLowerCase() || 'doctor';
+        const rolePath = selectedRole.includes('nurse') ? 'nurse' :
+                         selectedRole.includes('ambulance') ? 'ambulance' :
+                         selectedRole.includes('rental') ? 'rental' : 'doctor';
+
+        setRestoring(true);
+        try {
+            await api.post(`/${rolePath}/auth/restore`, { mobileNumber: cleaned });
+            setShowRestoreModal(false);
+            Toast.show({ type: 'success', text1: 'Account Restored', text2: 'Your account is active again!' });
+            // Automatically send OTP now
+            handleSendOtp();
+        } catch (err: any) {
+            Toast.show({ type: 'error', text1: 'Restore Failed', text2: err?.response?.data?.message || 'Could not restore account' });
+        } finally {
+            setRestoring(false);
         }
     };
 
@@ -311,6 +340,30 @@ const LoginScreen = () => {
                     )} */}
                 </View>
             </ScrollView>
+
+            <Modal visible={showRestoreModal} transparent animationType="slide">
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.iconContainer}>
+                            <Ionicons name="warning" size={32} color="#EF4444" />
+                        </View>
+                        <Text style={styles.modalTitle}>Account Unavailable</Text>
+                        <Text style={styles.modalDesc}>
+                            Your account is currently disabled and scheduled for deletion. If this was a mistake or you changed your mind, you can reactivate it right now.
+                        </Text>
+                        
+                        <TouchableOpacity style={styles.restoreBtn} onPress={handleRestoreAccount} disabled={restoring}>
+                            <LinearGradient colors={["#27AE60", "#1E8449"]} style={styles.restoreBtnGradient}>
+                                {restoring ? <ActivityIndicator color="#FFF" /> : <Text style={styles.restoreBtnText}>Restore My Account</Text>}
+                            </LinearGradient>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity style={styles.cancelBtn} onPress={() => setShowRestoreModal(false)} disabled={restoring}>
+                            <Text style={styles.cancelBtnText}>Cancel</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </KeyboardAvoidingView>
     );
 };
@@ -344,4 +397,16 @@ const styles = StyleSheet.create({
     dividerText: { fontSize: 12, fontWeight: "700", color: "#9CB3C4" },
     googleBtn: { height: 56, backgroundColor: "#FFFFFF", borderRadius: 28, flexDirection: "row", alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: "#D8EAF5" },
     googleBtnText: { fontSize: 15, fontWeight: "700", color: "#0D2E4D" },
+    
+    // Modal Styles
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(13, 46, 77, 0.4)', justifyContent: 'flex-end' },
+    modalContent: { backgroundColor: '#FFFFFF', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 32, paddingBottom: Platform.OS === 'ios' ? 48 : 32, alignItems: 'center' },
+    iconContainer: { width: 64, height: 64, borderRadius: 32, backgroundColor: '#FEE2E2', alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
+    modalTitle: { fontSize: 24, fontWeight: '800', color: '#0D2E4D', marginBottom: 12, textAlign: 'center' },
+    modalDesc: { fontSize: 15, color: '#4A6E8A', textAlign: 'center', lineHeight: 22, marginBottom: 32, paddingHorizontal: 12 },
+    restoreBtn: { width: '100%', height: 56, borderRadius: 28, overflow: 'hidden', marginBottom: 16 },
+    restoreBtnGradient: { flex: 1, alignItems: 'center', justifyContent: 'center' },
+    restoreBtnText: { fontSize: 17, fontWeight: '700', color: '#FFFFFF' },
+    cancelBtn: { width: '100%', height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: '#D8EAF5' },
+    cancelBtnText: { fontSize: 16, fontWeight: '700', color: '#64748B' },
 });

@@ -69,7 +69,7 @@ export default function RegisterScreen() {
     const authToken = (token as string) || storedToken;
 
     const [step, setStep] = useState(1);
-    const [form, setForm] = useState<Record<string, any>>({ gender: "Male", specialization: [], bankDetails: { accountHolderName: "", accountNumber: "", ifscCode: "", bankName: "" } });
+    const [form, setForm] = useState<Record<string, any>>({ gender: "Male", specialization: [], bankDetails: { accountHolderName: "", accountNumber: "", ifscCode: "", bankName: "" }, referredByCode: "" });
     const [documents, setDocuments] = useState<{ type: string; url: string; uploading?: boolean }[]>([]);
     const [showSpecDropdown, setShowSpecDropdown] = useState(false);
     const [showGenderDropdown, setShowGenderDropdown] = useState(false);
@@ -226,7 +226,24 @@ export default function RegisterScreen() {
         try {
             setDocuments(prev => [...prev.filter(d => d.type !== docType), { type: docType, url: "", uploading: true }]);
             const fd = new FormData();
-            fd.append('document', { uri: file.uri, name: file.name, type: file.mimeType } as any);
+            
+            // Ensure filename has a valid extension for the backend's strict checking
+            let filename = file.name || `upload_${Date.now()}`;
+            if (!filename.includes('.')) {
+                if (file.mimeType?.includes('png')) filename += '.png';
+                else if (file.mimeType?.includes('pdf')) filename += '.pdf';
+                else if (file.mimeType?.includes('webp')) filename += '.webp';
+                else filename += '.jpg'; // Default to jpg for images
+            }
+            
+            if (Platform.OS === 'web') {
+                const fetchRes = await fetch(file.uri);
+                const blob = await fetchRes.blob();
+                fd.append('document', blob, filename);
+            } else {
+                fd.append('document', { uri: file.uri, name: filename, type: file.mimeType } as any);
+            }
+            
             const res = await api.post("/doctor/auth/upload-document", fd, { headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${authToken}` } });
             setDocuments(prev => [...prev.filter(d => d.type !== docType), { type: docType, url: res.data.data.url, uploading: false }]);
         } catch (err: any) {
@@ -454,6 +471,10 @@ export default function RegisterScreen() {
                                 </Modal>
                             </View>
                             <View style={styles.fieldItem} onLayout={(event) => rememberFieldOffset("accountHolderName", event.nativeEvent.layout.y)}><Text style={styles.fieldLabel}>Account Holder Name Required <Text style={styles.asterisk}>*</Text></Text><TextInput style={[styles.fieldInput, fieldErrors.accountHolderName && styles.fieldInputError]} placeholder="As per bank records" value={form.bankDetails.accountHolderName} onFocus={() => scrollToField("accountHolderName")} onChangeText={v => { updateBank("accountHolderName", v.replace(/[^a-zA-Z\s]/g, "")); setFieldErrors(prev => ({ ...prev, accountHolderName: "" })); }} />{!!fieldErrors.accountHolderName && <Text style={styles.fieldErrorText}>{fieldErrors.accountHolderName}</Text>}</View>
+                            <View style={styles.fieldItem} onLayout={(event) => rememberFieldOffset("referredByCode", event.nativeEvent.layout.y)}>
+                                <Text style={styles.fieldLabel}>Referral Code <Text style={{ color: '#94A3B8', fontWeight: '500' }}>(optional)</Text></Text>
+                                <TextInput style={styles.fieldInput} placeholder="Friend's referral code" value={form.referredByCode} onFocus={() => scrollToField("referredByCode")} onChangeText={v => update("referredByCode", v.toUpperCase().replace(/[^A-Z0-9]/g, ''))} autoCapitalize="characters" maxLength={10} />
+                            </View>
                         </View>
                         <TouchableOpacity onPress={handleRegister} style={styles.mainActionBtn}>{showThinking ? <ActivityIndicator color="#FFF" /> : <Text style={styles.mainActionText}>Confirm & Finish</Text>}</TouchableOpacity>
                     </View>

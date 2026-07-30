@@ -10,6 +10,13 @@ import { useState, useEffect } from "react";
 import { BackHandler } from "react-native";
 import { useAuthStore } from "../stores/auth";
 
+let RazorpayCheckout: any = null;
+try {
+    RazorpayCheckout = require("react-native-razorpay").default;
+} catch {
+    RazorpayCheckout = null;
+}
+
 export default function SubscriptionsScreen() {
     const router = useRouter();
     const queryClient = useQueryClient();
@@ -105,16 +112,54 @@ export default function SubscriptionsScreen() {
             } else {
                 if (data.data?.order?._id) {
                     try {
-                        const initRes = await api.post("/payments/initiate", { orderId: data.data.order._id });
-                        const { accessKey, env } = initRes.data.data;
-                        
-                        router.push({
-                            pathname: "/checkout/easebuzz" as any,
-                            params: { accessKey, env, type: "SUBSCRIPTION" }
+                        if (!RazorpayCheckout || typeof RazorpayCheckout.open !== "function") {
+                            throw new Error("Online payment is currently unavailable. Please contact support.");
+                        }
+                        const orderId = data.data.order._id;
+                        const razorRes = await api.post("/payments/razorpay/initiate", { orderId });
+                        const razorData = razorRes.data?.data;
+                        const paymentData: any = await RazorpayCheckout.open({
+                            key: razorData.key,
+                            amount: razorData.razorOrder.amount,
+                            currency: 'INR',
+                            name: 'A1Care 24/7',
+                            description: `Subscription Payment`,
+                            order_id: razorData.razorOrder.id,
+                            prefill: {
+                                email: razorData.customer.email || '',
+                                contact: razorData.customer.contact || '',
+                                name: razorData.customer.name || '',
+                            },
+                            theme: { color: '#0F172A' },
+                        });
+                        await api.post("/payments/razorpay/verify", {
+                            razorpay_order_id: paymentData.razorpay_order_id,
+                            razorpay_payment_id: paymentData.razorpay_payment_id,
+                            razorpay_signature: paymentData.razorpay_signature,
+                            orderId: orderId,
+                        });
+                        queryClient.invalidateQueries({ queryKey: ["myActiveSubscription"] });
+                        queryClient.invalidateQueries({ queryKey: ["subscriptionHistory"] });
+                        router.replace({
+                            pathname: "/checkout_status" as any,
+                            params: {
+                                status: "success",
+                                type: "SUBSCRIPTION"
+                            }
                         });
                     } catch (e: any) {
-                        if (Platform.OS === 'web') window.alert("Failed to initiate payment: " + e.message);
-                        else Alert.alert("Error", "Failed to initiate payment.");
+                        if (e.code === 2 || e.code === "2") {
+                            if (Platform.OS === 'web') window.alert("Payment Cancelled");
+                            else Alert.alert("Payment Cancelled", "You cancelled the payment.");
+                        } else {
+                            router.replace({
+                                pathname: "/checkout_status" as any,
+                                params: {
+                                    status: "failure",
+                                    type: "SUBSCRIPTION"
+                                }
+                            });
+                        }
                     }
                 } else {
                     if (Platform.OS === 'web') window.alert("Payment integration is pending or failed to generate order.");

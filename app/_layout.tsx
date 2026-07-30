@@ -12,7 +12,7 @@ import { useConfigStore } from "../stores/config.store";
 import { ToastProvider } from '../components/CustomToast';
 import { needsKycUpload, roleFromPartner } from "../lib/partnerOnboarding";
 import { connectSocket, disconnectSocket } from "../lib/socket";
-import BookingAssignmentPopup, { AssignmentRequest } from "../components/BookingAssignmentPopup";
+
 import FloatingBookingAlert from "../components/FloatingBookingAlert";
 import { partnerBookingService } from "../lib/bookings";
 import { api } from "../lib/api";
@@ -73,6 +73,7 @@ function AuthGuard() {
     const router = useRouter();
     const [isAppReady, setIsAppReady] = useState(false);
 
+
     useEffect(() => {
         const init = async () => {
             try {
@@ -115,16 +116,18 @@ function AuthGuard() {
             return;
         }
 
-        if (token && (inOnboarding || (inAuth && !isInReviewStatus && !inRegister))) {
+        if (token && (inOnboarding || inAuth)) {
             if (needsKycUpload(user, user?.role)) {
-                router.replace({
-                    pathname: "/(auth)/register",
-                    params: { role: roleFromPartner(user, user?.role) }
-                } as any);
-            } else if (user?.status === "Pending") {
-                router.replace("/(auth)/review-status" as any);
-            } else if (user?.status === "Rejected") {
-                router.replace("/(auth)/review-status" as any); // C4: block Rejected partners from home
+                if (!inRegister) {
+                    router.replace({
+                        pathname: "/(auth)/register",
+                        params: { role: roleFromPartner(user, user?.role) }
+                    } as any);
+                }
+            } else if (user?.status === "Pending" || user?.status === "Rejected") {
+                if (!isInReviewStatus) {
+                    router.replace("/(auth)/review-status" as any);
+                }
             } else {
                 router.replace("/(tabs)/home" as any);
             }
@@ -148,12 +151,38 @@ function AuthGuard() {
         if (token && user?._id) {
             
             const socket = connectSocket(token, user._id);
-            socket.on("booking:assignment_request", (data: AssignmentRequest) => {
-                console.log("[Layout] 🚨 Assignment request received in layout:", data);
-                queryClient.refetchQueries({ queryKey: ["bookings"] });
+            socket.on("booking:assignment_request", (data: any) => {
+                console.log("[Layout] ?? Ultra-fast assignment request received in layout, refetching feed");
+                queryClient.refetchQueries({ queryKey: ["bookings"] }); // Silently update the feed behind the popup
             });
+
+            socket.off("flash_notification");
+            socket.on("flash_notification", (data: any) => {
+                const currentSegment = (segments as string[]).join('/');
+                if (currentSegment.includes(`chat`) && currentSegment.includes(data.threadId)) {
+                    return;
+                }
+
+                Toast.show({
+                    type: 'info',
+                    text1: data.title || "New Message",
+                    text2: data.body || "Tap to view",
+                    position: 'top',
+                    onPress: () => {
+                        if (data.type === "BOOKING_CHAT") {
+                            router.push(`/booking_chat?id=${data.threadId}&name=${encodeURIComponent(data.senderName)}`);
+                        } else if (data.type === "TICKET_CHAT") {
+                            router.push(`/support_chat?id=${data.threadId}&subject=${encodeURIComponent(data.title)}`);
+                        }
+                        Toast.hide();
+                    },
+                    visibilityTime: 4000
+                });
+            });
+
             return () => {
                 socket.off("booking:assignment_request");
+                socket.off("flash_notification");
                 disconnectSocket();
             };
         }
@@ -223,6 +252,7 @@ function AuthGuard() {
             <View style={styles.overlayLayer} pointerEvents="box-none">
                 <FloatingBookingAlert />
             </View>
+
         </View>
     );
 }

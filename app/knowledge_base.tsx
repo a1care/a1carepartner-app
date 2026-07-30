@@ -24,8 +24,8 @@ export default function KnowledgeBaseScreen() {
     const { data: items = [], isLoading } = useQuery({
         queryKey: ["knowledgeBase"],
         queryFn: async () => {
-            const res = await api.get("/common/config/partner");
-            return res.data?.data?.knowledgeBase || [];
+            const res = await api.get("/knowledge-base/partner");
+            return res.data?.data || [];
         },
     });
 

@@ -41,7 +41,8 @@ export default function FloatingBookingAlert() {
         queryKey: ["bookings"],
         queryFn: async () => {
             const res = await api.get("/appointment/provider/feed", { params: { status: 'all' } });
-            return res.data.data || [];
+            const data = res.data.data;
+            return Array.isArray(data) ? data : [];
         },
         enabled: !!token,
         refetchInterval: 10000,
@@ -275,7 +276,12 @@ export default function FloatingBookingAlert() {
                 {/* Date / Time slotted */}
                 <View style={styles.infoRow}>
                     <Clock size={13} color="#64748B" />
-                    <Text style={styles.infoText}>{activeAlertBooking.timeSlot || "As Scheduled"}</Text>
+                    <Text style={styles.infoText}>
+                        {activeAlertBooking.date 
+                            ? new Date(activeAlertBooking.date).toLocaleDateString("en-US", { month: "short", day: "numeric" }) + " | " 
+                            : ""}
+                        {activeAlertBooking.timeSlot || "As Scheduled"}
+                    </Text>
                     {activeAlertBooking.paymentMode === "OFFLINE" && (
                         <View style={styles.cashBadge}>
                             <Text style={styles.cashText}>💵 CASH visit</Text>

@@ -516,7 +516,7 @@ const styles = StyleSheet.create({
     loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, backgroundColor: '#FFF' },
     headerTitle: { fontSize: 20, fontWeight: '800', color: '#1E293B' },
-    scrollContent: { padding: 16 },
+    scrollContent: { padding: 16, paddingBottom: 100 },
     balanceCard: {
         backgroundColor: '#1E293B',
         borderRadius: 24,

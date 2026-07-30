@@ -1,14 +1,23 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, BackHandler } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, BackHandler, useWindowDimensions, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect } from "react";
-
-import { useConfigStore } from "../stores/config.store";
+import RenderHtml from "react-native-render-html";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "../lib/api";
 
 export default function PrivacyPolicyScreen() {
     const router = useRouter();
-    const { config } = useConfigStore();
+    const { width } = useWindowDimensions();
+
+    const { data: privacyData, isLoading } = useQuery({
+        queryKey: ["cms-privacy", "PARTNER"],
+        queryFn: async () => {
+            const res = await api.get("/cms/public/PARTNER/PRIVACY");
+            return res.data.data;
+        }
+    });
 
     useEffect(() => {
         const backAction = () => {
@@ -18,6 +27,14 @@ export default function PrivacyPolicyScreen() {
         const backHandler = BackHandler.addEventListener("hardwareBackPress", backAction);
         return () => backHandler.remove();
     }, []);
+
+    if (isLoading) {
+        return (
+            <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color="#2D935C" />
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView style={styles.container}>
@@ -31,14 +48,12 @@ export default function PrivacyPolicyScreen() {
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 <View style={styles.card}>
-                    <View style={styles.iconContainer}>
-                        <Ionicons name="shield-checkmark" size={32} color="#2D935C" />
-                    </View>
-                    
-                    <Text style={styles.lastUpdate}>Last Updated: February 2026</Text>
+                    <Text style={styles.lastUpdate}>Effective Date: February 21, 2026</Text>
 
-                    {config?.contact.privacyPolicy ? (
-                        <Text style={styles.paragraph}>{config.contact.privacyPolicy}</Text>
+                    <Text style={styles.intro}>A1Care is committed to protecting the data of our medical partners and the patients you serve.</Text>
+
+                    {privacyData?.content ? (
+                        <RenderHtml contentWidth={width - 50} source={{ html: privacyData.content }} tagsStyles={{ p: styles.paragraph, span: styles.paragraph, li: styles.paragraph }} />
                     ) : (
                         <>
                             <Text style={styles.sectionTitle}>1. Introduction</Text>

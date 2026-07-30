@@ -1,8 +1,8 @@
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Switch, ActivityIndicator, RefreshControl, Image, Platform, NativeModules, Alert, Modal } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useRouter } from "expo-router";
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useRouter, useFocusEffect } from "expo-router";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useAuthStore } from "../../stores/auth";
 import { getRolePath } from "../../lib/roleApi";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -12,6 +12,7 @@ import { Toast } from "../../components/CustomToast";
 import * as Location from 'expo-location';
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getFirebaseMessaging } from "../../lib/nativeFirebase";
+import { resolvePhoto } from "../../utils/image";
 
 // Global persistence to prevent flickering during tab switches
 let cachedLocationArea = "";
@@ -281,6 +282,16 @@ export default function HomeScreen() {
         }
     }, [staffData]);
 
+    useFocusEffect(
+        useCallback(() => {
+            if (token) {
+                refetchUser();
+                refetchStats();
+                refetchSubscription();
+            }
+        }, [token])
+    );
+
     const [period, setPeriod] = useState<"thisMonth" | "lastMonth">("thisMonth");
 
     const { data: bookings = [], isLoading: loadingStats, refetch: refetchStats, isRefetching } = useQuery({
@@ -449,7 +460,7 @@ export default function HomeScreen() {
                                 : "You are currently blocked from receiving new bookings. Please renew your plan."}
                         </Text>
                     </View>
-                    <TouchableOpacity onPress={() => router.push("/subscription/plans")} style={{ backgroundColor: '#DC2626', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 }}>
+                    <TouchableOpacity onPress={() => router.push("/subscriptions" as any)} style={{ backgroundColor: '#DC2626', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 6 }}>
                         <Text style={{ color: '#FFF', fontWeight: '600', fontSize: 12 }}>Renew</Text>
                     </TouchableOpacity>
                 </View>
@@ -458,6 +469,7 @@ export default function HomeScreen() {
             <ScrollView
                 refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={onRefresh} tintColor={primaryColor} />}
                 showsVerticalScrollIndicator={false}
+                contentContainerStyle={{ paddingBottom: 100 }}
             >
                 <View style={styles.header}>
                     <View style={styles.locationBar}>
@@ -573,7 +585,7 @@ export default function HomeScreen() {
                         </TouchableOpacity>
                         <TouchableOpacity style={styles.profileBtn} onPress={() => router.push("/profile_edit")}>
                             {staffData?.profileImage || user?.profileImage ? (
-                                <Image source={{ uri: staffData?.profileImage || user?.profileImage }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
+                                <Image source={{ uri: resolvePhoto(staffData?.profileImage || user?.profileImage) }} style={{ width: "100%", height: "100%" }} resizeMode="cover" />
                             ) : (
                                 <View style={styles.avatarPlaceholder}><Ionicons name="person" size={20} color="#64748B" /></View>
                             )}
@@ -713,7 +725,7 @@ const styles = StyleSheet.create({
     locationArea: { fontSize: 13, fontWeight: '800', color: '#0D2E4D' },
     locationCity: { fontSize: 10, fontWeight: '600', color: '#6B8A9E', marginTop: 1 },
     notificationBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center', marginLeft: 10 },
-    profileBtn: { width: 44, height: 44, borderRadius: 22, overflow: 'hidden', borderWidth: 2, borderColor: '#F1F5F9' },
+    profileBtn: { width: 44, height: 44, borderRadius: 22, overflow: 'hidden', borderWidth: 2, borderColor: '#F1F5F9', marginLeft: 12 },
     avatarPlaceholder: { flex: 1, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center' },
     headerContent: { marginBottom: 22, paddingHorizontal: 5 },
     greetingText: { fontSize: 13, color: "#64748B", fontWeight: "600" },

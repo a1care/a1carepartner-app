@@ -386,9 +386,19 @@ export default function BookingsScreen() {
                         <Text style={styles.emptySub}>Your queue is currently empty</Text>
                     </View>
                 ) : (
-                    bookings.map((b: any) => (
+                    bookings.map((b: any) => {
+                        const isFutureDate = !!(b.date && new Date(new Date(b.date).setHours(0,0,0,0)) > new Date(new Date().setHours(0,0,0,0)));
+                        return (
                         <View key={b._id} style={styles.card}>
-                            <TouchableOpacity activeOpacity={0.7} style={styles.cardInfo} onPress={() => router.push({ pathname: '/booking_detail' as any, params: { bookingId: b._id, bookingType: b.bookingType } })}>
+                            <TouchableOpacity 
+                                activeOpacity={["CANCELLED", "Cancelled", "Missing", "RETURNED_TO_ADMIN"].includes(b.status) ? 1 : 0.7} 
+                                style={styles.cardInfo} 
+                                onPress={() => {
+                                    if (!["CANCELLED", "Cancelled", "Missing", "RETURNED_TO_ADMIN"].includes(b.status)) {
+                                        router.push({ pathname: '/booking_detail' as any, params: { bookingId: b._id, bookingType: b.bookingType } });
+                                    }
+                                }}
+                            >
                                 <View style={styles.cardHeader}>
                                     <View>
                                         <Text style={styles.patientName}>{b.patientName || "Guest Patient"}</Text>
@@ -488,13 +498,15 @@ export default function BookingsScreen() {
                                             >
                                                 <Ionicons name="close" size={20} color="#EF4444" />
                                             </TouchableOpacity>
-                                            <TouchableOpacity
-                                                style={styles.commBtn}
-                                                onPress={() => router.push({ pathname: '/booking_chat' as any, params: { id: b._id, name: b.patientName || 'Patient' } })}
-                                            >
-                                                <MessageCircle size={22} color="#2D935C" />
-                                                {unreadByBooking[b._id] > 0 && <View style={styles.chatDot} />}
-                                            </TouchableOpacity>
+                                            {!isFutureDate && (
+                                                <TouchableOpacity
+                                                    style={styles.commBtn}
+                                                    onPress={() => router.push({ pathname: '/booking_chat' as any, params: { id: b._id, name: b.patientName || 'Patient' } })}
+                                                >
+                                                    <MessageCircle size={22} color="#2D935C" />
+                                                    {unreadByBooking[b._id] > 0 && <View style={styles.chatDot} />}
+                                                </TouchableOpacity>
+                                            )}
                                         </View>
                                     </View>
                                 )}
@@ -513,13 +525,15 @@ export default function BookingsScreen() {
                                         >
                                             <Ionicons name="close" size={20} color="#EF4444" />
                                         </TouchableOpacity>
-                                        <TouchableOpacity
-                                            style={styles.commBtn}
-                                            onPress={() => router.push({ pathname: '/booking_chat' as any, params: { id: b._id, name: b.patientName || 'Patient' } })}
-                                        >
-                                            <MessageCircle size={22} color="#2D935C" />
-                                            {unreadByBooking[b._id] > 0 && <View style={styles.chatDot} />}
-                                        </TouchableOpacity>
+                                        {!isFutureDate && (
+                                            <TouchableOpacity
+                                                style={styles.commBtn}
+                                                onPress={() => router.push({ pathname: '/booking_chat' as any, params: { id: b._id, name: b.patientName || 'Patient' } })}
+                                            >
+                                                <MessageCircle size={22} color="#2D935C" />
+                                                {unreadByBooking[b._id] > 0 && <View style={styles.chatDot} />}
+                                            </TouchableOpacity>
+                                        )}
                                     </View>
                                 )}
                                 
@@ -545,6 +559,11 @@ export default function BookingsScreen() {
                                             </View>
                                         )}
                                         
+                                        {isFutureDate ? (
+                                            <View style={{ backgroundColor: '#FEF2F2', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 8 }}>
+                                                <Text style={{ color: '#EF4444', fontWeight: 'bold', fontSize: 13 }}>🕒 Action Locked: Available on {new Date(b.date).toLocaleDateString()}</Text>
+                                            </View>
+                                        ) : (
                                         <View style={styles.activeActions}>
                                             {isTracking !== b._id ? (
                                                 <TouchableOpacity
@@ -601,13 +620,15 @@ export default function BookingsScreen() {
                                                 {unreadByBooking[b._id] > 0 && <View style={styles.chatDot} />}
                                             </TouchableOpacity>
                                         </View>
+                                        )}
                                     </View>
                                 )}
 
                                 {/* Chat button for Completed / Cancelled bookings removed as requested */}
                             </View>
                         </View>
-                    ))
+                        );
+                    })
                 )}
             </ScrollView>
         </SafeAreaView>
@@ -627,7 +648,7 @@ const styles = StyleSheet.create({
     tabActive: { backgroundColor: "#2D935C", borderColor: "#2D935C" },
     tabText: { fontSize: 13, fontWeight: "800", color: "#64748B" },
     tabTextActive: { color: "#FFF" },
-    scrollContent: { padding: 24, gap: 20 },
+    scrollContent: { padding: 24, gap: 20, paddingBottom: 100 },
     loaderBox: { alignItems: 'center', marginTop: 100, gap: 15 },
     loaderText: { fontSize: 15, color: '#64748B', fontWeight: '700' },
     empty: { alignItems: "center", marginTop: 60, gap: 16 },

@@ -26,6 +26,7 @@ const TYPE_META: Record<string, { icon: any; color: string; bgColor: string }> =
     Wallet:              { icon: "wallet",            color: '#F59E0B', bgColor: '#FFFBEB' },
     Ticket:              { icon: "alert-circle",      color: '#EF4444', bgColor: '#FEF2F2' },
     Broadcast:           { icon: "bullhorn",          color: '#8B5CF6', bgColor: '#F5F3FF' },
+    Message:             { icon: "message-text",      color: '#3B82F6', bgColor: '#EFF6FF' }, // Reusing blue styling for messages
     default:             { icon: "bell",              color: '#2D935C', bgColor: '#ECFDF5' },
 };
 
@@ -147,6 +148,7 @@ export default function PartnerNotificationsScreen() {
     const ALLOWED_SCREENS = [
         '/(tabs)/bookings', '/booking_detail', '/wallet',
         '/my_tickets', '/subscriptions', '/(tabs)/profile',
+        '/booking_chat', '/support_chat'
     ];
 
     const handlePress = (n: any) => {
@@ -170,6 +172,13 @@ export default function PartnerNotificationsScreen() {
                 break;
             case 'Ticket':
                 router.push('/my_tickets' as any); // navigate to ticket list, not new ticket form
+                break;
+            case 'Message':
+                if (n.data?.type === "BOOKING_CHAT") {
+                    router.push(`/booking_chat?id=${n.data.threadId}` as any);
+                } else if (n.data?.type === "TICKET_CHAT") {
+                    router.push(`/support_chat?id=${n.data.threadId}` as any);
+                }
                 break;
         }
     };
@@ -244,7 +253,7 @@ export default function PartnerNotificationsScreen() {
                             <Text style={styles.emptyDesc}>We'll notify you when something important happens.</Text>
                         </View>
                     )}
-                    <View style={{ height: 40 }} />
+                    <View style={{ height: 100 }} />
                 </ScrollView>
             )}
         </SafeAreaView>

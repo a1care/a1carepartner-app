@@ -1,14 +1,23 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, BackHandler } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, BackHandler, useWindowDimensions, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useEffect } from "react";
-
-import { useConfigStore } from "../stores/config.store";
+import RenderHtml from "react-native-render-html";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "../lib/api";
 
 export default function TermsConditionsScreen() {
     const router = useRouter();
-    const { config } = useConfigStore();
+    const { width } = useWindowDimensions();
+
+    const { data: termsData, isLoading } = useQuery({
+        queryKey: ["cms-terms", "PARTNER"],
+        queryFn: async () => {
+            const res = await api.get("/cms/public/PARTNER/TERMS");
+            return res.data.data;
+        }
+    });
 
     useEffect(() => {
         const backAction = () => {
@@ -18,6 +27,14 @@ export default function TermsConditionsScreen() {
         const backHandler = BackHandler.addEventListener("hardwareBackPress", backAction);
         return () => backHandler.remove();
     }, []);
+
+    if (isLoading) {
+        return (
+            <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color="#2D935C" />
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView style={styles.container}>
@@ -34,8 +51,8 @@ export default function TermsConditionsScreen() {
 
                     <Text style={styles.intro}>By joining the A1Care Partner Program, you agree to the following professional terms and conditions.</Text>
 
-                    {config?.contact.termsAndConditions ? (
-                        <Text style={styles.paragraph}>{config.contact.termsAndConditions}</Text>
+                    {termsData?.content ? (
+                        <RenderHtml contentWidth={width - 50} source={{ html: termsData.content }} tagsStyles={{ p: styles.paragraph, span: styles.paragraph, li: styles.paragraph }} />
                     ) : (
                         <>
                             <Text style={styles.sectionTitle}>1. Professional Responsibility</Text>

@@ -20,6 +20,7 @@ export function connectSocket(token: string, partnerId: string) {
     socket.on("connect", () => {
         if (__DEV__) console.log("[Socket] Connected:", socket?.id);
         socket?.emit("join_room", `partner:${partnerId}`);
+        socket?.emit("join_room", `user_${partnerId}`);
         // Do NOT join "admin" room — partners should not receive admin events
         socket?.emit("check_pending_assignment", { partnerId });
     });

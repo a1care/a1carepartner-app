@@ -7,6 +7,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { useAuthStore } from "../stores/auth";
+import { resolvePhoto } from "../utils/image";
 
 const { width } = Dimensions.get("window");
 
@@ -51,7 +52,7 @@ export default function ViewProfileScreen() {
                     <LinearGradient colors={["#FFFFFF", "#F8FAFC"]} style={styles.cardGradient} />
                     <View style={styles.avatarWrapper}>
                         {data?.profileImage ? (
-                            <Image source={{ uri: data.profileImage }} style={styles.avatar} />
+                            <Image source={{ uri: resolvePhoto(data.profileImage) }} style={styles.avatar} />
                         ) : (
                             <View style={[styles.avatar, styles.avatarPlaceholder]}>
                                 <Ionicons name="person" size={50} color="#CBD5E1" />

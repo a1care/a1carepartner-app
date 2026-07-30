@@ -8,6 +8,7 @@ import { Phone, MapPin, Navigation, MessageCircle, Calendar, Clock, CreditCard, 
 import { partnerBookingService } from "../lib/bookings";
 import { api } from "../lib/api";
 import { useAuthStore } from "../stores/auth";
+import { resolvePhoto } from "../utils/image";
 
 const PRIMARY = "#2D935C";
 
@@ -49,10 +50,15 @@ export default function BookingDetailScreen() {
 
     const { user } = useAuthStore() as any;
 
-    const { data: booking, isLoading, isError, refetch } = useQuery({
+    const { data: booking, isLoading, isError, error, refetch } = useQuery({
         queryKey: ["booking-detail", id],
         queryFn: () => partnerBookingService.getBookingDetail(String(id), bookingType),
         enabled: !!id,
+        retry: (failureCount, error: any) => {
+            // Do not retry on 403 Forbidden since it means the booking is no longer available to them
+            if (error?.response?.status === 403) return false;
+            return failureCount < 3;
+        }
     });
 
     const { data: activeSub } = useQuery({
@@ -158,13 +164,22 @@ export default function BookingDetailScreen() {
         );
     }
     if (isError || !booking) {
+        const isForbidden = (error as any)?.response?.status === 403;
         return (
             <SafeAreaView style={styles.center}>
-                <MaterialCommunityIcons name="alert-circle-outline" size={48} color="#CBD5E1" />
-                <Text style={styles.errText}>Could not load this booking.</Text>
-                <TouchableOpacity style={styles.retryBtn} onPress={() => refetch()}>
-                    <Text style={styles.retryText}>Retry</Text>
-                </TouchableOpacity>
+                <MaterialCommunityIcons name={isForbidden ? "lock-outline" : "alert-circle-outline"} size={48} color="#CBD5E1" />
+                <Text style={[styles.errText, { textAlign: 'center', marginTop: 12, paddingHorizontal: 20 }]}>
+                    {isForbidden ? "Something went wrong." : "Could not load this booking."}
+                </Text>
+                {isForbidden ? (
+                    <TouchableOpacity style={styles.retryBtn} onPress={() => router.back()}>
+                        <Text style={styles.retryText}>Please try again</Text>
+                    </TouchableOpacity>
+                ) : (
+                    <TouchableOpacity style={styles.retryBtn} onPress={() => refetch()}>
+                        <Text style={styles.retryText}>Retry</Text>
+                    </TouchableOpacity>
+                )}
             </SafeAreaView>
         );
     }
@@ -174,6 +189,7 @@ export default function BookingDetailScreen() {
     const isPending = booking.status === "Pending";
     const isBroadcasted = booking.status?.toLowerCase?.() === "broadcasted";
     const isPartnerAssigned = booking.status === "PARTNER_ASSIGNED";
+    const isFutureDate = !!(booking.date && new Date(new Date(booking.date).setHours(0,0,0,0)) > new Date(new Date().setHours(0,0,0,0)));
 
     return (
         <SafeAreaView style={styles.container}>
@@ -192,7 +208,7 @@ export default function BookingDetailScreen() {
                 <View style={styles.card}>
                     <View style={styles.patientRow}>
                         {booking.patient?.profileImage ? (
-                            <Image source={{ uri: booking.patient.profileImage }} style={styles.avatar} />
+                            <Image source={{ uri: resolvePhoto(booking.patient.profileImage) }} style={styles.avatar} />
                         ) : (
                             <View style={styles.avatarFallback}>
                                 <Text style={styles.avatarLetter}>{(booking.patient?.name || "P").charAt(0).toUpperCase()}</Text>
@@ -205,7 +221,7 @@ export default function BookingDetailScreen() {
                                 <Text style={styles.serviceText}>{booking.serviceName}</Text>
                             </View>
                         </View>
-                        {booking.patient?.mobile && (
+                        {booking.patient?.mobile && !isFutureDate && (
                             <TouchableOpacity style={styles.callBtn} onPress={() => call(booking.patient.mobile)}>
                                 <Phone size={20} color="#FFF" />
                             </TouchableOpacity>
@@ -237,32 +253,22 @@ export default function BookingDetailScreen() {
                         </View>
                         <View style={{ flex: 1, gap: 4 }}>
                             {(() => {
-                                const addr = booking.addressId || booking.address;
+                                const locationString = booking.address?.label || booking.location?.address || "Location not provided";
                                 return (
                                     <>
-                                        <Text style={styles.addressLabel}>{addr?.label || "Location"}</Text>
-                                        <Text style={styles.addressText}>
-                                            {addr ? 
-                                                [
-                                                    addr.houseNo,
-                                                    addr.street,
-                                                    addr.landmark ? `Near ${addr.landmark}` : null,
-                                                    addr.city,
-                                                    addr.state,
-                                                    addr.pincode ? `- ${addr.pincode}` : null,
-                                                    addr.addressLine1
-                                                ].filter(Boolean).join(", ").replace(/, -/g, " -") 
-                                            : (booking.location?.address || "Location not provided")}
-                                        </Text>
+                                        <Text style={styles.addressLabel}>Location</Text>
+                                        <Text style={styles.addressText}>{locationString}</Text>
                                     </>
                                 );
                             })()}
                         </View>
                     </View>
-                    <TouchableOpacity style={styles.mapBtn} onPress={openMaps}>
-                        <Navigation size={16} color="#FFF" />
-                        <Text style={styles.mapBtnText}>Start Turn-by-Turn Navigation</Text>
-                    </TouchableOpacity>
+                    {!isFutureDate && (
+                        <TouchableOpacity style={styles.mapBtn} onPress={openMaps}>
+                            <Navigation size={16} color="#FFF" />
+                            <Text style={styles.mapBtnText}>Start Turn-by-Turn Navigation</Text>
+                        </TouchableOpacity>
+                    )}
                 </TouchableOpacity>
 
 
@@ -306,14 +312,16 @@ export default function BookingDetailScreen() {
             )}
 
             {/* Sticky actions */}
-            {booking.status?.toLowerCase?.() !== "missing" && (
+            {booking.status?.toLowerCase?.() !== "missing" && booking.status?.toUpperCase() !== "RETURNED_TO_ADMIN" && (
                 <View style={styles.actionBar}>
-                    <TouchableOpacity
-                        style={styles.iconBtn}
-                        onPress={() => router.push({ pathname: "/booking_chat" as any, params: { id: String(id), name: booking.patient?.name || "Patient" } })}
-                    >
-                        <MessageCircle size={22} color={PRIMARY} />
-                    </TouchableOpacity>
+                    {!isFutureDate && !isBroadcasted && !isPartnerAssigned && (
+                        <TouchableOpacity
+                            style={styles.iconBtn}
+                            onPress={() => router.push({ pathname: "/booking_chat" as any, params: { id: String(id), name: booking.patient?.name || "Patient" } })}
+                        >
+                            <MessageCircle size={22} color={PRIMARY} />
+                        </TouchableOpacity>
+                    )}
 
                     {isBroadcasted && (
                         <View style={{ flex: 1, flexDirection: 'row', gap: 10 }}>
@@ -373,6 +381,11 @@ export default function BookingDetailScreen() {
                         </TouchableOpacity>
                     )}
                     {isActive && !isPartnerAssigned && (
+                        isFutureDate ? (
+                            <View style={{ backgroundColor: '#FEF2F2', padding: 16, borderRadius: 12, alignItems: 'center', justifyContent: 'center' }}>
+                                <Text style={{ color: '#EF4444', fontWeight: 'bold', fontSize: 14 }}>🕒 Action Locked: Available on {new Date(booking.date).toLocaleDateString()}</Text>
+                            </View>
+                        ) : (
                         <TouchableOpacity
                             style={styles.primaryBtn}
                             onPress={() => {
@@ -386,6 +399,7 @@ export default function BookingDetailScreen() {
                         >
                             <Text style={styles.primaryBtnText}>{updateStatus.isPending ? "..." : "Complete"}</Text>
                         </TouchableOpacity>
+                        )
                     )}
                 </View>
             )}

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, RefreshControl, Image, Modal, Dimensions } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, RefreshControl, Image, Modal, Dimensions, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 const { width, height } = Dimensions.get("window");
@@ -11,8 +11,8 @@ import { api } from "../../lib/api";
 import { Ionicons, MaterialCommunityIcons, FontAwesome5 } from "@expo/vector-icons";
 
 const API_ORIGIN = (process.env.EXPO_PUBLIC_API_URL ?? 'https://api.a1carehospital.in/api').replace(/\/api\/?$/, '');
-const resolvePhoto = (url?: string | null) => {
-    if (!url) return null;
+const resolvePhoto = (url?: string | null): string | undefined => {
+    if (!url) return undefined;
     if (url.startsWith('http')) return url;
     return `${API_ORIGIN}${url.startsWith('/') ? url : `/${url}`}`;
 };
@@ -69,43 +69,53 @@ export default function ProfileScreen() {
     const [isDeleting, setIsDeleting] = useState(false);
 
     const handleLogout = () => {
-        Alert.alert("Logout", "Are you sure you want to log out?", [
-            { text: "Cancel", style: "cancel" },
-            { text: "Logout", style: "destructive", onPress: () => { 
-                queryClient.clear();
-                logout(); 
-                router.replace("/onboarding"); 
-            } },
-        ]);
+        const performLogout = () => {
+            queryClient.clear();
+            logout(); 
+            router.replace("/onboarding"); 
+        };
+        if (Platform.OS === 'web') {
+            if (window.confirm("Are you sure you want to log out?")) {
+                performLogout();
+            }
+        } else {
+            Alert.alert("Logout", "Are you sure you want to log out?", [
+                { text: "Cancel", style: "cancel" },
+                { text: "Logout", style: "destructive", onPress: performLogout },
+            ]);
+        }
     };
 
     const handleDeleteAccount = () => {
-        Alert.alert(
-            "Delete Account",
-            "Your account data will be preserved as per legal requirements, but you will no longer have access to this account. Admin needs to approve your request. Are you sure?",
-            [
+        const performDeletion = async () => {
+            setIsDeleting(true);
+            try {
+                const res = await api.post(`/${getRolePath()}/auth/request-deletion`);
+                const msg = res.data.message || "Deletion request submitted. You have been logged out.";
+                if (Platform.OS === 'web') window.alert(msg);
+                else Alert.alert("Success", msg);
+                queryClient.clear();
+                await logout();
+                router.replace("/onboarding");
+            } catch (err: any) {
+                setIsDeleting(false);
+                const msg = err.response?.data?.message || "Failed to submit request.";
+                if (Platform.OS === 'web') window.alert(msg);
+                else Alert.alert("Error", msg);
+            } finally {
+                setIsDeleting(false);
+            }
+        };
+
+        const msg = "Your account data will be preserved as per legal requirements, but you will no longer have access to this account. Admin needs to approve your request. Are you sure?";
+        if (Platform.OS === 'web') {
+            if (window.confirm(msg)) performDeletion();
+        } else {
+            Alert.alert("Delete Account", msg, [
                 { text: "Cancel", style: "cancel" },
-                {
-                    text: "Request Deletion",
-                    style: "destructive",
-                    onPress: async () => {
-                        setIsDeleting(true);
-                        try {
-                            const res = await api.post(`/${getRolePath()}/auth/request-deletion`);
-                            Alert.alert("Success", res.data.message || "Deletion request submitted. You have been logged out.");
-                            queryClient.clear();
-                            await logout();
-                            router.replace("/onboarding");
-                        } catch (err: any) {
-                            setIsDeleting(false);
-                            Alert.alert("Error", err.response?.data?.message || "Failed to submit request.");
-                        } finally {
-                            setIsDeleting(false);
-                        }
-                    }
-                }
-            ]
-        );
+                { text: "Request Deletion", style: "destructive", onPress: performDeletion }
+            ]);
+        }
     };
 
     const handleNavigation = (path: string) => {
@@ -240,7 +250,7 @@ export default function ProfileScreen() {
                                 <TouchableOpacity key={idx} style={styles.docItem} onPress={() => { setSelectedDoc(doc); setShowDocModal(true); }}>
                                     <View style={styles.docIconBox}>
                                         {doc.url?.match(/\.(jpg|jpeg|png|webp)/i) ? (
-                                            <Image source={{ uri: doc.url }} style={styles.docPreview} />
+                                            <Image source={{ uri: resolvePhoto(doc.url) }} style={styles.docPreview} />
                                         ) : (
                                             <Ionicons name="document-attach" size={24} color="#15803D" />
                                         )}
@@ -276,6 +286,12 @@ export default function ProfileScreen() {
                         title="Subscription Management"
                         subtitle="Manage your platform plans"
                         onPress={() => handleNavigation("subscriptions")}
+                    />
+                    <MenuLink
+                        icon={<Ionicons name="star-outline" size={22} color="#15803D" />}
+                        title="My Reviews"
+                        subtitle="See what customers are saying"
+                        onPress={() => router.push("/reviews" as any)}
                     />
                     <MenuLink
                         icon={<Ionicons name="card-outline" size={22} color="#15803D" />}
@@ -361,7 +377,7 @@ export default function ProfileScreen() {
                         <Text style={styles.docModalTitle}>{selectedDoc?.type || "Document"}</Text>
                         {selectedDoc?.url ? (
                             <Image 
-                                source={{ uri: selectedDoc.url }} 
+                                source={{ uri: resolvePhoto(selectedDoc.url) }} 
                                 style={styles.fullDocImage} 
                                 resizeMode="contain" 
                             />
@@ -401,6 +417,7 @@ const styles = StyleSheet.create({
     scrollContent: {
         paddingHorizontal: 20,
         paddingTop: 10,
+        paddingBottom: 100,
     },
     userInfoRow: {
         flexDirection: 'row',

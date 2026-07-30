@@ -151,17 +151,31 @@ const WalletScreen = () => {
             return topUpAmount;
         },
         onSuccess: (topUpAmount) => {
-            Alert.alert("Payment Successful", `₹${topUpAmount} added to your wallet.`);
             queryClient.invalidateQueries({ queryKey: ['staff_earnings'] });
             queryClient.invalidateQueries({ queryKey: ['staff_payouts'] });
             queryClient.invalidateQueries({ queryKey: ['staff_additions'] });
             setShowTopUp(false);
             setAmount("");
             setActiveTab("Added");
+            router.replace({
+                pathname: "/checkout_status" as any,
+                params: {
+                    status: "success",
+                    type: "WALLET_TOPUP"
+                }
+            });
         },
         onError: (err: any) => {
-            if (err?.code !== 2) {
-                Alert.alert("Payment Failed", getPaymentErrorMessage(err));
+            if (err?.code !== 2 && err?.code !== "2") {
+                router.replace({
+                    pathname: "/checkout_status" as any,
+                    params: {
+                        status: "failure",
+                        type: "WALLET_TOPUP"
+                    }
+                });
+            } else {
+                Alert.alert("Payment Cancelled", "You cancelled the payment.");
             }
         }
     });

@@ -1,10 +1,12 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, BackHandler } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, BackHandler, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { api } from "../lib/api";
 
-const FAQS = [
+const FALLBACK_FAQS = [
     {
         question: "How do I receive service bookings?",
         answer: "Once your profile is verified and you are toggled 'Online', you will receive real-time notifications for bookings in your area matching your specialization."
@@ -12,42 +14,20 @@ const FAQS = [
     {
         question: "When do I get paid for my services?",
         answer: "Earnings are credited to your A1Care wallet immediately after the booking is marked 'Completed' by both you and the patient. You can withdraw to your bank account weekly."
-    },
-    {
-        question: "What should I do if I'm running late?",
-        answer: "Always use the 'Contact' button in the booking details to inform the patient. Reliability is key to maintaining a high partner rating."
-    },
-    {
-        question: "How do I update my professional documents?",
-        answer: "You can reach out to support through the 'Raise a Ticket' section to update your medical degree or license documents for re-verification."
-    },
-    {
-        question: "Is there a penalty for cancelling a booking?",
-        answer: "Frequent cancellations affect your visibility and rating. We recommend only going 'Online' when you are fully available to provide services."
     }
 ];
 
-import { useConfigStore } from "../stores/config.store";
-
-const parseFaqText = (text: string) => {
-    if (!text) return [];
-    // Matches Q: ... A: ... blocks
-    const regex = /Q:\s*(.*?)\s*A:\s*([\s\S]*?)(?=(?:Q:|$))/g;
-    const matches = [];
-    let match;
-    while ((match = regex.exec(text)) !== null) {
-        matches.push({
-            question: match[1].trim(),
-            answer: match[2].trim()
-        });
-    }
-    return matches;
-};
-
 export default function FAQScreen() {
     const router = useRouter();
-    const { config } = useConfigStore();
     const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
+
+    const { data: faqData, isLoading } = useQuery({
+        queryKey: ["cms-faq", "PARTNER"],
+        queryFn: async () => {
+            const res = await api.get("/cms/public/PARTNER/FAQ");
+            return res.data.data;
+        }
+    });
 
     useEffect(() => {
         const backAction = () => {
@@ -58,8 +38,15 @@ export default function FAQScreen() {
         return () => backHandler.remove();
     }, []);
 
-    const parsedFaqs = config?.contact?.faq ? parseFaqText(config.contact.faq) : [];
-    const faqItems = parsedFaqs.length > 0 ? parsedFaqs : FAQS;
+    const faqItems = faqData?.faqs && faqData.faqs.length > 0 ? faqData.faqs : FALLBACK_FAQS;
+
+    if (isLoading) {
+        return (
+            <SafeAreaView style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+                <ActivityIndicator size="large" color="#2D935C" />
+            </SafeAreaView>
+        );
+    }
 
     return (
         <SafeAreaView style={styles.container}>
@@ -109,10 +96,6 @@ export default function FAQScreen() {
                             )}
                         </TouchableOpacity>
                     ))
-                ) : config?.contact?.faq ? (
-                    <View style={styles.faqItem}>
-                        <Text style={styles.answerText}>{config.contact.faq}</Text>
-                    </View>
                 ) : null}
 
                 <View style={[styles.card, { marginTop: 25, alignItems: 'center' }]}>
