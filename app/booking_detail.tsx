@@ -9,19 +9,15 @@ import { partnerBookingService } from "../lib/bookings";
 import { api } from "../lib/api";
 import { useAuthStore } from "../stores/auth";
 import { resolvePhoto } from "../utils/image";
+import { CustomAlert } from "../stores/alert.store";
 
 const PRIMARY = "#2D935C";
 
 const confirmAction = (title: string, message: string, onConfirm: () => void) => {
-    if (Platform.OS === 'web') {
-        const ok = window.confirm(`${title}\n\n${message}`);
-        if (ok) onConfirm();
-    } else {
-        Alert.alert(title, message, [
-            { text: "Cancel", style: "cancel" },
-            { text: "Confirm", style: "destructive", onPress: onConfirm }
-        ]);
-    }
+    CustomAlert.show(title, message, [
+        { text: "Cancel", style: "cancel" },
+        { text: "Confirm", style: "destructive", onPress: onConfirm }
+    ]);
 };
 
 const statusColors: Record<string, { bg: string; text: string; label: string }> = {
@@ -127,33 +123,35 @@ export default function BookingDetailScreen() {
 
     const call = (mobile?: string | null) => { if (mobile) Linking.openURL(`tel:${mobile}`); };
     const openMaps = () => {
+        const locationString = booking.address?.address || booking.address?.street || booking.location?.address || booking.address?.label;
         const addr = booking?.address || booking?.addressId;
-        if (!addr) return;
-        const coords = addr.coords || addr.location;
-        if (coords?.lat && coords?.lng) {
-            const lat = coords.lat;
-            const lng = coords.lng;
-            
-            const scheme = Platform.select({
-                ios: `maps://app?saddr=&daddr=${lat},${lng}`,
-                android: `google.navigation:q=${lat},${lng}`,
-                default: `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`
-            });
-            
-            Linking.canOpenURL(scheme).then(supported => {
-                if (supported) {
-                    Linking.openURL(scheme);
-                } else {
-                    Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`);
-                }
-            }).catch(() => {
-                Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`);
-            });
-        } else {
-            const addr = booking?.address || booking?.addressId;
-            const q = encodeURIComponent(addr?.label || "");
-            Linking.openURL(`https://www.google.com/maps/search/?api=1&query=${q}`);
+        const coords = addr?.coords || addr?.location || booking?.location;
+        
+        let q = "";
+        // Prioritize full address strings if available (Google Maps geocodes this much more accurately to building entrances than raw GPS coordinates)
+        if (locationString && locationString !== "Location not provided" && locationString !== "HOME" && locationString !== "WORK" && locationString !== "OTHER") {
+            q = encodeURIComponent(locationString);
+        } else if (coords?.lat && coords?.lng) {
+            q = `${coords.lat},${coords.lng}`;
         }
+
+        if (!q) return;
+        
+        const scheme = Platform.select({
+            ios: `maps://app?daddr=${q}`,
+            android: `google.navigation:q=${q}`,
+            default: `https://www.google.com/maps/dir/?api=1&destination=${q}`
+        });
+        
+        Linking.canOpenURL(scheme).then(supported => {
+            if (supported) {
+                Linking.openURL(scheme);
+            } else {
+                Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${q}`);
+            }
+        }).catch(() => {
+            Linking.openURL(`https://www.google.com/maps/dir/?api=1&destination=${q}`);
+        });
     };
 
     if (isLoading) {
@@ -329,15 +327,10 @@ export default function BookingDetailScreen() {
                                 style={[styles.primaryBtn, { flex: 1, backgroundColor: hasActiveSub ? '#8B5CF6' : '#94A3B8' }]}
                                 onPress={() => {
                                     if (!hasActiveSub) {
-                                        if (Platform.OS === 'web') {
-                                            const ok = window.confirm("Subscription Required\n\nYou need an active subscription to accept jobs. View Plans?");
-                                            if (ok) router.push("/subscriptions" as any);
-                                        } else {
-                                            Alert.alert("Subscription Required", "You need an active subscription to accept jobs.", [
-                                                { text: "View Plans", onPress: () => router.push("/subscriptions" as any) },
-                                                { text: "Cancel", style: "cancel" }
-                                            ]);
-                                        }
+                                        CustomAlert.show("Subscription Required", "You need an active subscription to accept jobs.", [
+                                            { text: "View Plans", onPress: () => router.push("/subscriptions" as any) },
+                                            { text: "Cancel", style: "cancel" }
+                                        ], { type: "warning" });
                                         return;
                                     }
                                     acceptService.mutate();

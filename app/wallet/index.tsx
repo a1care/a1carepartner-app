@@ -204,7 +204,6 @@ const WalletScreen = () => {
 
     return (
         <SafeAreaView style={styles.container}>
-            <LinearGradient colors={["#FFFFFF", "#F8FAFC"]} style={StyleSheet.absoluteFill} />
 
             {/* Header */}
             <View style={styles.header}>
@@ -220,14 +219,19 @@ const WalletScreen = () => {
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 {/* Main Balance Card */}
                 <Animated.View entering={FadeInUp.duration(600)} style={styles.balanceCard}>
-                    <LinearGradient colors={["#1E293B", "#0F172A"]} style={styles.cardGradient}>
+                    <LinearGradient 
+                        colors={["#417D77", "#9EBB58"]} 
+                        start={{ x: 0, y: 0.5 }}
+                        end={{ x: 1, y: 0.5 }}
+                        style={styles.cardGradient}
+                    >
                         <View style={styles.cardHeader}>
                             <View>
                                 <Text style={styles.label}>Settlement Balance</Text>
-                                <Text style={styles.amount}>₹{(summary?.balance || 0).toLocaleString()}</Text>
+                                <Text style={styles.amount}>₹{(summary?.balance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
                                 {user?.name ? <Text style={styles.cardName}>{user.name}</Text> : null}
                             </View>
-                            <FontAwesome5 name="wallet" size={32} color="rgba(255,255,255,0.15)" />
+                            <FontAwesome5 name="wallet" size={32} color="rgba(255,255,255,0.2)" />
                         </View>
                         
                         <View style={styles.cardFooter}>
@@ -240,6 +244,10 @@ const WalletScreen = () => {
                                 <MaterialCommunityIcons name="plus-circle-outline" size={20} color="#FFF" />
                                 <Text style={styles.cardBtnText}>Add Money</Text>
                             </TouchableOpacity>
+                        </View>
+                        
+                        <View style={styles.disaWatermark}>
+                            <Text style={styles.disaText}>A1CARE</Text>
                         </View>
                     </LinearGradient>
                 </Animated.View>
@@ -388,30 +396,32 @@ const WalletScreen = () => {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: "#FFF" },
-    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 15, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-    backBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', elevation: 2 },
+    container: { flex: 1, backgroundColor: "#EBF1F5" },
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 15 },
+    backBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
     headerTitle: { fontSize: 18, fontWeight: '800', color: '#1E293B' },
     scrollContent: { padding: 20 },
-    balanceCard: { borderRadius: 32, overflow: 'hidden', elevation: 15, shadowColor: '#1e293b', shadowOpacity: 0.2, shadowRadius: 20 },
-    cardGradient: { padding: 32 },
-    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 32 },
-    cardName: { fontSize: 12, color: 'rgba(255,255,255,0.6)', fontWeight: '600', marginTop: 6 },
-    label: { color: 'rgba(255,255,255,0.6)', fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 },
-    amount: { color: '#FFF', fontSize: 42, fontWeight: '900', marginTop: 8 },
-    cardFooter: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    balanceCard: { borderRadius: 28, overflow: 'hidden', elevation: 10, shadowColor: '#417D77', shadowOpacity: 0.3, shadowRadius: 20 },
+    cardGradient: { padding: 24, minHeight: 190 },
+    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, zIndex: 1 },
+    cardName: { fontSize: 14, color: 'rgba(255,255,255,0.9)', fontWeight: '700', marginTop: 6 },
+    label: { color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 },
+    amount: { color: '#FFF', fontSize: 44, fontWeight: '900', marginTop: 4, letterSpacing: -1 },
+    cardFooter: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 'auto', backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 16, zIndex: 1 },
     cardBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12 },
     cardBtnText: { color: '#FFF', fontSize: 15, fontWeight: '800' },
-    cardDivider: { width: 1, height: 24, backgroundColor: 'rgba(255,255,255,0.1)' },
+    cardDivider: { width: 1, height: 24, backgroundColor: 'rgba(255,255,255,0.2)' },
+    disaWatermark: { position: 'absolute', bottom: -10, right: 10, zIndex: 0 },
+    disaText: { color: 'rgba(255,255,255,0.15)', fontSize: 48, fontWeight: '900', letterSpacing: -2 },
     statsGrid: { flexDirection: 'row', marginTop: 24 },
-    statBox: { flex: 1, backgroundColor: '#F8FAFC', padding: 20, borderRadius: 24, borderWidth: 1, borderColor: '#F1F5F9', marginHorizontal: 4 },
+    statBox: { flex: 1, backgroundColor: '#FFF', padding: 20, borderRadius: 24, borderWidth: 1, borderColor: '#F1F5F9', marginHorizontal: 4, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
     statLabel: { fontSize: 11, color: '#64748B', fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
     statVal: { fontSize: 20, fontWeight: '900', color: '#1E293B', marginTop: 6 },
-    tabContainer: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 16, padding: 6, marginVertical: 32 },
+    tabContainer: { flexDirection: 'row', backgroundColor: '#FFF', borderRadius: 16, padding: 6, marginVertical: 32, borderWidth: 1, borderColor: '#F1F5F9' },
     tab: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 12 },
-    activeTab: { backgroundColor: '#FFF', elevation: 3, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 8 },
+    activeTab: { backgroundColor: '#F0FDF4', elevation: 0 },
     tabText: { fontSize: 14, fontWeight: '800', color: '#64748B' },
-    activeTabText: { color: '#1E293B' },
+    activeTabText: { color: '#15803D' },
     historyList: { marginTop: 4 },
     historyItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 16, borderRadius: 20, borderWidth: 1, borderColor: '#F1F5F9', marginBottom: 12 },
     itemIcon: { width: 48, height: 48, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginRight: 15 },

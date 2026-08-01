@@ -683,10 +683,10 @@ export default function ProfileEditScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: "#F8FAFC" },
-    loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
-    header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 15, backgroundColor: "#FFF", borderBottomWidth: 1, borderBottomColor: "#E2E8F0" },
-    backBtn: { padding: 5 },
+    container: { flex: 1, backgroundColor: "#EBF1F5" },
+    loadingContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#EBF1F5" },
+    header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 15, backgroundColor: "#EBF1F5" },
+    backBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
     headerTitle: { fontSize: 18, fontWeight: "800", color: "#1E293B" },
     scrollContent: { padding: 20, paddingBottom: 60 },
     avatarSection: { alignItems: "center", marginBottom: 30 },
@@ -702,10 +702,11 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         backgroundColor: "#FFF",
-        borderRadius: 16,
-        borderWidth: 1.5,
+        borderRadius: 20,
+        borderWidth: 1,
         borderColor: "#E2E8F0",
-        paddingHorizontal: 16,
+        paddingHorizontal: 20,
+        height: 60,
         elevation: 1,
         shadowColor: "#000",
         shadowOpacity: 0.02,
@@ -718,11 +719,12 @@ const styles = StyleSheet.create({
     inputWrapperLarge: {
         flexDirection: "row",
         backgroundColor: "#FFF",
-        borderRadius: 16,
-        borderWidth: 1.5,
+        borderRadius: 20,
+        borderWidth: 1,
         borderColor: "#E2E8F0",
-        paddingHorizontal: 16,
+        paddingHorizontal: 20,
         paddingTop: 16,
+        height: 120,
         elevation: 1,
         shadowColor: "#000",
         shadowOpacity: 0.02,
@@ -731,10 +733,9 @@ const styles = StyleSheet.create({
     },
     input: {
         flex: 1,
-        paddingVertical: 14,
-        fontSize: 15,
+        fontSize: 16,
         color: "#1E293B",
-        fontWeight: "600"
+        fontWeight: "700"
     },
     inputIcon: {
         marginRight: 10,
@@ -782,31 +783,27 @@ const styles = StyleSheet.create({
     closeFullImage: { position: 'absolute', top: 50, right: 20, zIndex: 10, padding: 10 },
     tabContainer: { 
         flexDirection: "row", 
-        backgroundColor: "#F1F5F9", 
+        backgroundColor: "#FFF", 
         marginHorizontal: 20, 
         marginTop: 20, 
         borderRadius: 16, 
-        padding: 4, 
+        padding: 6, 
         borderWidth: 1, 
         borderColor: "#E2E8F0" 
     },
     tabButton: { 
         flex: 1, 
-        paddingVertical: 12, 
+        paddingVertical: 14, 
         alignItems: "center", 
         borderRadius: 12,
         backgroundColor: "transparent"
     },
     tabButtonActive: { 
-        backgroundColor: "#FFF",
-        elevation: 2,
-        shadowColor: "#000",
-        shadowOpacity: 0.05,
-        shadowOffset: { width: 0, height: 2 },
-        shadowRadius: 4
+        backgroundColor: "#F0FDF4",
+        elevation: 0
     },
     tabText: { fontSize: 14, fontWeight: "800", color: "#64748B" },
-    tabTextActive: { color: "#1E293B" },
+    tabTextActive: { color: "#15803D" },
     editBtn: { 
         flexDirection: 'row', 
         alignItems: 'center', 

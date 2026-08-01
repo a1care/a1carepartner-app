@@ -142,22 +142,36 @@ export default function ReferralScreen() {
                     <Text style={{ fontSize: 12, color: '#64748B', lineHeight: 18 }}>Pending rewards will unlock automatically when they complete their first service.</Text>
                 </View>
 
-                {/* How it works */}
+                {/* Referral History */}
                 <View style={styles.card}>
-                    <Text style={styles.cardLabel}>HOW IT WORKS</Text>
-                    {[
-                        { icon: 'share-social-outline', text: 'Share your unique referral code' },
-                        { icon: 'person-add-outline', text: 'They sign up and enter your code' },
-                        { icon: 'checkmark-circle-outline', text: 'They complete their first job or booking' },
-                        { icon: 'wallet-outline', text: 'You get the reward credited to your wallet' },
-                    ].map((step, i) => (
-                        <View key={i} style={styles.stepRow}>
-                            <View style={styles.stepIconBox}>
-                                <Ionicons name={step.icon as any} size={18} color={Colors.primary} />
-                            </View>
-                            <Text style={styles.stepText}>{step.text}</Text>
+                    <Text style={styles.cardLabel}>REFERRAL HISTORY</Text>
+                    {(!earningsData?.items || earningsData.items.length === 0) ? (
+                        <View style={{ paddingVertical: 20, alignItems: 'center' }}>
+                            <Ionicons name="people-outline" size={32} color="#CBD5E1" />
+                            <Text style={{ marginTop: 8, color: '#94A3B8', fontSize: 13, textAlign: 'center' }}>
+                                No referrals yet. Share your code to start earning!
+                            </Text>
                         </View>
-                    ))}
+                    ) : (
+                        earningsData.items.map((item: any, index: number) => (
+                            <View key={index} style={[styles.stepRow, { borderBottomWidth: index === earningsData.items.length - 1 ? 0 : 1, borderBottomColor: '#F1F5F9', paddingBottom: 12, marginBottom: 12 }]}>
+                                <View style={[styles.stepIconBox, { backgroundColor: item.status === 'REWARDED' ? '#F0FDF4' : '#FFF7ED' }]}>
+                                    <Ionicons 
+                                        name={item.status === 'REWARDED' ? "checkmark-circle" : "time"} 
+                                        size={20} 
+                                        color={item.status === 'REWARDED' ? Colors.primary : "#EA580C"} 
+                                    />
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={{ fontSize: 14, fontWeight: '600', color: '#1E293B' }}>{item.refereeId?.name || 'Pending'}</Text>
+                                    <Text style={{ fontSize: 12, color: '#64748B', marginTop: 2 }}>{item.status === 'REWARDED' ? 'Earned Reward' : 'Pending First Service'}</Text>
+                                </View>
+                                <Text style={{ fontSize: 15, fontWeight: 'bold', color: item.status === 'REWARDED' ? Colors.primary : "#EA580C" }}>
+                                    +₹{item.rewardAmount}
+                                </Text>
+                            </View>
+                        ))
+                    )}
                 </View>
 
                 <View style={{ height: 40 }} />

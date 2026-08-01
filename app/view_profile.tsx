@@ -1,5 +1,6 @@
 import React from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Image, ActivityIndicator, Dimensions } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Dimensions, Modal } from "react-native";
+import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 import { useRouter } from "expo-router";
@@ -9,11 +10,18 @@ import { api } from "../lib/api";
 import { useAuthStore } from "../stores/auth";
 import { resolvePhoto } from "../utils/image";
 
-const { width } = Dimensions.get("window");
+const { width, height } = Dimensions.get("window");
+
+const getDocUrl = (doc: any) => {
+    if (!doc) return "";
+    return doc.url || doc.file || doc.path || doc.document || doc.image || "";
+};
 
 export default function ViewProfileScreen() {
     const router = useRouter();
     const { user } = useAuthStore() as any;
+    const [selectedDoc, setSelectedDoc] = React.useState<any>(null);
+    const [showDocModal, setShowDocModal] = React.useState(false);
 
     const { data: staffData, isLoading } = useQuery({
         queryKey: ["profileDetailsView"],
@@ -145,6 +153,44 @@ export default function ViewProfileScreen() {
                     </View>
                 </View>
 
+                {/* Documents Section */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>My Documents</Text>
+                    <View style={styles.docsContainer}>
+                        {data?.documents?.length > 0 ? (
+                            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 5 }}>
+                                {data.documents.map((doc: any, idx: number) => (
+                                    <TouchableOpacity key={idx} style={styles.docItem} onPress={() => { setSelectedDoc(doc); setShowDocModal(true); }}>
+                                        <View style={styles.docIconBox}>
+                                            {getDocUrl(doc) ? (
+                                                <Image 
+                                                    source={{ uri: resolvePhoto(getDocUrl(doc)) }} 
+                                                    style={styles.docPreview} 
+                                                    contentFit="cover"
+                                                    transition={200}
+                                                />
+                                            ) : (
+                                                <Ionicons name="document-attach" size={24} color="#15803D" />
+                                            )}
+                                        </View>
+                                        <Text style={styles.docName} numberOfLines={1}>{doc.type}</Text>
+                                        <View style={[styles.statusChip, { backgroundColor: doc.status === 'Rejected' ? '#FEE2E2' : doc.status === 'Pending' ? '#FEF3C7' : '#D1FAE5' }]}>
+                                            <Text style={[styles.docStatus, { color: doc.status === 'Rejected' ? '#DC2626' : doc.status === 'Pending' ? '#D97706' : '#059669' }]}>
+                                                {doc.status || 'Verified'}
+                                            </Text>
+                                        </View>
+                                    </TouchableOpacity>
+                                ))}
+                            </ScrollView>
+                        ) : (
+                            <View style={styles.emptyDocs}>
+                                <Ionicons name="document-text-outline" size={32} color="#CBD5E1" />
+                                <Text style={styles.emptyDocsText}>No documents found.</Text>
+                            </View>
+                        )}
+                    </View>
+                </View>
+
                 <TouchableOpacity 
                     style={styles.editBtn} 
                     onPress={() => router.push("/profile_edit")}
@@ -157,6 +203,31 @@ export default function ViewProfileScreen() {
 
                 <View style={{ height: 40 }} />
             </ScrollView>
+
+            {/* Document Viewer Modal */}
+            <Modal visible={showDocModal} transparent animationType="fade">
+                <View style={styles.docModalOverlay}>
+                    <TouchableOpacity style={styles.closeDocBtn} onPress={() => setShowDocModal(false)}>
+                        <Ionicons name="close-circle" size={32} color="#FFF" />
+                    </TouchableOpacity>
+                    
+                    <View style={styles.docContentBox}>
+                        <Text style={styles.docModalTitle}>{selectedDoc?.type || "Document"}</Text>
+                        {getDocUrl(selectedDoc) ? (
+                            <Image 
+                                source={{ uri: resolvePhoto(getDocUrl(selectedDoc)) }} 
+                                style={styles.fullDocImage} 
+                                contentFit="contain" 
+                            />
+                        ) : (
+                            <View style={styles.noDocView}>
+                                <Ionicons name="alert-circle-outline" size={48} color="#CBD5E1" />
+                                <Text style={styles.noDocText}>Document file not found</Text>
+                            </View>
+                        )}
+                    </View>
+                </View>
+            </Modal>
         </SafeAreaView>
     );
 }
@@ -216,4 +287,20 @@ const styles = StyleSheet.create({
     editBtn: { marginTop: 10, borderRadius: 20, overflow: "hidden", elevation: 4 },
     editBtnGradient: { flexDirection: "row", alignItems: "center", justifyContent: "center", paddingVertical: 18, gap: 10 },
     editBtnText: { color: "#FFF", fontSize: 16, fontWeight: "800" },
+    docsContainer: { backgroundColor: '#FFF', padding: 16, borderRadius: 24, borderWidth: 1, borderColor: '#F1F5F9' },
+    docItem: { width: 100, alignItems: 'center' },
+    docIconBox: { width: 54, height: 54, borderRadius: 16, backgroundColor: '#F0FDF4', justifyContent: 'center', alignItems: 'center', marginBottom: 8, overflow: 'hidden' },
+    docPreview: { width: '100%', height: '100%' },
+    docName: { fontSize: 12, fontWeight: '700', color: '#475569', textAlign: 'center', width: 100 },
+    statusChip: { backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 8, marginTop: 4 },
+    docStatus: { fontSize: 9, color: '#15803D', fontWeight: '800', textTransform: 'uppercase' },
+    emptyDocs: { padding: 20, alignItems: 'center' },
+    emptyDocsText: { color: '#94A3B8', fontSize: 13 },
+    docModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.85)', justifyContent: 'center', alignItems: 'center' },
+    closeDocBtn: { position: 'absolute', top: 50, right: 25, zIndex: 10 },
+    docContentBox: { width: width * 0.9, height: height * 0.7, backgroundColor: '#FFF', borderRadius: 24, padding: 20, alignItems: 'center' },
+    docModalTitle: { fontSize: 18, fontWeight: '900', color: '#1E293B', marginBottom: 20 },
+    fullDocImage: { width: '100%', height: '90%', borderRadius: 12 },
+    noDocView: { flex: 1, justifyContent: 'center', alignItems: 'center', gap: 15 },
+    noDocText: { color: '#64748B', fontSize: 15, fontWeight: '600' },
 });

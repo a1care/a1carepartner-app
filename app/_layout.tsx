@@ -14,6 +14,7 @@ import { needsKycUpload, roleFromPartner } from "../lib/partnerOnboarding";
 import { connectSocket, disconnectSocket } from "../lib/socket";
 
 import FloatingBookingAlert from "../components/FloatingBookingAlert";
+import GlobalAlert from "../components/GlobalAlert";
 import { partnerBookingService } from "../lib/bookings";
 import { api } from "../lib/api";
 import { syncPartnerLocation } from "../lib/partnerLocationSync";
@@ -252,7 +253,7 @@ function AuthGuard() {
             <View style={styles.overlayLayer} pointerEvents="box-none">
                 <FloatingBookingAlert />
             </View>
-
+            <GlobalAlert />
         </View>
     );
 }

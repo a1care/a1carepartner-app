@@ -67,6 +67,7 @@ export default function TabsLayout() {
                 tabBarItemStyle: styles.item,
                 tabBarActiveTintColor: "#1E3A8A", // Blue active style matching screenshot
                 tabBarInactiveTintColor: "#94A3B8",
+                freezeOnBlur: true, // Optimizes memory by freezing inactive tabs
             }}
         >
             <Tabs.Screen

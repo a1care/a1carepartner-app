@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, RefreshControl, Image, Modal, Dimensions, Platform } from "react-native";
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Alert, RefreshControl, Modal, Dimensions, Platform } from "react-native";
+import { Image } from "expo-image";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { LinearGradient } from "expo-linear-gradient";
 const { width, height } = Dimensions.get("window");
@@ -33,7 +34,7 @@ export default function ProfileScreen() {
     const { data: bookings = [], refetch: refetchBookings } = useQuery({
         queryKey: ["profileBookings"],
         queryFn: async () => {
-            const res = await api.get("/appointment/provider/appointments");
+            const res = await api.get("/appointment/provider/feed", { params: { status: 'all' } });
             return res.data.data || [];
         }
     });
@@ -57,15 +58,12 @@ export default function ProfileScreen() {
     });
     const walletBalance = earningsSummary?.balance ?? staffData?.walletBalance ?? 0;
 
-    const pendingCount = bookings.filter((b: any) => b.status === "Pending").length;
-    const confirmedCount = bookings.filter((b: any) => b.status === "Confirmed" || b.status === "Active").length;
-    const upcomingCount = bookings.filter((b: any) => ["Pending", "Confirmed", "Active"].includes(b.status)).length;
+    const pendingCount = bookings.filter((b: any) => b.status === "Pending" || b.status === "PARTNER_ASSIGNED" || b.status === "BROADCASTED").length;
+    const confirmedCount = bookings.filter((b: any) => ["Confirmed", "Active", "ACCEPTED", "IN_PROGRESS"].includes(b.status)).length;
+    const upcomingCount = bookings.filter((b: any) => ["Pending", "Confirmed", "Active", "ACCEPTED", "IN_PROGRESS", "PARTNER_ASSIGNED", "BROADCASTED"].includes(b.status)).length;
 
     const daysLeft = mySub ? Math.ceil((new Date(mySub.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)) : 0;
     
-    const [selectedDoc, setSelectedDoc] = useState<any>(null);
-    const [showDocModal, setShowDocModal] = useState(false);
-
     const [isDeleting, setIsDeleting] = useState(false);
 
     const handleLogout = () => {
@@ -150,7 +148,15 @@ export default function ProfileScreen() {
                 {/* User Info Section - Removed Card Background */}
                 <View style={styles.userInfoRow}>
                     <View style={styles.userInfoText}>
-                        <Text style={styles.greetingText}>Hello, {user?.name ?? "Partner"}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                            <Text style={[styles.greetingText, { marginBottom: 0, marginRight: 8 }]}>Hello, {user?.name ?? "Partner"}</Text>
+                            {staffData && (
+                                <View style={{ backgroundColor: '#DCFCE7', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12, flexDirection: 'row', alignItems: 'center' }}>
+                                    <Ionicons name="checkmark-circle" size={12} color="#15803D" style={{ marginRight: 4 }} />
+                                    <Text style={{ fontSize: 10, color: '#15803D', fontWeight: '800' }}>VERIFIED</Text>
+                                </View>
+                            )}
+                        </View>
                         <Text style={styles.infoSubText}>Mobile: {user?.mobileNumber ?? "—"}</Text>
                         <Text style={styles.infoSubText}>{user?.role ? user.role.charAt(0).toUpperCase() + user.role.slice(1) + " A1care Partner" : "A1care Partner"}</Text>
                     </View>
@@ -208,69 +214,30 @@ export default function ProfileScreen() {
                 <View style={styles.quickActionsGrid}>
                     <TouchableOpacity style={styles.actionCard} onPress={() => router.push({ pathname: "/(tabs)/bookings", params: { status: "Pending" } })}>
                         <View style={styles.actionIconBg}>
-                            <Ionicons name="calendar-outline" size={30} color="#15803D" />
+                            <Ionicons name="calendar-outline" size={24} color="#15803D" />
                         </View>
-                        <Text style={styles.actionLabel}>Upcoming</Text>
-                        <View style={styles.actionBadge}>
-                            <Text style={styles.actionBadgeText}>{upcomingCount}</Text>
-                        </View>
+                        <Text style={styles.actionLabel}>Upcoming Bookings</Text>
+                        <Ionicons name="chevron-forward" size={20} color="#CBD5E1" style={styles.actionArrow} />
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.actionCard} onPress={() => handleNavigation("subscriptions")}>
                         <View style={styles.actionIconBg}>
-                            <Ionicons name="ribbon-outline" size={30} color="#15803D" />
+                            <Ionicons name="ribbon-outline" size={24} color="#15803D" />
                         </View>
-                        <Text style={styles.actionLabel}>Subscriptions</Text>
-                        <View style={[styles.actionBadge, daysLeft <= 0 && { backgroundColor: '#EF4444' }, daysLeft > 1000 && { backgroundColor: '#15803D' }]}>
-                            <Text style={styles.actionBadgeText}>
-                                {daysLeft > 1000 ? "∞" : (daysLeft > 0 ? daysLeft : "!")}
-                            </Text>
-                        </View>
+                        <Text style={styles.actionLabel}>Manage Subscriptions</Text>
+                        <Ionicons name="chevron-forward" size={20} color="#CBD5E1" style={styles.actionArrow} />
                     </TouchableOpacity>
 
                     <TouchableOpacity style={styles.actionCard} onPress={() => handleNavigation("referral")}>
                         <View style={styles.actionIconBg}>
-                            <Ionicons name="gift-outline" size={30} color="#15803D" />
+                            <Ionicons name="gift-outline" size={24} color="#15803D" />
                         </View>
                         <Text style={styles.actionLabel}>Refer & Earn</Text>
+                        <Ionicons name="chevron-forward" size={20} color="#CBD5E1" style={styles.actionArrow} />
                     </TouchableOpacity>
                 </View>
 
-                {/* Documents Section - Updated Title */}
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 16, marginTop: 10 }}>
-                    <Text style={[styles.sectionTitle, { marginBottom: 0, marginTop: 0, marginRight: 8 }]}>Verified Documents</Text>
-                    <Ionicons name="checkmark-circle" size={18} color="#15803D" />
-                </View>
-                <View style={styles.docsContainer}>
-                    {loadingStaff ? (
-                        <ActivityIndicator size="small" color="#2D935C" />
-                    ) : (staffData?.documents || user?.documents)?.length > 0 ? (
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 12, paddingBottom: 5 }}>
-                            {(staffData?.documents || user?.documents).map((doc: any, idx: number) => (
-                                <TouchableOpacity key={idx} style={styles.docItem} onPress={() => { setSelectedDoc(doc); setShowDocModal(true); }}>
-                                    <View style={styles.docIconBox}>
-                                        {doc.url?.match(/\.(jpg|jpeg|png|webp)/i) ? (
-                                            <Image source={{ uri: resolvePhoto(doc.url) }} style={styles.docPreview} />
-                                        ) : (
-                                            <Ionicons name="document-attach" size={24} color="#15803D" />
-                                        )}
-                                    </View>
-                                    <Text style={styles.docName} numberOfLines={1}>{doc.type}</Text>
-                                    <View style={[styles.statusChip, { backgroundColor: doc.status === 'Rejected' ? '#FEE2E2' : doc.status === 'Pending' ? '#FEF3C7' : '#D1FAE5' }]}>
-                                        <Text style={[styles.docStatus, { color: doc.status === 'Rejected' ? '#DC2626' : doc.status === 'Pending' ? '#D97706' : '#059669' }]}>
-                                            {doc.status || 'Verified'}
-                                        </Text>
-                                    </View>
-                                </TouchableOpacity>
-                            ))}
-                        </ScrollView>
-                    ) : (
-                        <View style={styles.emptyDocs}>
-                            <Ionicons name="document-text-outline" size={32} color="#CBD5E1" />
-                            <Text style={styles.emptyDocsText}>No documents found.</Text>
-                        </View>
-                    )}
-                </View>
+                {/* Main Menu */}
 
                 {/* Main Menu - Updated with Subscription Management */}
                 <Text style={styles.sectionTitle}>Account & Settings</Text>
@@ -279,7 +246,7 @@ export default function ProfileScreen() {
                         icon={<Ionicons name="person-outline" size={22} color="#15803D" />}
                         title="My Profile"
                         subtitle="View and manage personal information"
-                        onPress={() => router.push("/profile_edit")}
+                        onPress={() => router.push("/view_profile")}
                     />
                     <MenuLink
                         icon={<Ionicons name="ribbon-outline" size={22} color="#15803D" />}
@@ -366,30 +333,6 @@ export default function ProfileScreen() {
                 <View style={{ height: 60 }} />
             </ScrollView>
 
-            {/* Document Viewer Modal */}
-            <Modal visible={showDocModal} transparent animationType="fade">
-                <View style={styles.docModalOverlay}>
-                    <TouchableOpacity style={styles.closeDocBtn} onPress={() => setShowDocModal(false)}>
-                        <Ionicons name="close-circle" size={32} color="#FFF" />
-                    </TouchableOpacity>
-                    
-                    <View style={styles.docContentBox}>
-                        <Text style={styles.docModalTitle}>{selectedDoc?.type || "Document"}</Text>
-                        {selectedDoc?.url ? (
-                            <Image 
-                                source={{ uri: resolvePhoto(selectedDoc.url) }} 
-                                style={styles.fullDocImage} 
-                                resizeMode="contain" 
-                            />
-                        ) : (
-                            <View style={styles.noDocView}>
-                                <Ionicons name="alert-circle-outline" size={48} color="#CBD5E1" />
-                                <Text style={styles.noDocText}>Document image not available</Text>
-                            </View>
-                        )}
-                    </View>
-                </View>
-            </Modal>
         </SafeAreaView>
     );
 }
@@ -508,47 +451,46 @@ const styles = StyleSheet.create({
         marginTop: 10,
     },
     quickActionsGrid: {
-        flexDirection: 'row',
-        gap: 16,
+        flexDirection: 'column',
+        gap: 12,
         marginBottom: 30,
     },
     actionCard: {
-        flex: 1,
+        flexDirection: 'row',
         backgroundColor: '#FFF',
-        borderRadius: 24,
-        padding: 18,
+        borderRadius: 20,
+        padding: 16,
         alignItems: 'center',
-        position: 'relative',
         borderWidth: 1,
         borderColor: '#F1F5F9',
         elevation: 2,
     },
     actionIconBg: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
+        width: 50,
+        height: 50,
+        borderRadius: 25,
         backgroundColor: '#F0FDF4',
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 12,
+        marginRight: 16,
     },
     actionLabel: {
+        flex: 1,
         fontSize: 15,
         fontWeight: '700',
         color: '#334155',
     },
+    actionArrow: {
+        marginLeft: 10,
+    },
     actionBadge: {
-        position: 'absolute',
-        top: 15,
-        right: 15,
         backgroundColor: '#15803D',
-        width: 26,
-        height: 26,
-        borderRadius: 13,
+        height: 24,
+        minWidth: 24,
+        paddingHorizontal: 8,
+        borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',
-        borderWidth: 3,
-        borderColor: '#FFF',
     },
     actionBadgeText: {
         color: '#FFF',

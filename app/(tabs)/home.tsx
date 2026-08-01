@@ -352,7 +352,7 @@ export default function HomeScreen() {
             { label: "Bookings", value: bookings.length.toString(), icon: "calendar-outline", color: "#6366F1" },
             { label: "Earning", value: `₹${Number(earnings).toLocaleString('en-IN')}`, icon: "cash-outline", color: "#2D935C" },
             { label: "Completed", value: completed.toString(), icon: "checkmark-circle-outline", color: "#10B981" },
-            { label: "Rating", value: staffData?.rating ? staffData.rating.toFixed(1) : "N/A", icon: "star-outline", color: "#F59E0B" },
+            { label: "Rating", value: typeof staffData?.rating === 'number' ? staffData.rating.toFixed(1) : "0.0", icon: "star-outline", color: "#F59E0B" },
         ];
     }, [bookings, staffData, earningsSummary]);
 
