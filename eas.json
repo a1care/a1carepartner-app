@@ -25,7 +25,7 @@
         "credentialsSource": "remote"
       },
       "android": {
-        "credentialsSource": "local"
+        "credentialsSource": "remote"
       },
       "env": {
         "NPM_CONFIG_LEGACY_PEER_DEPS": "true",
