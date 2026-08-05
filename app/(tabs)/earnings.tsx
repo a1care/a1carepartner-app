@@ -4,16 +4,20 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import { getRolePath } from '../../lib/roleApi';
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { Toast } from "../../components/CustomToast";
+import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
+import { Toast } from '../../components/CustomToast';
+// @ts-ignore
+import RazorpayCheckout from 'react-native-razorpay';
 
 const StatCard = ({ title, amount, icon, color }: any) => (
     <View style={styles.statCard}>
-        <View style={[styles.iconContainer, { backgroundColor: color + '15' }]}>
-            <MaterialCommunityIcons name={icon} size={24} color={color} />
+        <View style={styles.statCardTopRow}>
+            <View style={[styles.iconContainer, { backgroundColor: color + '15' }]}>
+                <MaterialCommunityIcons name={icon} size={22} color={color} />
+            </View>
         </View>
         <Text style={styles.statTitle}>{title}</Text>
-        <Text style={[styles.statAmount, { color: color }]} numberOfLines={1}>
+        <Text style={styles.statAmount} numberOfLines={1}>
             ₹{Number(amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
         </Text>
     </View>
@@ -37,22 +41,11 @@ const EarningsSkeleton = () => {
             </View>
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 <Animated.View style={[styles.balanceCard, { opacity: pulseAnim, backgroundColor: '#E2E8F0', elevation: 0 }]}>
-                    <View style={{ height: 60 }} />
+                    <View style={{ height: 160 }} />
                 </Animated.View>
-                
                 <View style={styles.statsGrid}>
                     {[1, 2, 3, 4].map((i) => (
-                        <Animated.View key={i} style={[styles.statCard, { opacity: pulseAnim, backgroundColor: '#E2E8F0', height: 110, justifyContent: 'center', alignItems: 'center', elevation: 0 }]} />
-                    ))}
-                </View>
-
-                <View style={styles.historyHeader}>
-                    <Text style={styles.historyTitle}>Payout History</Text>
-                </View>
-
-                <View style={{ gap: 12, marginTop: 10 }}>
-                    {[1, 2, 3].map((i) => (
-                        <Animated.View key={i} style={{ opacity: pulseAnim, height: 70, backgroundColor: '#E2E8F0', borderRadius: 20 }} />
+                        <Animated.View key={i} style={[styles.statCard, { opacity: pulseAnim, backgroundColor: '#E2E8F0', height: 120, elevation: 0 }]} />
                     ))}
                 </View>
             </ScrollView>
@@ -63,29 +56,34 @@ const EarningsSkeleton = () => {
 export default function EarningsScreen() {
     const queryClient = useQueryClient();
     const [refreshing, setRefreshing] = useState(false);
+    
+    // Modals
     const [isWithdrawModalVisible, setIsWithdrawModalVisible] = useState(false);
+    const [isTopUpModalVisible, setIsTopUpModalVisible] = useState(false);
+    
+    const [withdrawAmount, setWithdrawAmount] = useState('');
+    const [topUpAmount, setTopUpAmount] = useState('');
+    
     const [payoutMethod, setPayoutMethod] = useState<'UPI' | 'BANK'>('UPI');
     const [upiId, setUpiId] = useState('');
     const [bankDetails, setBankDetails] = useState({
-        accountHolderName: '',
-        bankName: '',
-        accountNumber: '',
-        confirmAccountNumber: '',
-        ifscCode: ''
+        accountHolderName: '', bankName: '', accountNumber: '', confirmAccountNumber: '', ifscCode: ''
     });
     const [useDifferentBank, setUseDifferentBank] = useState(false);
     const [upiVerificationStatus, setUpiVerificationStatus] = useState<'idle' | 'verifying' | 'verified' | 'failed'>('idle');
     const [upiAccountName, setUpiAccountName] = useState('');
 
+    const [activeTab, setActiveTab] = useState<'PAYOUTS' | 'BOOKINGS'>('PAYOUTS');
+
     const handleVerifyUpi = () => {
         if (!upiId.trim() || !upiId.includes('@')) {
-            Alert.alert("Invalid UPI", "Please enter a valid UPI ID format (e.g. name@upi)");
+            Alert.alert('Invalid UPI', 'Please enter a valid UPI ID format');
             return;
         }
         setUpiVerificationStatus('verifying');
         setTimeout(() => {
             setUpiVerificationStatus('verified');
-            setUpiAccountName(staffDetails?.bankDetails?.accountHolderName || "Vinod");
+            setUpiAccountName(staffDetails?.bankDetails?.accountHolderName || 'Partner');
         }, 1200);
     };
 
@@ -95,38 +93,24 @@ export default function EarningsScreen() {
         setUpiAccountName('');
     };
 
-    const [activeTab, setActiveTab] = useState<'PAYOUTS' | 'BOOKINGS'>('PAYOUTS');
-
     const { data: summary, isLoading, refetch } = useQuery({
         queryKey: ['staff_earnings'],
-        queryFn: async () => {
-            const res = await api.get(`/${getRolePath()}/earnings/summary`);
-            return res.data.data;
-        }
+        queryFn: async () => { const res = await api.get(`/${getRolePath()}/earnings/summary`); return res.data.data; }
     });
 
     const { data: payouts, refetch: refetchPayouts } = useQuery({
         queryKey: ['staff_payouts'],
-        queryFn: async () => {
-            const res = await api.get(`/${getRolePath()}/earnings/payouts`);
-            return res.data.data;
-        }
+        queryFn: async () => { const res = await api.get(`/${getRolePath()}/earnings/payouts`); return res.data.data; }
     });
 
     const { data: bookingHistory, refetch: refetchHistory } = useQuery({
         queryKey: ['staff_booking_earnings'],
-        queryFn: async () => {
-            const res = await api.get(`/${getRolePath()}/earnings/history`);
-            return res.data.data;
-        }
+        queryFn: async () => { const res = await api.get(`/${getRolePath()}/earnings/history`); return res.data.data; }
     });
 
     const { data: staffDetails } = useQuery({
-        queryKey: ["staffDetailsForPayout"],
-        queryFn: async () => {
-            const res = await api.get(`/${getRolePath()}/auth/details`);
-            return res.data.data;
-        }
+        queryKey: ['staffDetailsForPayout'],
+        queryFn: async () => { const res = await api.get(`/${getRolePath()}/auth/details`); return res.data.data; }
     });
 
     useEffect(() => {
@@ -136,11 +120,11 @@ export default function EarningsScreen() {
                 const bd = staffDetails.bankDetails;
                 if (bd.upiId) setUpiId(bd.upiId);
                 setBankDetails({
-                    accountHolderName: bd.accountHolderName || "",
-                    bankName: bd.bankName || "",
-                    accountNumber: bd.accountNumber || "",
-                    confirmAccountNumber: bd.accountNumber || "",
-                    ifscCode: bd.ifscCode || ""
+                    accountHolderName: bd.accountHolderName || '',
+                    bankName: bd.bankName || '',
+                    accountNumber: bd.accountNumber || '',
+                    confirmAccountNumber: bd.accountNumber || '',
+                    ifscCode: bd.ifscCode || ''
                 });
             }
         }
@@ -152,28 +136,57 @@ export default function EarningsScreen() {
         },
         onSuccess: () => {
             if (Platform.OS === 'web') {
-                Toast.show({ type: "success", text1: "Success", text2: "Withdrawal request submitted successfully." });
+                Toast.show({ type: 'success', text1: 'Success', text2: 'Withdrawal request submitted.' });
             } else {
-                Alert.alert("Success", "Withdrawal request submitted successfully.");
+                Alert.alert('Success', 'Withdrawal request submitted successfully.');
             }
             queryClient.invalidateQueries({ queryKey: ['staff_earnings'] });
             queryClient.invalidateQueries({ queryKey: ['staff_payouts'] });
-            setUpiId('');
-            setBankDetails({
-                accountHolderName: '',
-                bankName: '',
-                accountNumber: '',
-                confirmAccountNumber: '',
-                ifscCode: ''
-            });
+            setIsWithdrawModalVisible(false);
         },
         onError: (err: any) => {
-            const msg = err?.response?.data?.message || "Something went wrong";
-            if (Platform.OS === 'web') {
-                Toast.show({ type: "error", text1: "Extraction Failed", text2: msg });
-            } else {
-                Alert.alert("Extraction Failed", msg);
-            }
+            const msg = err?.response?.data?.message || 'Something went wrong';
+            if (Platform.OS === 'web') Toast.show({ type: 'error', text1: 'Extraction Failed', text2: msg });
+            else Alert.alert('Extraction Failed', msg);
+        }
+    });
+
+    const topUpMutation = useMutation({
+        mutationFn: async (amt: number) => {
+            const orderRes = await api.post('/payments/orders/create', { amount: amt, type: 'WALLET_TOPUP' });
+            const order = orderRes.data?.data;
+            const razorRes = await api.post('/payments/razorpay/initiate', { orderId: order._id });
+            const razorData = razorRes.data?.data;
+
+            const paymentData: any = await RazorpayCheckout.open({
+                key: razorData.key,
+                amount: razorData.razorOrder.amount,
+                currency: 'INR',
+                name: 'A1Care 24/7',
+                description: 'Wallet Top-up',
+                order_id: razorData.razorOrder.id,
+                prefill: { email: razorData.customer?.email || '', contact: razorData.customer?.contact || '', name: razorData.customer?.name || '' },
+                theme: { color: '#059669' },
+            });
+
+            await api.post('/payments/razorpay/verify', {
+                razorpay_order_id: paymentData.razorpay_order_id,
+                razorpay_payment_id: paymentData.razorpay_payment_id,
+                razorpay_signature: paymentData.razorpay_signature,
+                orderId: order._id,
+            });
+            return amt;
+        },
+        onSuccess: (amt) => {
+            queryClient.invalidateQueries({ queryKey: ['staff_earnings'] });
+            setIsTopUpModalVisible(false);
+            setTopUpAmount('');
+            if (Platform.OS === 'web') Toast.show({ type: 'success', text1: 'Success', text2: `₹${amt} added.` });
+            else Alert.alert('Success', `₹${amt} successfully added to your wallet.`);
+        },
+        onError: (err: any) => {
+            if (err?.message) Alert.alert('Error', err.message);
+            else Alert.alert('Cancelled', 'You cancelled the payment.');
         }
     });
 
@@ -183,9 +196,7 @@ export default function EarningsScreen() {
         setRefreshing(false);
     };
 
-    if (isLoading) {
-        return <EarningsSkeleton />;
-    }
+    if (isLoading) return <EarningsSkeleton />;
 
     const { stats, balance } = summary || { stats: {}, balance: 0 };
 
@@ -193,43 +204,49 @@ export default function EarningsScreen() {
         <SafeAreaView style={styles.container}>
             <View style={styles.header}>
                 <Text style={styles.headerTitle}>Financial Overview</Text>
-                <TouchableOpacity onPress={onRefresh}>
-                    <Ionicons name="refresh" size={20} color="#64748B" />
+                <TouchableOpacity onPress={onRefresh} style={styles.refreshBtn}>
+                    <Ionicons name="reload" size={16} color="#64748B" />
                 </TouchableOpacity>
             </View>
 
-            <ScrollView 
-                contentContainerStyle={styles.scrollContent}
-                refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-            >
-                {/* Balance Section */}
+            <ScrollView contentContainerStyle={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
+                
+                {/* Premium Balance Card */}
                 <View style={styles.balanceCard}>
-                    <View>
-                        <Text style={styles.balanceLabel}>Withdrawable Balance</Text>
-                        <Text style={styles.balanceAmount}>₹{Number(balance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+                    <Text style={styles.watermark}>A1CARE</Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <Text style={styles.balanceLabel}>SETTLEMENT BALANCE</Text>
+                        <Ionicons name="wallet-outline" size={24} color="rgba(255,255,255,0.4)" />
                     </View>
-                    <TouchableOpacity
-                        style={[styles.withdrawBtn, withdrawMutation.isPending && { opacity: 0.6 }]}
-                        disabled={withdrawMutation.isPending}
-                        onPress={() => {
+                    <Text style={styles.balanceAmount}>₹{Number(balance || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
+                    <Text style={styles.partnerName}>{staffDetails?.name || staffDetails?.bankDetails?.accountHolderName || 'Partner'}</Text>
+
+                    <View style={styles.actionRow}>
+                        <TouchableOpacity style={[styles.actionBtn, withdrawMutation.isPending && { opacity: 0.6 }]} disabled={withdrawMutation.isPending} onPress={() => {
                             if (!balance || balance < 500) {
-                                if (Platform.OS === 'web') {
-                                    Toast.show({ type: "error", text1: "Insufficient Balance", text2: "Minimum withdrawal amount is ₹500." });
-                                } else {
-                                    Alert.alert("Insufficient Balance", "Minimum withdrawal amount is ₹500.");
-                                }
+                                if (Platform.OS === 'web') Toast.show({ type: "error", text1: "Insufficient Balance", text2: "Minimum withdrawal is ₹500." });
+                                else Alert.alert('Insufficient Balance', 'Minimum withdrawal amount is ₹500.');
                                 return;
                             }
+                            setWithdrawAmount(String(balance));
                             setIsWithdrawModalVisible(true);
-                        }}
-                    >
-                        <Text style={styles.withdrawBtnText}>{withdrawMutation.isPending ? "Processing..." : "Withdraw All"}</Text>
-                    </TouchableOpacity>
+                        }}>
+                            <MaterialCommunityIcons name="bank-transfer-out" size={20} color="#FFF" />
+                            <Text style={styles.actionBtnText}>Withdraw</Text>
+                        </TouchableOpacity>
+                        
+                        <View style={styles.actionDivider} />
+                        
+                        <TouchableOpacity style={styles.actionBtn} onPress={() => setIsTopUpModalVisible(true)}>
+                            <MaterialCommunityIcons name="plus-circle-outline" size={20} color="#FFF" />
+                            <Text style={styles.actionBtnText}>Add Money</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
 
                 {/* Grid Stats */}
                 <View style={styles.statsGrid}>
-                    <StatCard title="Total Earnings" amount={stats.totalEarnings || 0} icon="cash-multiple" color="#2D935C" />
+                    <StatCard title="Total Earnings" amount={stats.totalEarnings || 0} icon="cash-multiple" color="#059669" />
                     <StatCard title="Today's Sales" amount={stats.today || 0} icon="trending-up" color="#6366F1" />
                     <StatCard title="This Week" amount={stats.thisWeek || 0} icon="calendar-week" color="#F59E0B" />
                     <StatCard title="Withdrawn" amount={stats.withdrawn || 0} icon="bank-transfer-out" color="#EC4899" />
@@ -237,16 +254,10 @@ export default function EarningsScreen() {
 
                 {/* Sub Tab Switcher */}
                 <View style={styles.tabSwitcher}>
-                    <TouchableOpacity 
-                        style={[styles.tabButton, activeTab === 'PAYOUTS' && styles.tabButtonActive]}
-                        onPress={() => setActiveTab('PAYOUTS')}
-                    >
+                    <TouchableOpacity style={[styles.tabButton, activeTab === 'PAYOUTS' && styles.tabButtonActive]} onPress={() => setActiveTab('PAYOUTS')}>
                         <Text style={[styles.tabButtonText, activeTab === 'PAYOUTS' && styles.tabButtonTextActive]}>Payout Requests</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity 
-                        style={[styles.tabButton, activeTab === 'BOOKINGS' && styles.tabButtonActive]}
-                        onPress={() => setActiveTab('BOOKINGS')}
-                    >
+                    <TouchableOpacity style={[styles.tabButton, activeTab === 'BOOKINGS' && styles.tabButtonActive]} onPress={() => setActiveTab('BOOKINGS')}>
                         <Text style={[styles.tabButtonText, activeTab === 'BOOKINGS' && styles.tabButtonTextActive]}>Booking Earnings</Text>
                     </TouchableOpacity>
                 </View>
@@ -254,352 +265,288 @@ export default function EarningsScreen() {
                 {/* History List */}
                 {activeTab === 'PAYOUTS' ? (
                     payouts?.length > 0 ? (
-                        payouts.map((p: any) => (
-                            <View key={p._id} style={styles.payoutItem}>
-                                <View style={styles.payoutIcon}>
-                                    <Ionicons name="wallet-outline" size={20} color="#64748B" />
-                                </View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.payoutAmount}>₹{Number(p.amount || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</Text>
-                                    <Text style={styles.payoutDate}>{new Date(p.createdAt).toLocaleDateString()}</Text>
-                                </View>
-                                <View style={[
-                                    styles.statusBadge,
-                                    { backgroundColor: p.status === 'COMPLETED' ? '#ECFDF5' : p.status === 'PENDING' ? '#FFFBEB' : p.status === 'APPROVED' ? '#EFF6FF' : '#FEF2F2' }
-                                ]}>
-                                    <Text style={[
-                                        styles.statusText,
-                                        { color: p.status === 'COMPLETED' ? '#10B981' : p.status === 'PENDING' ? '#D97706' : p.status === 'APPROVED' ? '#3B82F6' : '#EF4444' }
-                                    ]}>
-                                        {p.status === 'COMPLETED' ? 'Paid' : p.status === 'PENDING' ? 'Pending' : p.status === 'APPROVED' ? 'Approved' : p.status === 'REJECTED' ? 'Rejected' : p.status}
-                                    </Text>
+                        payouts.map((p: any) => {
+                            const isSub = p.adminNote?.toLowerCase().includes('subscription');
+                            const isUpi = p.bankDetails?.upiId || p.method === 'UPI';
+                            const title = isSub ? (p.adminNote.length > 25 ? p.adminNote.substring(0, 25) + '...' : p.adminNote) : (isUpi ? 'Withdrawal • UPI' : 'Withdrawal • Bank Account');
+                            const iconName = isSub ? 'crown' : (isUpi ? 'qrcode-scan' : 'bank');
+                            const iconColor = isSub ? '#F59E0B' : '#EF4444';
+                            const iconBg = isSub ? '#FEF3C7' : '#FEF2F2';
+
+                            return (
+                                <View key={p._id} style={styles.transactionItem}>
+                                    <View style={[styles.transactionIconBox, { backgroundColor: iconBg }]}>
+                                        <MaterialCommunityIcons name={iconName} size={22} color={iconColor} />
+                                    </View>
+                                    <View style={styles.transactionInfo}>
+                                        <Text style={styles.transactionTitle} numberOfLines={1}>
+                                            {title}
+                                        </Text>
+                                        <Text style={styles.transactionDate}>{new Date(p.createdAt).toLocaleDateString("en-IN", { day: '2-digit', month: 'short', year: 'numeric' })}</Text>
+                                    </View>
+                                <View style={styles.transactionAmountSection}>
+                                    <Text style={styles.transactionAmountNegative}>-₹{Number(p.amount || 0).toLocaleString('en-IN')}</Text>
+                                    <View style={[styles.transactionStatus, { backgroundColor: p.status === 'COMPLETED' ? '#ECFDF5' : p.status === 'PENDING' ? '#FFFBEB' : p.status === 'APPROVED' ? '#EFF6FF' : '#FEF2F2' }]}>
+                                        <Text style={[styles.transactionStatusText, { color: p.status === 'COMPLETED' ? '#10B981' : p.status === 'PENDING' ? '#D97706' : p.status === 'APPROVED' ? '#3B82F6' : '#EF4444' }]}>
+                                            {p.status === 'COMPLETED' ? 'Settled' : p.status === 'PENDING' ? 'Processing' : p.status === 'APPROVED' ? 'Approved' : 'Failed'}
+                                        </Text>
+                                    </View>
                                 </View>
                             </View>
-                        ))
+                            );
+                        })
                     ) : (
                         <View style={styles.emptyState}>
-                            <Ionicons name="receipt-outline" size={48} color="#CBD5E1" />
+                            <Ionicons name="receipt-outline" size={48} color="#E2E8F0" />
                             <Text style={styles.emptyText}>No payout history found yet.</Text>
                         </View>
                     )
                 ) : (
                     bookingHistory?.length > 0 ? (
                         bookingHistory.map((bh: any) => (
-                            <View key={bh._id} style={styles.payoutItem}>
-                                <View style={[styles.payoutIcon, { backgroundColor: '#F0FDF4' }]}>
-                                    <Ionicons name="checkmark-circle-outline" size={20} color="#16A34A" />
+                            <View key={bh._id} style={styles.transactionItem}>
+                                <View style={[styles.transactionIconBox, { backgroundColor: '#F0FDF4' }]}>
+                                    <MaterialCommunityIcons name={bh.type === 'WALLET_TOPUP' ? 'wallet-plus' : 'briefcase-check'} size={22} color="#10B981" />
                                 </View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.serviceTitleText}>{bh.type}</Text>
-                                    <Text style={styles.serviceDetailsText}>{bh.details}</Text>
-                                    <Text style={styles.payoutDate}>{new Date(bh.createdAt).toLocaleDateString("en-IN", { day: '2-digit', month: 'short', year: 'numeric' })}</Text>
+                                <View style={styles.transactionInfo}>
+                                    <Text style={styles.transactionTitle} numberOfLines={1}>
+                                        {bh.type === 'WALLET_TOPUP' ? 'Wallet Top-up Added' : (bh.type || 'Booking Settlement')}
+                                    </Text>
+                                    <Text style={styles.transactionDetails} numberOfLines={1}>
+                                        {bh.details || (bh.type === 'WALLET_TOPUP' ? 'Self-added via Razorpay' : 'Service Completed Successfully')}
+                                    </Text>
+                                    <Text style={styles.transactionDate}>{new Date(bh.createdAt).toLocaleDateString("en-IN", { day: '2-digit', month: 'short', year: 'numeric' })}</Text>
                                 </View>
-                                <View style={{ alignItems: 'flex-end' }}>
-                                    <Text style={styles.earningText}>+₹{Number(bh.partnerEarning || 0).toFixed(2)}</Text>
-                                    <Text style={styles.totalBookingVal}>Val: ₹{bh.totalAmount || 0}</Text>
+                                <View style={styles.transactionAmountSection}>
+                                    <Text style={styles.transactionAmountPositive}>+₹{Number(bh.partnerEarning || bh.amount || 0).toLocaleString('en-IN')}</Text>
+                                    {bh.totalAmount ? (
+                                        <Text style={styles.transactionMetaVal}>Booking: ₹{bh.totalAmount}</Text>
+                                    ) : null}
                                 </View>
                             </View>
                         ))
                     ) : (
                         <View style={styles.emptyState}>
-                            <Ionicons name="shield-checkmark-outline" size={48} color="#CBD5E1" />
+                            <Ionicons name="shield-checkmark-outline" size={48} color="#E2E8F0" />
                             <Text style={styles.emptyText}>No booking earnings completed yet.</Text>
                         </View>
                     )
                 )}
             </ScrollView>
 
-            <Modal
-                visible={isWithdrawModalVisible}
-                animationType="slide"
-                transparent={true}
-                onRequestClose={() => setIsWithdrawModalVisible(false)}
-            >
+            {/* WITHDRAW MODAL */}
+            <Modal visible={isWithdrawModalVisible} animationType="slide" transparent={true} onRequestClose={() => setIsWithdrawModalVisible(false)}>
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalContent}>
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Withdraw Payout</Text>
-                            <TouchableOpacity onPress={() => setIsWithdrawModalVisible(false)}>
-                                <Ionicons name="close" size={24} color="#64748B" />
-                            </TouchableOpacity>
-                        </View>
-                        
-                        <Text style={styles.modalSub}>Requesting payout of <Text style={{fontWeight: '900', color: '#1E293B'}}>₹{balance}</Text></Text>
-
-                        {/* Payout Method Selector */}
-                        <View style={styles.methodSelector}>
-                            <TouchableOpacity 
-                                style={[styles.methodBtn, payoutMethod === 'UPI' && styles.methodBtnActive]}
-                                onPress={() => setPayoutMethod('UPI')}
-                            >
-                                <MaterialCommunityIcons name="qrcode-scan" size={20} color={payoutMethod === 'UPI' ? '#FFF' : '#64748B'} style={{marginRight: 6}} />
-                                <Text style={[styles.methodBtnText, payoutMethod === 'UPI' && styles.methodBtnTextActive]}>UPI Transfer</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity 
-                                style={[styles.methodBtn, payoutMethod === 'BANK' && styles.methodBtnActive]}
-                                onPress={() => setPayoutMethod('BANK')}
-                            >
-                                <MaterialCommunityIcons name="bank" size={20} color={payoutMethod === 'BANK' ? '#FFF' : '#64748B'} style={{marginRight: 6}} />
-                                <Text style={[styles.methodBtnText, payoutMethod === 'BANK' && styles.methodBtnTextActive]}>Bank Account</Text>
+                            <View>
+                                <Text style={styles.modalTitle}>Request Payout</Text>
+                                <Text style={styles.modalSub}>Available: <Text style={{fontWeight: '900', color: '#0F172A'}}>₹{balance}</Text></Text>
+                            </View>
+                            <TouchableOpacity onPress={() => setIsWithdrawModalVisible(false)} style={styles.closeBtn}>
+                                <Ionicons name="close" size={20} color="#0F172A" />
                             </TouchableOpacity>
                         </View>
 
+
+                        <View style={styles.premiumSegmentContainer}>
+                            <TouchableOpacity style={[styles.premiumSegmentBtn, payoutMethod === 'UPI' && styles.premiumSegmentBtnActive]} onPress={() => setPayoutMethod('UPI')}>
+                                <MaterialCommunityIcons name="qrcode-scan" size={18} color={payoutMethod === 'UPI' ? '#059669' : '#64748B'} style={{marginRight: 6}} />
+                                <Text style={[styles.premiumSegmentText, payoutMethod === 'UPI' && styles.premiumSegmentTextActive]}>UPI</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.premiumSegmentBtn, payoutMethod === 'BANK' && styles.premiumSegmentBtnActive]} onPress={() => setPayoutMethod('BANK')}>
+                                <MaterialCommunityIcons name="bank" size={18} color={payoutMethod === 'BANK' ? '#059669' : '#64748B'} style={{marginRight: 6}} />
+                                <Text style={[styles.premiumSegmentText, payoutMethod === 'BANK' && styles.premiumSegmentTextActive]}>Bank</Text>
+                            </TouchableOpacity>
+                        </View>
                         <ScrollView style={{ maxHeight: 330, marginVertical: 15 }} showsVerticalScrollIndicator={false}>
                             {payoutMethod === 'UPI' ? (
                                 <View style={styles.formGroup}>
-                                    <Text style={styles.inputLabel}>UPI ID / VPA</Text>
-                                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 12, borderWidth: 1.5, borderColor: upiVerificationStatus === 'verified' ? '#2D935C' : '#E2E8F0', paddingRight: 12 }}>
-                                        <TextInput 
-                                            style={{ flex: 1, height: 48, paddingHorizontal: 16, fontSize: 14, color: '#1E293B' }}
-                                            placeholder="e.g. name@upi"
-                                            placeholderTextColor="#94A3B8"
-                                            value={upiId}
-                                            onChangeText={handleUpiChange}
-                                            autoCapitalize="none"
-                                        />
-                                        {upiVerificationStatus === 'verifying' ? (
-                                            <ActivityIndicator size="small" color="#2D935C" />
-                                        ) : upiVerificationStatus === 'verified' ? (
-                                            <Ionicons name="checkmark-circle" size={22} color="#2D935C" />
-                                        ) : upiId.trim().includes('@') ? (
-                                            <TouchableOpacity onPress={handleVerifyUpi}>
-                                                <Text style={{ color: '#2D935C', fontWeight: '800', fontSize: 13 }}>Verify</Text>
-                                            </TouchableOpacity>
-                                        ) : null}
+                                    <Text style={styles.inputLabelBold}>UPI ID / VPA</Text>
+                                    <View style={styles.inputBox}>
+                                        <TextInput style={styles.inputText} placeholder="e.g. name@upi" placeholderTextColor="#94A3B8" value={upiId} onChangeText={handleUpiChange} autoCapitalize="none" />
+                                        {upiVerificationStatus === 'verifying' ? <ActivityIndicator size="small" color="#059669" /> : upiVerificationStatus === 'verified' ? <Ionicons name="checkmark-circle" size={22} color="#059669" /> : upiId.trim().includes('@') ? <TouchableOpacity onPress={handleVerifyUpi}><Text style={{ color: '#059669', fontWeight: '800', fontSize: 13 }}>Verify</Text></TouchableOpacity> : null}
                                     </View>
-                                    {upiVerificationStatus === 'verified' && (
-                                        <Text style={{ color: '#2D935C', fontSize: 12, fontWeight: '700', marginLeft: 4, marginTop: -2 }}>
-                                            ✓ Verified: {upiAccountName}
-                                        </Text>
-                                    )}
-                                    <Text style={styles.inputTip}>Make sure this UPI ID is active and linked to your bank account.</Text>
+                                    {upiVerificationStatus === 'verified' && <Text style={{ color: '#059669', fontSize: 12, fontWeight: '700', marginLeft: 4, marginTop: -2 }}>✓ Verified: {upiAccountName}</Text>}
                                 </View>
                             ) : (
                                 staffDetails?.bankDetails?.accountNumber && !useDifferentBank ? (
                                     <View style={{ gap: 12, paddingHorizontal: 4 }}>
-                                        <Text style={styles.inputLabel}>Saved Settlement Bank Account</Text>
-                                        <View style={styles.bankCard}>
-                                            <View style={styles.bankCardDeco1} />
-                                            <View style={styles.bankCardDeco2} />
-                                            <View style={styles.bankCardRow}>
+                                        <Text style={styles.inputLabelBold}>Saved Settlement Bank Account</Text>
+                                        <View style={styles.savedBankCard}>
+                                            <View style={styles.savedBankCardDeco1} />
+                                            <View style={styles.savedBankCardRow}>
                                                 <View style={styles.bankChip} />
                                                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                                                     <Text style={{ color: '#FFF', fontSize: 11, fontWeight: '800' }}>SELECTED</Text>
                                                     <Ionicons name="checkmark-circle" size={18} color="#FFF" />
                                                 </View>
                                             </View>
-                                            <Text style={styles.bankCardNumber}>
-                                                {staffDetails.bankDetails.accountNumber.replace(/(\d{4})/g, '$1 ').trim()}
-                                            </Text>
-                                            <View style={styles.bankCardFooter}>
+                                            <Text style={styles.savedBankCardNumber}>{staffDetails.bankDetails.accountNumber.replace(/(\d{4})/g, '$1 ').trim()}</Text>
+                                            <View style={styles.savedBankCardFooter}>
                                                 <View>
-                                                    <Text style={styles.bankCardFieldLabel}>ACCOUNT HOLDER</Text>
-                                                    <Text style={styles.bankCardFieldValue}>{staffDetails.bankDetails.accountHolderName}</Text>
+                                                    <Text style={styles.savedBankCardFieldLabel}>ACCOUNT HOLDER</Text>
+                                                    <Text style={styles.savedBankCardFieldValue}>{staffDetails.bankDetails.accountHolderName}</Text>
                                                 </View>
                                                 <View style={{ alignItems: "flex-end" }}>
-                                                    <Text style={styles.bankCardFieldLabel}>IFSC CODE</Text>
-                                                    <Text style={styles.bankCardFieldValue}>{staffDetails.bankDetails.ifscCode}</Text>
+                                                    <Text style={styles.savedBankCardFieldLabel}>IFSC CODE</Text>
+                                                    <Text style={styles.savedBankCardFieldValue}>{staffDetails.bankDetails.ifscCode}</Text>
                                                 </View>
                                             </View>
                                         </View>
-                                        <TouchableOpacity 
-                                            style={{ flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center', marginTop: 5 }}
-                                            onPress={() => setUseDifferentBank(true)}
-                                        >
-                                            <Ionicons name="create-outline" size={16} color="#2D935C" />
-                                            <Text style={{ color: '#2D935C', fontWeight: '800', fontSize: 13 }}>Use a different bank account</Text>
+                                        <TouchableOpacity style={{ flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'center', marginTop: 5 }} onPress={() => setUseDifferentBank(true)}>
+                                            <Ionicons name="create-outline" size={16} color="#059669" />
+                                            <Text style={{ color: '#059669', fontWeight: '800', fontSize: 13 }}>Use a different bank account</Text>
                                         </TouchableOpacity>
                                     </View>
                                 ) : (
                                     <View style={styles.formGroup}>
-                                        {staffDetails?.bankDetails?.accountNumber ? (
-                                            <TouchableOpacity 
-                                                style={{ flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'flex-end', marginBottom: 5 }}
-                                                onPress={() => setUseDifferentBank(false)}
-                                            >
-                                                <Ionicons name="wallet-outline" size={16} color="#2D935C" />
-                                                <Text style={{ color: '#2D935C', fontWeight: '800', fontSize: 13 }}>Use saved bank account</Text>
-                                            </TouchableOpacity>
-                                        ) : null}
-                                        <Text style={styles.inputLabel}>Account Holder Name</Text>
-                                        <TextInput 
-                                            style={styles.textInput}
-                                            placeholder="Name as in bank record"
-                                            placeholderTextColor="#94A3B8"
-                                            value={bankDetails.accountHolderName}
-                                            onChangeText={(v) => setBankDetails({ ...bankDetails, accountHolderName: v })}
-                                        />
-                                        <Text style={styles.inputLabel}>Bank Name</Text>
-                                        <TextInput 
-                                            style={styles.textInput}
-                                            placeholder="e.g. State Bank of India"
-                                            placeholderTextColor="#94A3B8"
-                                            value={bankDetails.bankName}
-                                            onChangeText={(v) => setBankDetails({ ...bankDetails, bankName: v })}
-                                        />
-                                        <Text style={styles.inputLabel}>Account Number</Text>
-                                        <TextInput 
-                                            style={styles.textInput}
-                                            placeholder="Enter Account Number"
-                                            placeholderTextColor="#94A3B8"
-                                            keyboardType="numeric"
-                                            value={bankDetails.accountNumber}
-                                            onChangeText={(v) => setBankDetails({ ...bankDetails, accountNumber: v })}
-                                        />
-                                        <Text style={styles.inputLabel}>Confirm Account Number</Text>
-                                        <TextInput 
-                                            style={styles.textInput}
-                                            placeholder="Re-enter Account Number"
-                                            placeholderTextColor="#94A3B8"
-                                            keyboardType="numeric"
-                                            value={bankDetails.confirmAccountNumber}
-                                            onChangeText={(v) => setBankDetails({ ...bankDetails, confirmAccountNumber: v })}
-                                        />
-                                        <Text style={styles.inputLabel}>IFSC Code</Text>
-                                        <TextInput 
-                                            style={styles.textInput}
-                                            placeholder="e.g. SBIN0001234"
-                                            placeholderTextColor="#94A3B8"
-                                            autoCapitalize="characters"
-                                            value={bankDetails.ifscCode}
-                                            onChangeText={(v) => setBankDetails({ ...bankDetails, ifscCode: v })}
-                                        />
+                                        <Text style={styles.inputLabelBold}>Account Holder Name</Text>
+                                        <View style={styles.inputBox}><TextInput style={styles.inputText} placeholder="Name as in bank record" value={bankDetails.accountHolderName} onChangeText={(v) => setBankDetails({ ...bankDetails, accountHolderName: v })} /></View>
+                                        <Text style={styles.inputLabelBold}>Bank Name</Text>
+                                        <View style={styles.inputBox}><TextInput style={styles.inputText} placeholder="e.g. State Bank of India" value={bankDetails.bankName} onChangeText={(v) => setBankDetails({ ...bankDetails, bankName: v })} /></View>
+                                        <Text style={styles.inputLabelBold}>Account Number</Text>
+                                        <View style={styles.inputBox}><TextInput style={styles.inputText} placeholder="Enter Account Number" keyboardType="numeric" value={bankDetails.accountNumber} onChangeText={(v) => setBankDetails({ ...bankDetails, accountNumber: v })} /></View>
+                                        <Text style={styles.inputLabelBold}>Confirm Account Number</Text>
+                                        <View style={styles.inputBox}><TextInput style={styles.inputText} placeholder="Re-enter Account Number" keyboardType="numeric" value={bankDetails.confirmAccountNumber} onChangeText={(v) => setBankDetails({ ...bankDetails, confirmAccountNumber: v })} /></View>
+                                        <Text style={styles.inputLabelBold}>IFSC Code</Text>
+                                        <View style={styles.inputBox}><TextInput style={styles.inputText} placeholder="e.g. SBIN0001234" autoCapitalize="characters" value={bankDetails.ifscCode} onChangeText={(v) => setBankDetails({ ...bankDetails, ifscCode: v })} /></View>
                                     </View>
                                 )
                             )}
                         </ScrollView>
-
-                        <TouchableOpacity 
-                            style={[styles.submitBtn, withdrawMutation.isPending && { opacity: 0.7 }]}
-                            disabled={withdrawMutation.isPending}
-                            onPress={() => {
-                                if (payoutMethod === 'UPI') {
-                                    if (!upiId.trim()) {
-                                        Alert.alert("Input Error", "Please enter a valid UPI ID");
-                                        return;
-                                    }
-                                    if (upiVerificationStatus !== 'verified') {
-                                        Alert.alert("Verification Required", "Please click 'Verify' and successfully verify your UPI ID before requesting withdrawal.");
-                                        return;
-                                    }
-                                    withdrawMutation.mutate({ amount: balance, payoutMethod: 'UPI', upiId });
-                                } else {
-                                    if (staffDetails?.bankDetails?.accountNumber && !useDifferentBank) {
-                                        withdrawMutation.mutate({ amount: balance, payoutMethod: 'BANK', bankDetails: staffDetails.bankDetails });
-                                    } else {
-                                        const { accountNumber, confirmAccountNumber, accountHolderName, bankName, ifscCode } = bankDetails;
-                                        if (!accountHolderName.trim() || !bankName.trim() || !accountNumber.trim() || !confirmAccountNumber.trim() || !ifscCode.trim()) {
-                                            Alert.alert("Input Error", "Please fill in all bank details fields");
-                                            return;
-                                        }
-                                        if (accountNumber !== confirmAccountNumber) {
-                                            Alert.alert("Input Error", "Account numbers do not match");
-                                            return;
-                                        }
-                                        withdrawMutation.mutate({ amount: balance, payoutMethod: 'BANK', bankDetails });
-                                    }
+                        <TouchableOpacity style={styles.submitBtn} disabled={withdrawMutation.isPending} onPress={() => {
+                            if (payoutMethod === 'UPI') {
+                                if (!upiId.trim() || upiVerificationStatus !== 'verified') { Alert.alert('Error', 'Verify UPI ID'); return; }
+                                withdrawMutation.mutate({ amount: balance, payoutMethod: 'UPI', upiId });
+                            } else {
+                                if (staffDetails?.bankDetails?.accountNumber && !useDifferentBank) withdrawMutation.mutate({ amount: balance, payoutMethod: 'BANK', bankDetails: staffDetails.bankDetails });
+                                else {
+                                    const { accountNumber, confirmAccountNumber, accountHolderName, bankName, ifscCode } = bankDetails;
+                                    if (!accountHolderName.trim() || !bankName.trim() || !accountNumber.trim() || !confirmAccountNumber.trim() || !ifscCode.trim()) { Alert.alert("Input Error", "Please fill in all bank details fields"); return; }
+                                    if (accountNumber !== confirmAccountNumber) { Alert.alert("Input Error", "Account numbers do not match"); return; }
+                                    withdrawMutation.mutate({ amount: balance, payoutMethod: 'BANK', bankDetails });
                                 }
-                                setIsWithdrawModalVisible(false);
-                            }}
-                        >
+                            }
+                        }}>
                             <Text style={styles.submitBtnText}>{withdrawMutation.isPending ? "Submitting..." : "Confirm & Request"}</Text>
                         </TouchableOpacity>
                     </View>
                 </View>
             </Modal>
+
+            {/* ADD MONEY (TOP-UP) MODAL */}
+            <Modal visible={isTopUpModalVisible} animationType="slide" transparent={true} onRequestClose={() => setIsTopUpModalVisible(false)}>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <Text style={styles.modalTitle}>Add Money</Text>
+                            <TouchableOpacity onPress={() => setIsTopUpModalVisible(false)}>
+                                <Ionicons name="close" size={24} color="#64748B" />
+                            </TouchableOpacity>
+                        </View>
+                        <View style={{ marginTop: 10 }}>
+                            <Text style={styles.inputLabelBold}>ENTER DEPOSIT AMOUNT</Text>
+                            <View style={styles.amountInputContainer}>
+                                <Text style={styles.currencySymbol}>₹</Text>
+                                <TextInput style={styles.amountInput} keyboardType="numeric" value={topUpAmount} onChangeText={setTopUpAmount} placeholder="0" placeholderTextColor="#94A3B8" />
+                            </View>
+                            <View style={styles.quickAmts}>
+                                {[500, 1000, 2000, 5000].map(val => (
+                                    <TouchableOpacity key={val} style={styles.quickAmtBtn} onPress={() => setTopUpAmount(val.toString())}>
+                                        <Text style={styles.quickAmtText}>+₹{val}</Text>
+                                    </TouchableOpacity>
+                                ))}
+                            </View>
+                            <TouchableOpacity style={[styles.submitBtn, { marginTop: 30 }]} disabled={topUpMutation.isPending} onPress={() => {
+                                const amountNum = parseFloat(topUpAmount);
+                                if (isNaN(amountNum) || amountNum <= 0) { Alert.alert('Invalid', 'Please enter a valid amount'); return; }
+                                topUpMutation.mutate(amountNum);
+                            }}>
+                                <Text style={styles.submitBtnText}>{topUpMutation.isPending ? 'Processing...' : 'Proceed to Secure Payment'}</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
         </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: "#F8FAFC" },
-    loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, backgroundColor: '#FFF' },
-    headerTitle: { fontSize: 20, fontWeight: '800', color: '#1E293B' },
-    scrollContent: { padding: 16, paddingBottom: 100 },
-    balanceCard: {
-        backgroundColor: '#1E293B',
-        borderRadius: 24,
-        padding: 24,
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 20,
-        elevation: 10,
-        shadowColor: "#000",
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 12,
-    },
-    balanceLabel: { color: '#94A3B8', fontSize: 13, fontWeight: '600', marginBottom: 4 },
-    balanceAmount: { color: '#FFF', fontSize: 28, fontWeight: '900' },
-    withdrawBtn: { backgroundColor: '#2D935C', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 12 },
-    withdrawBtnText: { color: '#FFF', fontSize: 13, fontWeight: '800' },
-    statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 24 },
-    statCard: {
-        width: '48%',
-        backgroundColor: '#FFF',
-        borderRadius: 20,
-        padding: 16,
-        borderWidth: 1,
-        borderColor: '#F1F5F9',
-        elevation: 2,
-    },
-    iconContainer: { width: 44, height: 44, borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginBottom: 12 },
-    statTitle: { fontSize: 12, color: '#64748B', fontWeight: '700', marginBottom: 4 },
-    statAmount: { fontSize: 18, fontWeight: '900' },
-    historyHeader: { marginVertical: 16 },
-    historyTitle: { fontSize: 18, fontWeight: '800', color: '#1E293B' },
-    payoutItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#FFF',
-        padding: 16,
-        borderRadius: 16,
-        marginBottom: 10,
-        gap: 12,
-        borderWidth: 1,
-        borderColor: '#F1F5F9',
-    },
-    payoutIcon: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center' },
-    payoutAmount: { fontSize: 16, fontWeight: '800', color: '#1E293B' },
-    payoutDate: { fontSize: 12, color: '#94A3B8', marginTop: 2 },
-    statusBadge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8 },
-    statusText: { fontSize: 10, fontWeight: '800' },
-    emptyState: { alignItems: 'center', marginTop: 40 },
-    emptyText: { color: '#94A3B8', marginTop: 12, fontWeight: '600' },
-    tabSwitcher: { flexDirection: 'row', backgroundColor: '#F1F5F9', padding: 4, borderRadius: 14, marginBottom: 16 },
-    tabButton: { flex: 1, paddingVertical: 10, alignItems: 'center', borderRadius: 10 },
-    tabButtonActive: { backgroundColor: '#FFF', elevation: 2, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 3 },
-    tabButtonText: { fontSize: 13, fontWeight: '700', color: '#64748B' },
-    tabButtonTextActive: { color: '#1E293B' },
-    serviceTitleText: { fontSize: 14, fontWeight: '800', color: '#1E293B' },
-    serviceDetailsText: { fontSize: 12, color: '#64748B', marginTop: 2 },
-    earningText: { fontSize: 15, fontWeight: '900', color: '#16A34A' },
-    totalBookingVal: { fontSize: 11, color: '#94A3B8', marginTop: 2, fontWeight: '700' },
-    modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-    modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 32, borderTopRightRadius: 32, padding: 24, minHeight: 450 },
-    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-    modalTitle: { fontSize: 20, fontWeight: '900', color: '#1E293B' },
-    modalSub: { fontSize: 14, color: '#64748B', marginBottom: 20 },
-    methodSelector: { flexDirection: 'row', gap: 12, marginBottom: 15 },
-    methodBtn: { flex: 1, height: 48, borderRadius: 12, backgroundColor: '#F1F5F9', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderWidth: 1, borderColor: '#E2E8F0' },
-    methodBtnActive: { backgroundColor: '#2D935C', borderColor: '#2D935C' },
-    methodBtnText: { fontSize: 13, fontWeight: '700', color: '#64748B' },
-    methodBtnTextActive: { color: '#FFF' },
-    formGroup: { gap: 10 },
-    inputLabel: { fontSize: 13, fontWeight: '700', color: '#475569', marginTop: 8 },
-    textInput: { height: 48, borderRadius: 12, borderWidth: 1.5, borderColor: '#E2E8F0', paddingHorizontal: 16, fontSize: 14, color: '#1E293B', backgroundColor: '#F8FAFC' },
-    inputTip: { fontSize: 11, color: '#64748B', fontStyle: 'italic' },
-    submitBtn: { height: 50, borderRadius: 16, backgroundColor: '#2D935C', alignItems: 'center', justifyContent: 'center', marginTop: 20, shadowColor: '#2D935C', shadowOpacity: 0.2, shadowRadius: 10, elevation: 4 },
-    submitBtnText: { color: '#FFF', fontSize: 15, fontWeight: '800' },
-    bankCard: { borderRadius: 20, padding: 20, marginBottom: 10, minHeight: 160, overflow: "hidden", elevation: 4, backgroundColor: "#2D935C" },
-    bankCardDeco1: { position: "absolute", width: 180, height: 180, borderRadius: 90, backgroundColor: "rgba(255,255,255,0.04)", top: -60, right: -60 },
-    bankCardDeco2: { position: "absolute", width: 130, height: 130, borderRadius: 65, backgroundColor: "rgba(255,255,255,0.04)", bottom: -40, left: -20 },
-    bankCardRow: { flexDirection: "row", justifyContent: "space-between", marginBottom: 15, alignItems: "center" },
-    bankChip: { width: 34, height: 24, backgroundColor: "rgba(255,255,255,0.2)", borderRadius: 4 },
-    bankCardNumber: { fontSize: 17, fontWeight: "800", color: "#FFF", letterSpacing: 2, marginBottom: 15 },
-    bankCardFooter: { flexDirection: "row", justifyContent: "space-between" },
-    bankCardFieldLabel: { fontSize: 8, color: "rgba(255,255,255,0.6)", fontWeight: "700", marginBottom: 2 },
-    bankCardFieldValue: { fontSize: 13, color: "#FFF", fontWeight: "700" },
+    container: { flex: 1, backgroundColor: '#F8FAFC' },
+    header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingTop: 16, paddingBottom: 16 },
+    refreshBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' },
+    headerTitle: { fontSize: 24, fontWeight: '900', color: '#0F172A', letterSpacing: -0.5 },
+    scrollContent: { paddingHorizontal: 24, paddingTop: 10, paddingBottom: 110 },
+    balanceCard: { backgroundColor: '#059669', borderRadius: 32, padding: 28, marginBottom: 24, elevation: 12, shadowColor: '#059669', shadowOffset: { width: 0, height: 10 }, shadowOpacity: 0.25, shadowRadius: 20, overflow: 'hidden' },
+    watermark: { position: 'absolute', bottom: -20, right: -15, fontSize: 60, fontWeight: '900', color: 'rgba(255,255,255,0.06)', letterSpacing: 2 },
+    balanceLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 11, fontWeight: '900', marginBottom: 12, letterSpacing: 1.2 },
+    balanceAmount: { color: '#FFF', fontSize: 44, fontWeight: '900', letterSpacing: -1.5, marginBottom: 4 },
+    partnerName: { color: 'rgba(255,255,255,0.9)', fontSize: 14, fontWeight: '800', letterSpacing: 0.5, marginBottom: 28 },
+    actionRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 20, paddingVertical: 14, paddingHorizontal: 24 },
+    actionBtn: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+    actionBtnText: { color: '#FFF', fontSize: 14, fontWeight: '900' },
+    actionDivider: { width: 1, height: 24, backgroundColor: 'rgba(255,255,255,0.3)' },
+    statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 14, marginBottom: 32 },
+    statCard: { width: '47.5%', backgroundColor: '#FFF', borderRadius: 28, padding: 20, elevation: 8, shadowColor: '#0F172A', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.06, shadowRadius: 20 },
+    statCardTopRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 },
+    iconContainer: { width: 44, height: 44, borderRadius: 18, justifyContent: 'center', alignItems: 'center' },
+    statTitle: { color: '#64748B', fontSize: 11, fontWeight: '900', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: 6 },
+    statAmount: { fontSize: 24, fontWeight: '900', color: '#0F172A', letterSpacing: -1 },
+    tabSwitcher: { flexDirection: 'row', backgroundColor: '#F1F5F9', padding: 6, borderRadius: 20, marginBottom: 24 },
+    tabButton: { flex: 1, paddingVertical: 14, alignItems: 'center', borderRadius: 16 },
+    tabButtonActive: { backgroundColor: '#FFF', elevation: 2, shadowColor: '#0F172A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 4 },
+    tabButtonText: { fontSize: 13, fontWeight: '900', color: '#64748B' },
+    tabButtonTextActive: { color: '#0F172A' },
+    transactionItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 18, borderRadius: 24, marginBottom: 14, gap: 14, borderWidth: 1.5, borderColor: '#E2E8F0', shadowColor: '#0F172A', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.03, shadowRadius: 8, elevation: 1 },
+    transactionIconBox: { width: 48, height: 48, borderRadius: 16, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
+    transactionInfo: { flex: 1, justifyContent: 'center' },
+    transactionTitle: { fontSize: 15, fontWeight: '900', color: '#0F172A', letterSpacing: -0.3 },
+    transactionDetails: { fontSize: 12, color: '#64748B', marginTop: 4, fontWeight: '700' },
+    transactionDate: { fontSize: 11, color: '#94A3B8', marginTop: 6, fontWeight: '800' },
+    transactionAmountSection: { alignItems: 'flex-end', justifyContent: 'center' },
+    transactionAmountPositive: { fontSize: 17, fontWeight: '900', color: '#10B981', letterSpacing: -0.3 },
+    transactionAmountNegative: { fontSize: 17, fontWeight: '900', color: '#EF4444', letterSpacing: -0.3 },
+    transactionStatus: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 10, marginTop: 8 },
+    transactionStatusText: { fontSize: 10, fontWeight: '900', letterSpacing: 0.5, textTransform: 'uppercase' },
+    transactionMetaVal: { fontSize: 11, color: '#94A3B8', marginTop: 6, fontWeight: '800' },
+    emptyState: { alignItems: 'center', marginTop: 60, opacity: 0.7 },
+    emptyText: { color: '#94A3B8', marginTop: 16, fontWeight: '900', fontSize: 15 },
+    serviceTitleText: { fontSize: 15, fontWeight: '900', color: '#0F172A', letterSpacing: -0.3 },
+    serviceDetailsText: { fontSize: 12, color: '#64748B', marginTop: 4, fontWeight: '700' },
+    earningText: { fontSize: 16, fontWeight: '900', color: '#059669', letterSpacing: -0.5 },
+    totalBookingVal: { fontSize: 11, color: '#94A3B8', marginTop: 4, fontWeight: '800' },
+    modalOverlay: { flex: 1, backgroundColor: 'rgba(15, 23, 42, 0.6)', justifyContent: 'flex-end' },
+    modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 40, borderTopRightRadius: 40, padding: 32, paddingBottom: 48, minHeight: 450, shadowColor: '#000', shadowOffset: { width: 0, height: -10 }, shadowOpacity: 0.1, shadowRadius: 20, elevation: 20 },
+    modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 },
+    modalTitle: { fontSize: 28, fontWeight: '900', color: '#0F172A', letterSpacing: -1, marginBottom: 4 },
+    modalSub: { fontSize: 15, color: '#64748B', fontWeight: '600' },
+    closeBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' },
+    premiumSegmentContainer: { flexDirection: 'row', backgroundColor: '#F1F5F9', padding: 6, borderRadius: 20, marginBottom: 24 },
+    premiumSegmentBtn: { flex: 1, height: 48, borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
+    premiumSegmentBtnActive: { backgroundColor: '#FFF', shadowColor: '#0F172A', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12, elevation: 4 },
+    premiumSegmentText: { fontSize: 15, fontWeight: '800', color: '#64748B' },
+    premiumSegmentTextActive: { color: '#0F172A', fontWeight: '900' },
+    formGroup: { gap: 16 },
+    inputLabelBold: { fontSize: 12, fontWeight: '900', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.8, marginBottom: -4 },
+    inputBox: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F8FAFC', borderRadius: 16, borderWidth: 1.5, borderColor: '#E2E8F0', paddingRight: 12 },
+    inputText: { flex: 1, height: 56, paddingHorizontal: 20, fontSize: 15, color: '#0F172A', fontWeight: '800', outlineStyle: 'none' } as any,
+    amountInputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F0FDF4', borderRadius: 20, borderWidth: 2, borderColor: '#86EFAC', paddingHorizontal: 24, height: 80, marginVertical: 12 },
+    currencySymbol: { fontSize: 40, fontWeight: '900', color: '#166534', marginRight: 12 },
+    amountInput: { flex: 1, fontSize: 48, fontWeight: '900', color: '#166534', outlineStyle: 'none' } as any,
+    submitBtn: { backgroundColor: '#059669', height: 64, borderRadius: 20, justifyContent: 'center', alignItems: 'center', shadowColor: '#059669', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.3, shadowRadius: 12, elevation: 8, marginTop: 10 },
+    submitBtnText: { color: '#FFF', fontSize: 18, fontWeight: '900', letterSpacing: 0.5 },
+    savedBankCard: { backgroundColor: '#1E293B', borderRadius: 24, padding: 24, marginTop: 8, overflow: 'hidden', elevation: 8 },
+    savedBankCardDeco1: { position: 'absolute', width: 200, height: 200, borderRadius: 100, backgroundColor: 'rgba(255,255,255,0.03)', top: -100, right: -50 },
+    savedBankCardRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+    bankChip: { width: 44, height: 32, backgroundColor: '#94A3B8', borderRadius: 8, opacity: 0.8 },
+    savedBankCardNumber: { color: '#FFF', fontSize: 24, fontWeight: '900', letterSpacing: 2, marginBottom: 24 },
+    savedBankCardFooter: { flexDirection: 'row', justifyContent: 'space-between' },
+    savedBankCardFieldLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 10, fontWeight: '900', letterSpacing: 1, marginBottom: 4 },
+    savedBankCardFieldValue: { color: '#FFF', fontSize: 14, fontWeight: '800' },
+    quickAmts: { flexDirection: 'row', justifyContent: 'space-between', gap: 12, marginTop: 12 },
+    quickAmtBtn: { flex: 1, height: 48, backgroundColor: '#F8FAFC', borderRadius: 14, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: '#E2E8F0' },
+    quickAmtText: { color: '#475569', fontWeight: '900', fontSize: 14 }
 });

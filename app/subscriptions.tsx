@@ -103,8 +103,7 @@ export default function SubscriptionsScreen() {
         },
         onSuccess: async (data, variables) => {
             if (variables.mode === "WALLET") {
-                if (Platform.OS === 'web') window.alert("Subscription activated successfully via Wallet.");
-                else Alert.alert("Success", "Subscription activated successfully via Wallet.");
+                Toast.show({ type: "success", text1: "Success", text2: "Subscription activated successfully via Wallet." });
                 queryClient.invalidateQueries({ queryKey: ["myActiveSubscription"] });
                 queryClient.invalidateQueries({ queryKey: ["subscriptionHistory"] });
                 queryClient.invalidateQueries({ queryKey: ["partner-wallet"] });
@@ -149,8 +148,7 @@ export default function SubscriptionsScreen() {
                         });
                     } catch (e: any) {
                         if (e.code === 2 || e.code === "2") {
-                            if (Platform.OS === 'web') window.alert("Payment Cancelled");
-                            else Alert.alert("Payment Cancelled", "You cancelled the payment.");
+                            Toast.show({ type: "info", text1: "Payment Cancelled", text2: "You cancelled the payment." });
                         } else {
                             router.replace({
                                 pathname: "/checkout_status" as any,
@@ -162,14 +160,12 @@ export default function SubscriptionsScreen() {
                         }
                     }
                 } else {
-                    if (Platform.OS === 'web') window.alert("Payment integration is pending or failed to generate order.");
-                    else Alert.alert("Payment Pending", "Online payment integration will be handled next.");
+                    Toast.show({ type: "error", text1: "Payment Failed", text2: "Online payment integration will be handled next." });
                 }
             }
         },
         onError: (error: any) => {
-            if (Platform.OS === 'web') window.alert(error.response?.data?.message || "Failed to request subscription");
-            else Alert.alert("Error", error.response?.data?.message || "Failed to request subscription");
+            Toast.show({ type: "error", text1: "Error", text2: error.response?.data?.message || "Failed to request subscription" });
         }
     });
 
@@ -248,7 +244,7 @@ export default function SubscriptionsScreen() {
                                     <View style={styles.featuresListInline}>
                                         {getPlanFeatures(plan).map((feature: string, idx: number) => (
                                             <View key={idx} style={styles.featureItemInline}>
-                                                <Ionicons name="checkmark-circle" size={16} color={plan.tier === "Premium" ? "#FFF" : "#2D935C"} style={{ marginRight: 6 }} />
+                                                <Ionicons name="checkmark-circle" size={18} color={plan.tier === "Premium" ? "#FFF" : "#059669"} style={{ marginRight: 10, marginTop: 2 }} />
                                                 <Text style={[styles.featureTextInline, plan.tier === "Premium" && { color: "#FFF" }]}>{feature}</Text>
                                             </View>
                                         ))}
@@ -298,7 +294,7 @@ export default function SubscriptionsScreen() {
                                             <Ionicons
                                                 name="eye-outline"
                                                 size={24}
-                                                color={plan.tier === "Premium" ? "#FFF" : "#2D935C"}
+                                                color={plan.tier === "Premium" ? "#FFF" : "#059669"}
                                             />
                                         </TouchableOpacity>
                                     </View>
@@ -524,23 +520,25 @@ export default function SubscriptionsScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#F3F4F9",
+        backgroundColor: "#F4F7FC",
     },
     featuresListInline: {
-        marginTop: 10,
-        marginBottom: 16,
-        paddingHorizontal: 4,
-        gap: 8,
+        marginTop: 14,
+        marginBottom: 20,
+        paddingHorizontal: 0,
+        gap: 12,
     },
     featureItemInline: {
         flexDirection: "row",
-        alignItems: "center",
+        alignItems: "flex-start",
     },
     featureTextInline: {
-        fontSize: 13,
+        fontSize: 14,
         fontWeight: "600",
         color: "#475569",
         flex: 1,
+        lineHeight: 20,
+        marginTop: -2,
     },
     currentPlanContainer: {
         marginBottom: 20,
@@ -608,107 +606,132 @@ const styles = StyleSheet.create({
     header: {
         flexDirection: "row",
         alignItems: "center",
-        paddingHorizontal: 16,
-        paddingVertical: 12,
+        paddingHorizontal: 24,
+        paddingTop: 16,
+        paddingBottom: 8,
         backgroundColor: "#FFFFFF",
-        borderBottomWidth: 1,
-        borderBottomColor: "#E2E8F0",
     },
     backButton: {
         marginRight: 16,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: "#F8FAFC",
+        justifyContent: "center",
+        alignItems: "center",
+        borderWidth: 1.5,
+        borderColor: "#E2E8F0",
     },
     headerTitle: {
-        fontSize: 18,
-        fontWeight: "700",
-        color: "#1E293B",
+        fontSize: 24,
+        fontWeight: "900",
+        color: "#0F172A",
+        letterSpacing: -0.5,
     },
     tabWrapper: {
-        backgroundColor: "#FFF",
-        paddingVertical: 15,
-        paddingHorizontal: 20,
+        backgroundColor: "#FFFFFF",
+        paddingVertical: 16,
+        paddingHorizontal: 24,
+        borderBottomWidth: 1.5,
+        borderBottomColor: "#F1F5F9",
     },
     tabContainer: {
         flexDirection: "row",
         backgroundColor: "#F1F5F9",
-        borderRadius: 12,
-        padding: 4,
+        borderRadius: 20,
+        padding: 6,
     },
     tab: {
         flex: 1,
         paddingVertical: 12,
         alignItems: "center",
-        borderRadius: 8,
+        borderRadius: 16,
     },
     activeTab: {
-        backgroundColor: "#2D935C",
+        backgroundColor: "#FFFFFF",
+        shadowColor: "#0F172A",
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.08,
+        shadowRadius: 6,
+        elevation: 3,
     },
     tabText: {
         fontSize: 14,
-        fontWeight: "600",
+        fontWeight: "800",
         color: "#64748B",
     },
     activeTabText: {
-        color: "#FFFFFF",
+        color: "#0F172A",
     },
     scrollContent: {
-        padding: 20,
+        padding: 24,
         flexGrow: 1,
+        paddingBottom: 110,
     },
     plansList: {
-        gap: 12,
+        gap: 20,
     },
     planCard: {
-        backgroundColor: "#FFF",
-        borderRadius: 16,
-        padding: 15,
-        elevation: 4,
-        shadowColor: "#000",
+        backgroundColor: "#FFFFFF",
+        borderRadius: 32,
+        padding: 28,
+        elevation: 6,
+        shadowColor: "#0F172A",
         shadowOpacity: 0.05,
-        shadowRadius: 10,
-        borderWidth: 1,
-        borderColor: "#F1F5F9",
+        shadowOffset: { width: 0, height: 12 },
+        shadowRadius: 24,
+        borderWidth: 1.5,
+        borderColor: "#E2E8F0",
         overflow: 'hidden',
     },
     premiumCard: {
-        backgroundColor: "#1E293B",
-        borderColor: "#334155",
+        backgroundColor: "#0B3370",
+        borderColor: "#1E3A8A",
+        shadowColor: "#0B3370",
+        shadowOpacity: 0.25,
     },
     premiumBadge: {
         position: 'absolute',
         top: 0,
         right: 0,
         backgroundColor: "#F59E0B",
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderBottomLeftRadius: 16,
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderBottomLeftRadius: 24,
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 4,
+        gap: 6,
+        shadowColor: "#F59E0B",
+        shadowOpacity: 0.4,
+        shadowRadius: 8,
+        elevation: 4,
     },
     premiumBadgeText: {
-        color: "#FFF",
-        fontSize: 10,
+        color: "#FFFFFF",
+        fontSize: 11,
         fontWeight: "900",
+        letterSpacing: 0.5,
     },
     planHeader: {
-        marginBottom: 10,
+        marginBottom: 16,
     },
     planCategory: {
-        fontSize: 12,
-        fontWeight: "800",
-        color: "#2D935C",
-        letterSpacing: 0.5,
+        fontSize: 13,
+        fontWeight: "900",
+        color: "#059669",
+        letterSpacing: 1,
         marginBottom: 8,
     },
     planTitle: {
-        fontSize: 18,
+        fontSize: 28,
         fontWeight: "900",
-        color: "#1E293B",
-        marginBottom: 2,
+        color: "#0F172A",
+        marginBottom: 4,
+        letterSpacing: -0.5,
     },
     planCommission: {
-        fontSize: 14,
-        fontWeight: "700",
+        fontSize: 15,
+        fontWeight: "800",
     },
     planFeatures: {
         gap: 12,
@@ -731,61 +754,77 @@ const styles = StyleSheet.create({
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: 12,
+        marginBottom: 20,
+        marginTop: 10,
     },
     planPriceLabel: {
-        fontSize: 12,
+        fontSize: 13,
+        fontWeight: "700",
         color: "#64748B",
         marginBottom: 4,
+        textTransform: "uppercase",
+        letterSpacing: 0.5,
     },
     planPrice: {
-        fontSize: 24,
+        fontSize: 32,
         fontWeight: "900",
-        color: "#1E293B",
+        color: "#0F172A",
+        letterSpacing: -1,
     },
     validityBox: {
         backgroundColor: "#F8FAFC",
-        paddingHorizontal: 15,
-        paddingVertical: 8,
-        borderRadius: 10,
+        paddingHorizontal: 16,
+        paddingVertical: 10,
+        borderRadius: 16,
+        borderWidth: 1.5,
+        borderColor: "#E2E8F0",
     },
     validityText: {
         fontSize: 14,
-        fontWeight: "700",
-        color: "#64748B",
+        fontWeight: "800",
+        color: "#475569",
     },
     activePlanButton: {
         backgroundColor: "#94A3B8",
         opacity: 0.7,
+        shadowOpacity: 0,
     },
     premiumBuyButton: {
-        backgroundColor: "#FFF",
+        backgroundColor: "#FFFFFF",
+        shadowColor: "#FFFFFF",
+        shadowOpacity: 0.3,
     },
     buyButtonText: {
         color: "#FFFFFF",
-        fontSize: 16,
+        fontSize: 17,
         fontWeight: "900",
+        letterSpacing: 0.5,
     },
     buttonRow: {
         flexDirection: 'row',
-        gap: 12,
+        gap: 16,
         alignItems: 'center',
     },
     buyButton: {
         flex: 1,
-        backgroundColor: "#2D935C",
-        borderRadius: 10,
-        paddingVertical: 12,
+        backgroundColor: "#059669",
+        borderRadius: 20,
+        paddingVertical: 18,
         alignItems: "center",
+        shadowColor: "#059669",
+        shadowOffset: { width: 0, height: 6 },
+        shadowOpacity: 0.3,
+        shadowRadius: 12,
+        elevation: 6,
     },
     infoButton: {
-        width: 44,
-        height: 44,
-        borderRadius: 10,
+        width: 60,
+        height: 60,
+        borderRadius: 20,
         backgroundColor: "#F0FDF4",
         justifyContent: "center",
         alignItems: "center",
-        borderWidth: 1,
+        borderWidth: 1.5,
         borderColor: "#DCFCE7",
     },
     premiumInfoButton: {

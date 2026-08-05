@@ -220,9 +220,9 @@ const WalletScreen = () => {
                 {/* Main Balance Card */}
                 <Animated.View entering={FadeInUp.duration(600)} style={styles.balanceCard}>
                     <LinearGradient 
-                        colors={["#417D77", "#9EBB58"]} 
-                        start={{ x: 0, y: 0.5 }}
-                        end={{ x: 1, y: 0.5 }}
+                        colors={["#064E3B", "#059669"]} 
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
                         style={styles.cardGradient}
                     >
                         <View style={styles.cardHeader}>
@@ -338,14 +338,19 @@ const WalletScreen = () => {
                         </View>
                         <View style={styles.modalBody}>
                             <Text style={styles.modalLabel}>Enter Amount (Min ₹500)</Text>
-                            <TextInput 
-                                style={styles.modalInput} 
-                                placeholder="0.00" 
-                                keyboardType="numeric" 
-                                value={amount}
-                                onChangeText={setAmount}
-                                autoFocus
-                            />
+                            <View style={styles.inputContainer}>
+                                <Text style={styles.currencySymbol}>₹</Text>
+                                <TextInput 
+                                    style={styles.inputField} 
+                                    placeholder="0" 
+                                    keyboardType="numeric" 
+                                    value={amount}
+                                    onChangeText={setAmount}
+                                    autoFocus
+                                    // @ts-ignore
+                                    style={[styles.inputField, { outlineStyle: 'none' }]}
+                                />
+                            </View>
                             <Text style={styles.modalInfo}>Max Withdrawable: ₹{summary?.balance || 0}</Text>
                             
                             <TouchableOpacity style={styles.modalBtn} onPress={handleWithdraw} disabled={withdrawMutation.isPending}>
@@ -367,15 +372,20 @@ const WalletScreen = () => {
                             </TouchableOpacity>
                         </View>
                         <View style={styles.modalBody}>
-                            <Text style={styles.modalLabel}>Amount to Add</Text>
-                            <TextInput 
-                                style={styles.modalInput} 
-                                placeholder="0.00" 
-                                keyboardType="numeric" 
-                                value={amount}
-                                onChangeText={setAmount}
-                                autoFocus
-                            />
+                            <Text style={styles.modalLabel}>Deposit Amount</Text>
+                            <View style={styles.inputContainer}>
+                                <Text style={styles.currencySymbol}>₹</Text>
+                                <TextInput 
+                                    style={styles.inputField} 
+                                    placeholder="0" 
+                                    keyboardType="numeric" 
+                                    value={amount}
+                                    onChangeText={setAmount}
+                                    autoFocus
+                                    // @ts-ignore
+                                    style={[styles.inputField, { outlineStyle: 'none' }]}
+                                />
+                            </View>
                             <View style={styles.quickAmts}>
                                 {[500, 1000, 2000, 5000].map(val => (
                                     <TouchableOpacity key={val} style={styles.quickAmtBtn} onPress={() => setAmount(val.toString())}>
@@ -384,8 +394,8 @@ const WalletScreen = () => {
                                 ))}
                             </View>
 
-                            <TouchableOpacity style={[styles.modalBtn, { backgroundColor: '#2D935C' }]} onPress={handleTopUp} disabled={topUpMutation.isPending}>
-                                {topUpMutation.isPending ? <ActivityIndicator color="#FFF" /> : <Text style={styles.modalBtnText}>Initiate Secure Payment</Text>}
+                            <TouchableOpacity style={styles.modalBtn} onPress={handleTopUp} disabled={topUpMutation.isPending}>
+                                {topUpMutation.isPending ? <ActivityIndicator color="#FFF" /> : <Text style={styles.modalBtnText}>Proceed to Secure Payment</Text>}
                             </TouchableOpacity>
                         </View>
                     </View>
@@ -396,53 +406,73 @@ const WalletScreen = () => {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: "#EBF1F5" },
-    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, paddingVertical: 15 },
-    backBtn: { width: 44, height: 44, borderRadius: 12, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
-    headerTitle: { fontSize: 18, fontWeight: '800', color: '#1E293B' },
-    scrollContent: { padding: 20 },
-    balanceCard: { borderRadius: 28, overflow: 'hidden', elevation: 10, shadowColor: '#417D77', shadowOpacity: 0.3, shadowRadius: 20 },
-    cardGradient: { padding: 24, minHeight: 190 },
-    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20, zIndex: 1 },
-    cardName: { fontSize: 14, color: 'rgba(255,255,255,0.9)', fontWeight: '700', marginTop: 6 },
-    label: { color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 1 },
-    amount: { color: '#FFF', fontSize: 44, fontWeight: '900', marginTop: 4, letterSpacing: -1 },
-    cardFooter: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 'auto', backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 16, zIndex: 1 },
-    cardBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 12 },
-    cardBtnText: { color: '#FFF', fontSize: 15, fontWeight: '800' },
-    cardDivider: { width: 1, height: 24, backgroundColor: 'rgba(255,255,255,0.2)' },
-    disaWatermark: { position: 'absolute', bottom: -10, right: 10, zIndex: 0 },
-    disaText: { color: 'rgba(255,255,255,0.15)', fontSize: 48, fontWeight: '900', letterSpacing: -2 },
-    statsGrid: { flexDirection: 'row', marginTop: 24 },
-    statBox: { flex: 1, backgroundColor: '#FFF', padding: 20, borderRadius: 24, borderWidth: 1, borderColor: '#F1F5F9', marginHorizontal: 4, elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
-    statLabel: { fontSize: 11, color: '#64748B', fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
-    statVal: { fontSize: 20, fontWeight: '900', color: '#1E293B', marginTop: 6 },
-    tabContainer: { flexDirection: 'row', backgroundColor: '#FFF', borderRadius: 16, padding: 6, marginVertical: 32, borderWidth: 1, borderColor: '#F1F5F9' },
-    tab: { flex: 1, paddingVertical: 12, alignItems: 'center', borderRadius: 12 },
-    activeTab: { backgroundColor: '#F0FDF4', elevation: 0 },
+    container: { flex: 1, backgroundColor: "#F8FAFC" },
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, paddingVertical: 16 },
+    backBtn: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: '#E2E8F0' },
+    headerTitle: { fontSize: 20, fontWeight: '900', color: '#0F172A', letterSpacing: -0.5 },
+    scrollContent: { padding: 24, paddingBottom: 40 },
+    balanceCard: { borderRadius: 32, overflow: 'hidden', elevation: 8, shadowColor: '#064E3B', shadowOpacity: 0.25, shadowRadius: 16, shadowOffset: { width: 0, height: 8 } },
+    cardGradient: { padding: 28, minHeight: 220 },
+    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24, zIndex: 1 },
+    cardName: { fontSize: 15, color: 'rgba(255,255,255,0.9)', fontWeight: '800', marginTop: 8 },
+    label: { color: 'rgba(255,255,255,0.8)', fontSize: 13, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 1.5, marginBottom: 6 },
+    amount: { color: '#FFF', fontSize: 48, fontWeight: '900', letterSpacing: -1.5 },
+    cardFooter: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 'auto', zIndex: 1 },
+    cardBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14, backgroundColor: 'rgba(255,255,255,0.15)', borderRadius: 20 },
+    cardBtnText: { color: '#FFF', fontSize: 15, fontWeight: '900' },
+    cardDivider: { width: 1, height: 28, backgroundColor: 'rgba(255,255,255,0.2)' },
+    disaWatermark: { position: 'absolute', bottom: -15, right: -10, zIndex: 0 },
+    disaText: { color: 'rgba(255,255,255,0.06)', fontSize: 72, fontWeight: '900', letterSpacing: -4, fontStyle: 'italic' },
+    statsGrid: { flexDirection: 'row', marginTop: 24, gap: 12 },
+    statBox: { flex: 1, backgroundColor: '#FFF', padding: 20, borderRadius: 24, borderWidth: 1.5, borderColor: '#E2E8F0', elevation: 2, shadowColor: '#0F172A', shadowOpacity: 0.04, shadowRadius: 12 },
+    statLabel: { fontSize: 12, color: '#64748B', fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.5 },
+    statVal: { fontSize: 22, fontWeight: '900', color: '#0F172A', marginTop: 8, letterSpacing: -0.5 },
+    tabContainer: { flexDirection: 'row', backgroundColor: '#F1F5F9', borderRadius: 20, padding: 6, marginVertical: 32 },
+    tab: { flex: 1, paddingVertical: 14, alignItems: 'center', borderRadius: 16 },
+    activeTab: { backgroundColor: '#FFF', elevation: 2, shadowColor: '#0F172A', shadowOpacity: 0.06, shadowRadius: 8, shadowOffset: { width: 0, height: 2 } },
     tabText: { fontSize: 14, fontWeight: '800', color: '#64748B' },
-    activeTabText: { color: '#15803D' },
-    historyList: { marginTop: 4 },
-    historyItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 16, borderRadius: 20, borderWidth: 1, borderColor: '#F1F5F9', marginBottom: 12 },
-    itemIcon: { width: 48, height: 48, borderRadius: 16, justifyContent: 'center', alignItems: 'center', marginRight: 15 },
-    itemTitle: { fontSize: 16, fontWeight: '800', color: '#1E293B' },
-    itemSub: { fontSize: 12, color: '#94A3B8', marginTop: 2, fontWeight: '600' },
-    itemAmt: { fontSize: 16, fontWeight: '900' },
-    emptyState: { alignItems: 'center', marginVertical: 40, opacity: 0.5 },
-    emptyText: { marginTop: 15, fontSize: 15, fontWeight: '700', color: '#94A3B8' },
+    activeTabText: { color: '#0F172A' },
+    historyList: { marginTop: 0 },
+    historyItem: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#FFF', padding: 18, borderRadius: 24, borderWidth: 1.5, borderColor: '#E2E8F0', marginBottom: 14, elevation: 1, shadowColor: '#0F172A', shadowOpacity: 0.03, shadowRadius: 8 },
+    itemIcon: { width: 52, height: 52, borderRadius: 18, justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+    itemTitle: { fontSize: 16, fontWeight: '800', color: '#0F172A', marginBottom: 4 },
+    itemSub: { fontSize: 13, color: '#64748B', fontWeight: '600' },
+    itemAmt: { fontSize: 18, fontWeight: '900', letterSpacing: -0.5 },
+    emptyState: { alignItems: 'center', marginVertical: 60, opacity: 0.6 },
+    emptyText: { marginTop: 16, fontSize: 16, fontWeight: '800', color: '#94A3B8' },
     modalOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.6)', justifyContent: 'flex-end' },
     modalContent: { backgroundColor: '#FFF', borderTopLeftRadius: 40, borderTopRightRadius: 40, padding: 32, minHeight: 400 },
     modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 32 },
-    modalTitle: { fontSize: 22, fontWeight: '900', color: '#1E293B' },
+    modalTitle: { fontSize: 24, fontWeight: '900', color: '#0F172A', letterSpacing: -0.5 },
     modalBody: { gap: 24 },
-    modalLabel: { fontSize: 14, fontWeight: '800', color: '#64748B' },
-    modalInput: { height: 80, fontSize: 48, fontWeight: '900', color: '#1E293B', textAlign: 'center' },
-    modalInfo: { textAlign: 'center', color: '#94A3B8', fontWeight: '700', fontSize: 13 },
-    modalBtn: { height: 64, backgroundColor: '#1E293B', borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginTop: 10, elevation: 8 },
-    modalBtnText: { color: '#FFF', fontSize: 18, fontWeight: '800' },
-    quickAmts: { flexDirection: 'row', justifyContent: 'space-between', gap: 10 },
-    quickAmtBtn: { flex: 1, height: 44, backgroundColor: '#F8FAFC', borderRadius: 12, justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
-    quickAmtText: { color: '#64748B', fontWeight: '800', fontSize: 13 }
+    modalLabel: { fontSize: 13, fontWeight: '800', color: '#64748B', textTransform: 'uppercase', letterSpacing: 0.5 },
+    inputContainer: { 
+        flexDirection: 'row', 
+        alignItems: 'center', 
+        backgroundColor: '#F0FDF4', 
+        borderRadius: 20, 
+        borderWidth: 2, 
+        borderColor: '#86EFAC', 
+        paddingHorizontal: 24, 
+        paddingVertical: 12 
+    },
+    currencySymbol: { fontSize: 40, fontWeight: '900', color: '#166534', marginRight: 8 },
+    inputField: { 
+        flex: 1, 
+        height: 72, 
+        fontSize: 48, 
+        fontWeight: '900', 
+        color: '#166534', 
+        letterSpacing: -1, 
+        borderWidth: 0, 
+        backgroundColor: 'transparent' 
+    },
+    modalInfo: { textAlign: 'center', color: '#94A3B8', fontWeight: '800', fontSize: 14 },
+    modalBtn: { height: 64, backgroundColor: '#059669', borderRadius: 20, justifyContent: 'center', alignItems: 'center', marginTop: 10, elevation: 8, shadowColor: '#059669', shadowOpacity: 0.25, shadowRadius: 16, shadowOffset: { width: 0, height: 6 } },
+    modalBtnText: { color: '#FFF', fontSize: 18, fontWeight: '900' },
+    quickAmts: { flexDirection: 'row', justifyContent: 'space-between', gap: 12 },
+    quickAmtBtn: { flex: 1, height: 48, backgroundColor: '#F8FAFC', borderRadius: 14, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: '#E2E8F0' },
+    quickAmtText: { color: '#475569', fontWeight: '800', fontSize: 14 }
 });
 
 export default WalletScreen;

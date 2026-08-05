@@ -224,19 +224,29 @@ export default function PartnerNotificationsScreen() {
                     {localList.length > 0 ? (
                         localList.map((n) => {
                             const meta = getMeta(n.refType);
+                            const isNew = !n.isRead;
                             return (
                                 <TouchableOpacity 
                                     key={n._id} 
-                                    style={[styles.card, !n.isRead && styles.cardUnread]}
+                                    style={[styles.card, isNew && styles.cardUnread]}
                                     onPress={() => handlePress(n)}
+                                    activeOpacity={0.8}
                                 >
                                     <View style={[styles.iconBox, { backgroundColor: meta.bgColor }]}>
                                         <MaterialCommunityIcons name={meta.icon as any} size={24} color={meta.color} />
                                     </View>
                                     <View style={styles.content}>
                                         <View style={styles.cardHeader}>
-                                            <Text style={styles.title} numberOfLines={1}>{n.title}</Text>
-                                            {!n.isRead && <View style={styles.unreadDot} />}
+                                            <View style={styles.titleRow}>
+                                                {isNew && (
+                                                    <View style={styles.newBadge}>
+                                                        <Text style={styles.newBadgeText}>NEW</Text>
+                                                    </View>
+                                                )}
+                                                <Text style={[styles.title, isNew && { color: '#0F172A' }]} numberOfLines={1}>
+                                                    {n.title}
+                                                </Text>
+                                            </View>
                                         </View>
                                         <Text style={styles.body} numberOfLines={2}>{n.body}</Text>
                                         <Text style={styles.time}>{timeAgo(n.createdAt)}</Text>
@@ -263,24 +273,40 @@ export default function PartnerNotificationsScreen() {
 const styles = StyleSheet.create({
     root: { flex: 1, backgroundColor: '#F8FAFC' },
     center: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-    header: { flexDirection: 'row', alignItems: 'center', padding: 20, backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
-    backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' },
-    headerTitle: { fontSize: 20, fontWeight: '900', color: '#1E293B' },
-    headerSub: { fontSize: 12, color: '#64748B', fontWeight: '600' },
-    clearBtn: { paddingHorizontal: 15, paddingVertical: 8, borderRadius: 12, backgroundColor: '#FEF2F2' },
+    header: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, paddingTop: 16, paddingBottom: 16, backgroundColor: '#FFF', borderBottomWidth: 1, borderBottomColor: '#F1F5F9' },
+    backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#F8FAFC', justifyContent: 'center', alignItems: 'center', borderWidth: 1, borderColor: '#F1F5F9' },
+    headerTitle: { fontSize: 20, fontWeight: '900', color: '#0F172A', letterSpacing: -0.3 },
+    headerSub: { fontSize: 13, color: '#3B82F6', fontWeight: '700', marginTop: 2 },
+    clearBtn: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 16, backgroundColor: '#FEF2F2' },
     clearBtnText: { color: '#EF4444', fontSize: 13, fontWeight: '800' },
-    list: { padding: 15 },
-    card: { flexDirection: 'row', backgroundColor: '#FFF', borderRadius: 20, padding: 16, marginBottom: 12, elevation: 1, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10 },
-    cardUnread: { backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: '#DCFCE7' },
-    iconBox: { width: 50, height: 50, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
-    content: { flex: 1, marginLeft: 15 },
-    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-    title: { fontSize: 15, fontWeight: '800', color: '#1E293B', flex: 1 },
-    unreadDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: '#2D935C' },
-    body: { fontSize: 13, color: '#64748B', lineHeight: 18, marginBottom: 8 },
-    time: { fontSize: 11, color: '#94A3B8', fontWeight: '700' },
+    list: { padding: 16 },
+    card: { 
+        flexDirection: 'row', 
+        backgroundColor: '#FFF', 
+        borderRadius: 24, 
+        padding: 18, 
+        marginBottom: 14, 
+        elevation: 8, 
+        shadowColor: '#0A1A3A', 
+        shadowOpacity: 0.06, 
+        shadowRadius: 24,
+        shadowOffset: { width: 0, height: 8 },
+        borderWidth: 1,
+        borderColor: '#F1F5F9',
+    },
+    cardUnread: { backgroundColor: '#FFFFFF', borderColor: '#E2E8F0', shadowOpacity: 0.08 },
+    iconBox: { width: 56, height: 56, borderRadius: 20, justifyContent: 'center', alignItems: 'center' },
+    content: { flex: 1, marginLeft: 16, justifyContent: 'center' },
+    cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
+    titleRow: { flexDirection: 'row', alignItems: 'center', flex: 1 },
+    newBadge: { backgroundColor: '#3B82F6', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4, marginRight: 8 },
+    newBadgeText: { color: '#FFFFFF', fontSize: 9, fontWeight: '900', letterSpacing: 0.5 },
+    title: { fontSize: 16, fontWeight: '900', color: '#1E293B', flex: 1, letterSpacing: -0.2 },
+    body: { fontSize: 14, color: '#475569', lineHeight: 20, marginBottom: 8, fontWeight: '600' },
+    time: { fontSize: 12, color: '#94A3B8', fontWeight: '800' },
     emptyContainer: { alignItems: 'center', marginTop: 80, paddingHorizontal: 40 },
     emptyIconBox: { width: 120, height: 120, borderRadius: 60, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', marginBottom: 20, elevation: 2 },
     emptyTitle: { fontSize: 20, fontWeight: '900', color: '#1E293B', marginBottom: 10 },
     emptyDesc: { fontSize: 14, color: '#64748B', textAlign: 'center', lineHeight: 20 },
 });
+

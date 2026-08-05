@@ -202,7 +202,6 @@ export default function BookingDetailScreen() {
             </View>
 
             <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-                {/* Patient card */}
                 <View style={styles.card}>
                     <View style={styles.patientRow}>
                         {booking.patient?.profileImage ? (
@@ -216,12 +215,12 @@ export default function BookingDetailScreen() {
                             <Text style={styles.patientName}>{booking.patient?.name || "Patient"}</Text>
                             <View style={styles.serviceRow}>
                                 <MaterialCommunityIcons name={bookingType === "Doctor" ? "stethoscope" : "flask-outline"} size={14} color="#64748B" />
-                                <Text style={styles.serviceText}>{booking.serviceName}</Text>
+                                <Text style={styles.serviceText}>{booking.childServiceId?.name || booking.serviceName}</Text>
                             </View>
                         </View>
                         {booking.patient?.mobile && !isFutureDate && (
                             <TouchableOpacity style={styles.callBtn} onPress={() => call(booking.patient.mobile)}>
-                                <Phone size={20} color="#FFF" />
+                                <Phone size={22} color="#FFF" />
                             </TouchableOpacity>
                         )}
                     </View>
@@ -246,15 +245,15 @@ export default function BookingDetailScreen() {
                 <TouchableOpacity style={styles.card} onPress={openMaps} activeOpacity={0.9}>
                     <Text style={styles.sectionTitle}>Location</Text>
                     <View style={styles.addressRow}>
-                        <View style={{ marginTop: 2 }}>
-                            <MapPin size={22} color="#EF4444" />
+                        <View style={styles.addressIconBox}>
+                            <MapPin size={22} color="#0F172A" />
                         </View>
                         <View style={{ flex: 1, gap: 4 }}>
                             {(() => {
                                 const locationString = booking.address?.label || booking.location?.address || "Location not provided";
                                 return (
                                     <>
-                                        <Text style={styles.addressLabel}>Location</Text>
+                                        <Text style={styles.addressLabel}>ADDRESS</Text>
                                         <Text style={styles.addressText}>{locationString}</Text>
                                     </>
                                 );
@@ -310,12 +309,12 @@ export default function BookingDetailScreen() {
             )}
 
             {/* Sticky actions */}
-            {booking.status?.toLowerCase?.() !== "missing" && booking.status?.toUpperCase() !== "RETURNED_TO_ADMIN" && (
+            {!["missing", "returned_to_admin", "completed", "cancelled"].includes(booking.status?.toLowerCase?.() || "") && (
                 <View style={styles.actionBar}>
                     {!isFutureDate && !isBroadcasted && !isPartnerAssigned && (
                         <TouchableOpacity
                             style={styles.iconBtn}
-                            onPress={() => router.push({ pathname: "/booking_chat" as any, params: { id: String(id), name: booking.patient?.name || "Patient" } })}
+                            onPress={() => router.push({ pathname: "/booking_chat" as any, params: { id: String(id), name: booking.patient?.name || "Patient", mobile: booking.patient?.mobile || "" } })}
                         >
                             <MessageCircle size={22} color={PRIMARY} />
                         </TouchableOpacity>
@@ -403,8 +402,11 @@ export default function BookingDetailScreen() {
 function Row({ icon, label, value, valueBold }: { icon: React.ReactNode; label: string; value: string; valueBold?: boolean }) {
     return (
         <View style={styles.row}>
-            <View style={styles.rowLeft}>{icon}<Text style={styles.rowLabel}>{label}</Text></View>
-            <Text style={[styles.rowValue, valueBold && { fontWeight: "900", color: "#1E293B" }]}>{value}</Text>
+            <View style={styles.rowLeft}>
+                <View style={styles.rowIconBox}>{icon}</View>
+                <Text style={styles.rowLabel}>{label}</Text>
+            </View>
+            <Text style={[styles.rowValue, valueBold && { fontWeight: "900", color: PRIMARY, fontSize: 17 }]}>{value}</Text>
         </View>
     );
 }
@@ -425,46 +427,48 @@ function TimelineItem({ label, time, active, last }: { label: string; time?: str
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: "#F8FAFC" },
-    center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#F8FAFC", gap: 14 },
+    container: { flex: 1, backgroundColor: "#F4F7FC" },
+    center: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#F4F7FC", gap: 14 },
     errText: { color: "#64748B", fontWeight: "700" },
     retryBtn: { paddingHorizontal: 24, paddingVertical: 12, backgroundColor: PRIMARY, borderRadius: 14 },
     retryText: { color: "#FFF", fontWeight: "800" },
     header: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", paddingHorizontal: 20, paddingVertical: 16, gap: 12 },
-    backBtn: { width: 40, height: 40, borderRadius: 10, backgroundColor: "#FFF", justifyContent: "center", alignItems: "center", elevation: 2, shadowColor: "#000", shadowOpacity: 0.05, shadowRadius: 5 },
-    headerTitle: { flex: 1, fontSize: 20, fontWeight: "900", color: "#1E293B" },
-    statusBadge: { paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
-    statusText: { fontSize: 11, fontWeight: "800", textTransform: "uppercase" },
-    scroll: { padding: 20, paddingBottom: 120, gap: 16 },
-    card: { backgroundColor: "#FFF", borderRadius: 24, padding: 20, gap: 12, elevation: 3, shadowColor: "#1E293B", shadowOpacity: 0.06, shadowRadius: 10 },
-    patientRow: { flexDirection: "row", alignItems: "center", gap: 14 },
-    avatar: { width: 54, height: 54, borderRadius: 27 },
-    avatarFallback: { width: 54, height: 54, borderRadius: 27, backgroundColor: PRIMARY, justifyContent: "center", alignItems: "center" },
-    avatarLetter: { color: "#FFF", fontSize: 22, fontWeight: "900" },
-    patientName: { fontSize: 18, fontWeight: "900", color: "#1E293B" },
-    serviceRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 },
-    serviceText: { fontSize: 13, color: "#64748B", fontWeight: "700" },
-    callBtn: { width: 46, height: 46, borderRadius: 23, backgroundColor: PRIMARY, justifyContent: "center", alignItems: "center" },
-    sectionTitle: { fontSize: 12, fontWeight: "900", color: "#94A3B8", textTransform: "uppercase", letterSpacing: 0.5 },
-    row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-    rowLeft: { flexDirection: "row", alignItems: "center", gap: 10 },
-    rowLabel: { fontSize: 14, color: "#64748B", fontWeight: "600" },
-    rowValue: { fontSize: 14, color: "#475569", fontWeight: "700" },
-    addressRow: { flexDirection: "row", alignItems: "flex-start", gap: 12, backgroundColor: "#FFF5F5", padding: 16, borderRadius: 16 },
-    addressLabel: { fontSize: 14, color: "#991B1B", fontWeight: "900", textTransform: "uppercase", letterSpacing: 0.5 },
-    addressText: { fontSize: 15, color: "#B91C1C", fontWeight: "600", lineHeight: 22 },
-    mapBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#3B82F6", height: 46, borderRadius: 14 },
-    mapBtnText: { color: "#FFF", fontWeight: "800", fontSize: 14 },
-    notesRow: { flexDirection: "row", gap: 10, alignItems: "flex-start" },
-    notesText: { flex: 1, fontSize: 14, color: "#475569", fontStyle: "italic", lineHeight: 20 },
-    tlRow: { flexDirection: "row", gap: 12 },
+    backBtn: { width: 44, height: 44, borderRadius: 16, backgroundColor: "#FFF", justifyContent: "center", alignItems: "center", elevation: 2, shadowColor: "#0F172A", shadowOpacity: 0.05, shadowRadius: 8, borderWidth: 1.5, borderColor: '#E2E8F0' },
+    headerTitle: { flex: 1, fontSize: 24, fontWeight: "900", color: "#0F172A", letterSpacing: -0.5 },
+    statusBadge: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 14 },
+    statusText: { fontSize: 11, fontWeight: "900", textTransform: "uppercase", letterSpacing: 0.8 },
+    scroll: { padding: 24, paddingBottom: 120, gap: 16 },
+    card: { backgroundColor: "#FFFFFF", borderRadius: 32, padding: 24, elevation: 12, shadowColor: "#0F172A", shadowOpacity: 0.06, shadowRadius: 32, shadowOffset: { width: 0, height: 16 }, gap: 16, marginBottom: 8 },
+    patientRow: { flexDirection: "row", alignItems: "center", gap: 16 },
+    avatar: { width: 64, height: 64, borderRadius: 32 },
+    avatarFallback: { width: 64, height: 64, borderRadius: 32, backgroundColor: PRIMARY, justifyContent: "center", alignItems: "center" },
+    avatarLetter: { color: "#FFF", fontSize: 26, fontWeight: "900" },
+    patientName: { fontSize: 24, fontWeight: "900", color: "#0F172A", letterSpacing: -1, marginBottom: 2 },
+    serviceRow: { flexDirection: "row", alignItems: "center", gap: 6, paddingRight: 10 },
+    serviceText: { fontSize: 15, color: "#64748B", fontWeight: "800", flexShrink: 1 },
+    callBtn: { width: 50, height: 50, borderRadius: 16, backgroundColor: PRIMARY, justifyContent: "center", alignItems: "center", shadowColor: PRIMARY, shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
+    sectionTitle: { fontSize: 11, fontWeight: "900", color: "#94A3B8", textTransform: "uppercase", letterSpacing: 1, marginBottom: 4 },
+    row: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 4 },
+    rowLeft: { flexDirection: "row", alignItems: "center", gap: 12 },
+    rowIconBox: { width: 38, height: 38, borderRadius: 12, backgroundColor: "#F1F5F9", justifyContent: "center", alignItems: "center" },
+    rowLabel: { fontSize: 15, color: "#475569", fontWeight: "800" },
+    rowValue: { fontSize: 15, color: "#0F172A", fontWeight: "800", letterSpacing: -0.3 },
+    addressRow: { flexDirection: "row", alignItems: "center", gap: 14, backgroundColor: "#F8FAFC", padding: 18, borderRadius: 24, borderWidth: 1.5, borderColor: '#F1F5F9' },
+    addressIconBox: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center' },
+    addressLabel: { fontSize: 10, color: "#94A3B8", fontWeight: "900", textTransform: "uppercase", letterSpacing: 1 },
+    addressText: { fontSize: 15, color: "#0F172A", fontWeight: "800", lineHeight: 22 },
+    mapBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, backgroundColor: "#0F172A", height: 52, borderRadius: 16, marginTop: 4, shadowColor: "#0F172A", shadowOpacity: 0.2, shadowRadius: 10, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
+    mapBtnText: { color: "#FFF", fontWeight: "900", fontSize: 15, letterSpacing: 0.3 },
+    notesRow: { flexDirection: "row", gap: 12, alignItems: "flex-start", backgroundColor: '#FEF3C7', padding: 16, borderRadius: 20 },
+    notesText: { flex: 1, fontSize: 15, color: "#92400E", fontStyle: "italic", lineHeight: 22, fontWeight: '600' },
+    tlRow: { flexDirection: "row", gap: 14 },
     tlLeft: { alignItems: "center", width: 16 },
-    tlDot: { width: 12, height: 12, borderRadius: 6, backgroundColor: "#CBD5E1", marginTop: 3 },
-    tlLine: { flex: 1, width: 2, backgroundColor: "#E2E8F0", marginVertical: 2 },
-    tlLabel: { fontSize: 14, fontWeight: "800", color: "#1E293B" },
-    tlTime: { fontSize: 12, color: "#94A3B8", marginTop: 2 },
-    actionBar: { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", gap: 12, padding: 20, backgroundColor: "#FFF", borderTopWidth: 1, borderTopColor: "#F1F5F9" },
-    iconBtn: { width: 52, height: 52, borderRadius: 16, backgroundColor: "#F0FDF4", justifyContent: "center", alignItems: "center" },
-    primaryBtn: { flex: 1, height: 52, backgroundColor: PRIMARY, borderRadius: 16, justifyContent: "center", alignItems: "center" },
-    primaryBtnText: { color: "#FFF", fontSize: 15, fontWeight: "800" },
+    tlDot: { width: 14, height: 14, borderRadius: 7, backgroundColor: "#CBD5E1", marginTop: 2 },
+    tlLine: { flex: 1, width: 2.5, backgroundColor: "#E2E8F0", marginVertical: 4 },
+    tlLabel: { fontSize: 16, fontWeight: "900", color: "#0F172A" },
+    tlTime: { fontSize: 13, color: "#64748B", marginTop: 4, fontWeight: '700' },
+    actionBar: { position: "absolute", bottom: 0, left: 0, right: 0, flexDirection: "row", gap: 12, padding: 24, backgroundColor: "#FFFFFF", borderTopWidth: 1.5, borderTopColor: "#E2E8F0", elevation: 20 },
+    iconBtn: { width: 50, height: 50, borderRadius: 16, backgroundColor: "#F0FDF4", justifyContent: "center", alignItems: "center", borderWidth: 1.5, borderColor: '#A7F3D0' },
+    primaryBtn: { flex: 1, height: 50, backgroundColor: PRIMARY, borderRadius: 16, justifyContent: "center", alignItems: "center", shadowColor: PRIMARY, shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
+    primaryBtnText: { color: "#FFF", fontSize: 16, fontWeight: "900", letterSpacing: 0.5 },
 });

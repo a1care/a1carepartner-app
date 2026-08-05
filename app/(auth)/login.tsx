@@ -293,14 +293,28 @@ const LoginScreen = () => {
                     {!otpSessionId ? (
                         <TouchableOpacity onPress={handleSendOtp} disabled={loading} activeOpacity={0.85}>
                             <LinearGradient colors={["#1A7FD4", "#0D5FA0"]} style={styles.cta}>
-                                {loading ? <ActivityIndicator color={"#fff"} /> : <Text style={styles.ctaText}>Send OTP</Text>}
+                                {loading ? (
+                                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                        <ActivityIndicator color={"#fff"} size="small" />
+                                        <Text style={styles.ctaText}>Sending OTP...</Text>
+                                    </View>
+                                ) : (
+                                    <Text style={styles.ctaText}>Send OTP</Text>
+                                )}
                             </LinearGradient>
                         </TouchableOpacity>
                     ) : (
                         <>
                             <TouchableOpacity onPress={handleVerifyOtp} disabled={verifying} activeOpacity={0.85}>
                                 <LinearGradient colors={["#27AE60", "#1E8449"]} style={styles.cta}>
-                                    {verifying ? <ActivityIndicator color={"#fff"} /> : <Text style={styles.ctaText}>Verify & Login</Text>}
+                                    {verifying ? (
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                                            <ActivityIndicator color={"#fff"} size="small" />
+                                            <Text style={styles.ctaText}>Verifying...</Text>
+                                        </View>
+                                    ) : (
+                                        <Text style={styles.ctaText}>Verify & Login</Text>
+                                    )}
                                 </LinearGradient>
                             </TouchableOpacity>
                             {/* H3: Resend OTP + H4: Change Number */}

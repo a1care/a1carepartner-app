@@ -12,7 +12,7 @@ import { api } from '../../lib/api';
 import { getRolePath } from '../../lib/roleApi';
 
 const Colors = {
-  primary: '#15803D',
+  primary: '#059669',
 };
 
 // Internal service to match customer app's structure
@@ -94,11 +94,11 @@ export default function ReferralScreen() {
                 </View>
 
                 {/* Hero Banner */}
-                <LinearGradient colors={['#15803D', '#166534']} style={styles.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
+                <LinearGradient colors={['#0B3370', '#1E3A8A']} style={styles.hero} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}>
                     <View style={styles.heroBubble1} /><View style={styles.heroBubble2} />
-                    <Ionicons name="gift" size={48} color="rgba(255,255,255,0.3)" style={{ marginBottom: 12 }} />
+                    <Ionicons name="gift" size={56} color="#F59E0B" style={{ marginBottom: 16 }} />
                     <Text style={styles.heroTitle}>Invite & Earn {data?.rewardAmount ? `₹${data.rewardAmount}` : ''}</Text>
-                    <Text style={styles.heroSub}>For every friend or partner who signs up and completes a service using your code, you get {data?.rewardAmount ? `₹${data.rewardAmount}` : 'rewarded'} in your A1Care wallet.</Text>
+                    <Text style={styles.heroSub}>For every friend or partner who signs up and completes a service using your code, you get {data?.rewardAmount ? `₹${data.rewardAmount}` : 'rewarded'} directly in your wallet.</Text>
                 </LinearGradient>
 
                 {/* Your Code */}
@@ -117,8 +117,8 @@ export default function ReferralScreen() {
                                 </TouchableOpacity>
                             </View>
                             <TouchableOpacity onPress={handleShare} style={styles.shareBtn} activeOpacity={0.85}>
-                                <LinearGradient colors={['#15803D', '#166534']} style={styles.shareBtnInner} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
-                                    <Ionicons name="share-social" size={18} color="#FFF" />
+                                <LinearGradient colors={['#059669', '#047857']} style={styles.shareBtnInner} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}>
+                                    <Ionicons name="share-social" size={20} color="#FFF" />
                                     <Text style={styles.shareBtnText}>Share with Network</Text>
                                 </LinearGradient>
                             </TouchableOpacity>
@@ -129,17 +129,17 @@ export default function ReferralScreen() {
                 {/* Earnings Summary */}
                 <View style={styles.card}>
                     <Text style={styles.cardLabel}>EARNINGS SUMMARY</Text>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 10 }}>
-                        <View style={{ flex: 1, backgroundColor: '#F0FDF4', borderRadius: 12, padding: 16, marginRight: 8 }}>
-                            <Text style={{ fontSize: 12, color: '#16A34A', fontWeight: '700', marginBottom: 4 }}>TOTAL EARNED</Text>
-                            <Text style={{ fontSize: 24, fontWeight: '900', color: '#15803D' }}>₹{earningsData?.totalEarned || 0}</Text>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 16 }}>
+                        <View style={{ flex: 1, backgroundColor: '#F0FDF4', borderRadius: 20, padding: 20, marginRight: 8, borderWidth: 1, borderColor: '#DCFCE7' }}>
+                            <Text style={{ fontSize: 12, color: '#059669', fontWeight: '800', marginBottom: 6, letterSpacing: 0.5 }}>TOTAL EARNED</Text>
+                            <Text style={{ fontSize: 28, fontWeight: '900', color: '#047857', letterSpacing: -1 }}>₹{earningsData?.totalEarned || 0}</Text>
                         </View>
-                        <View style={{ flex: 1, backgroundColor: '#FFF7ED', borderRadius: 12, padding: 16, marginLeft: 8 }}>
-                            <Text style={{ fontSize: 12, color: '#EA580C', fontWeight: '700', marginBottom: 4 }}>PENDING</Text>
-                            <Text style={{ fontSize: 24, fontWeight: '900', color: '#C2410C' }}>₹{earningsData?.totalPending || 0}</Text>
+                        <View style={{ flex: 1, backgroundColor: '#FFF7ED', borderRadius: 20, padding: 20, marginLeft: 8, borderWidth: 1, borderColor: '#FFEDD5' }}>
+                            <Text style={{ fontSize: 12, color: '#EA580C', fontWeight: '800', marginBottom: 6, letterSpacing: 0.5 }}>PENDING</Text>
+                            <Text style={{ fontSize: 28, fontWeight: '900', color: '#C2410C', letterSpacing: -1 }}>₹{earningsData?.totalPending || 0}</Text>
                         </View>
                     </View>
-                    <Text style={{ fontSize: 12, color: '#64748B', lineHeight: 18 }}>Pending rewards will unlock automatically when they complete their first service.</Text>
+                    <Text style={{ fontSize: 13, color: '#64748B', lineHeight: 20, fontWeight: '500' }}>Pending rewards will unlock automatically when they complete their first service.</Text>
                 </View>
 
                 {/* Referral History */}
@@ -181,25 +181,25 @@ export default function ReferralScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: '#F8FAFC' },
-    scroll: { paddingHorizontal: 20, paddingBottom: 20 },
-    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 16 },
-    backBtn: { width: 38, height: 38, borderRadius: 12, backgroundColor: '#F1F5F9', justifyContent: 'center', alignItems: 'center' },
-    headerTitle: { fontSize: 18, fontWeight: '800', color: '#0F172A' },
-    hero: { borderRadius: 24, padding: 28, marginBottom: 20, alignItems: 'center', overflow: 'hidden', position: 'relative' },
-    heroBubble1: { position: 'absolute', top: -40, right: -40, width: 120, height: 120, borderRadius: 60, backgroundColor: 'rgba(255,255,255,0.08)' },
-    heroBubble2: { position: 'absolute', bottom: -20, left: -20, width: 80, height: 80, borderRadius: 40, backgroundColor: 'rgba(255,255,255,0.08)' },
-    heroTitle: { fontSize: 22, fontWeight: '900', color: '#FFF', textAlign: 'center', marginBottom: 8 },
-    heroSub: { fontSize: 13, color: 'rgba(255,255,255,0.8)', textAlign: 'center', lineHeight: 20 },
-    card: { backgroundColor: '#FFF', borderRadius: 20, padding: 20, marginBottom: 16, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10, elevation: 3 },
-    cardLabel: { fontSize: 11, fontWeight: '900', color: '#94A3B8', letterSpacing: 1.2, marginBottom: 14 },
-    codeRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F0FDF4', borderRadius: 14, paddingHorizontal: 20, paddingVertical: 14, marginBottom: 16 },
-    codeText: { flex: 1, fontSize: 28, fontWeight: '900', color: '#15803D', letterSpacing: 6 },
+    container: { flex: 1, backgroundColor: '#F4F7FC' },
+    scroll: { paddingHorizontal: 24, paddingBottom: 24 },
+    header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 16, marginBottom: 8 },
+    backBtn: { width: 44, height: 44, borderRadius: 22, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', shadowColor: '#0F172A', shadowOpacity: 0.05, shadowRadius: 8, elevation: 2 },
+    headerTitle: { fontSize: 22, fontWeight: '900', color: '#0F172A', letterSpacing: -0.5 },
+    hero: { borderRadius: 32, padding: 32, marginBottom: 24, alignItems: 'center', overflow: 'hidden', position: 'relative', elevation: 8, shadowColor: '#0B3370', shadowOpacity: 0.25, shadowOffset: { width: 0, height: 8 }, shadowRadius: 24 },
+    heroBubble1: { position: 'absolute', top: -40, right: -40, width: 150, height: 150, borderRadius: 75, backgroundColor: 'rgba(255,255,255,0.06)' },
+    heroBubble2: { position: 'absolute', bottom: -20, left: -20, width: 100, height: 100, borderRadius: 50, backgroundColor: 'rgba(255,255,255,0.06)' },
+    heroTitle: { fontSize: 26, fontWeight: '900', color: '#FFFFFF', textAlign: 'center', marginBottom: 12, letterSpacing: -0.5 },
+    heroSub: { fontSize: 14, color: 'rgba(255,255,255,0.85)', textAlign: 'center', lineHeight: 22, fontWeight: '500' },
+    card: { backgroundColor: '#FFFFFF', borderRadius: 32, padding: 28, marginBottom: 20, shadowColor: '#0F172A', shadowOpacity: 0.04, shadowRadius: 20, shadowOffset: { width: 0, height: 10 }, elevation: 4, borderWidth: 1.5, borderColor: '#E2E8F0' },
+    cardLabel: { fontSize: 12, fontWeight: '900', color: '#64748B', letterSpacing: 1.5, marginBottom: 16 },
+    codeRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F0FDF4', borderRadius: 20, paddingHorizontal: 24, paddingVertical: 18, marginBottom: 20, borderWidth: 1, borderColor: '#DCFCE7' },
+    codeText: { flex: 1, fontSize: 32, fontWeight: '900', color: '#059669', letterSpacing: 8 },
     copyBtn: { padding: 8 },
-    shareBtn: { borderRadius: 14, overflow: 'hidden' },
-    shareBtnInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, paddingVertical: 14 },
-    shareBtnText: { fontSize: 15, fontWeight: '800', color: '#FFF' },
-    stepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 14, marginBottom: 14 },
-    stepIconBox: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#F0FDF4', justifyContent: 'center', alignItems: 'center' },
-    stepText: { flex: 1, fontSize: 14, color: '#475569', fontWeight: '500', lineHeight: 20, marginTop: 7 },
+    shareBtn: { borderRadius: 20, overflow: 'hidden', shadowColor: '#059669', shadowOpacity: 0.25, shadowOffset: { width: 0, height: 6 }, shadowRadius: 12, elevation: 6 },
+    shareBtnInner: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, paddingVertical: 18 },
+    shareBtnText: { fontSize: 16, fontWeight: '900', color: '#FFF', letterSpacing: 0.5 },
+    stepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 16, marginBottom: 16 },
+    stepIconBox: { width: 44, height: 44, borderRadius: 16, backgroundColor: '#F0FDF4', justifyContent: 'center', alignItems: 'center' },
+    stepText: { flex: 1, fontSize: 15, color: '#475569', fontWeight: '600', lineHeight: 22, marginTop: 7 },
 });

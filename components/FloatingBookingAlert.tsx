@@ -75,6 +75,7 @@ export default function FloatingBookingAlert() {
         const isActionable = 
             b.status?.toLowerCase() === "broadcasted" || 
             b.status?.toLowerCase() === "missing" ||
+            b.status?.toLowerCase() === "pending" ||
             b.status?.toUpperCase() === "PARTNER_ASSIGNED";
         
         const isDirect = b.status?.toUpperCase() === "PARTNER_ASSIGNED";
@@ -123,7 +124,7 @@ export default function FloatingBookingAlert() {
 
     // Mutation to accept booking
     const acceptMutation = useMutation({
-        queryKey: ["acceptBookingRequest"],
+        mutationKey: ["acceptBookingRequest"],
         mutationFn: async (bookingId: string) => {
             return partnerBookingService.acceptServiceRequest(bookingId, user?.roleId);
         },

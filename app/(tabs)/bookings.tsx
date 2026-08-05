@@ -68,20 +68,20 @@ const formatDateTime = (dateString?: string) => {
 };
 
 const statusColors: Record<string, { bg: string; text: string; icon: string; label: string }> = {
-    Pending: { bg: "#FFFBEB", text: "#D97706", icon: "clock-outline", label: "Pending" },
-    PENDING: { bg: "#FFFBEB", text: "#D97706", icon: "clock-outline", label: "Pending" },
-    Broadcasted: { bg: "#F5F3FF", text: "#7C3AED", icon: "broadcast", label: "Open" },
-    BROADCASTED: { bg: "#F5F3FF", text: "#7C3AED", icon: "broadcast", label: "Open" },
-    ACCEPTED: { bg: "#ECFDF5", text: "#059669", icon: "check-circle-outline", label: "Accepted" },
-    Confirmed: { bg: "#ECFDF5", text: "#047857", icon: "check-decagram", label: "Confirmed" },
-    Active: { bg: "#ECFDF5", text: "#047857", icon: "radio-tower", label: "Active" },
-    IN_PROGRESS: { bg: "#EFF6FF", text: "#3B82F6", icon: "map-marker-path", label: "In Progress" },
-    Completed: { bg: "#F0F9FF", text: "#0369A1", icon: "star-circle", label: "Completed" },
-    COMPLETED: { bg: "#F0F9FF", text: "#0369A1", icon: "star-circle", label: "Completed" },
-    Cancelled: { bg: "#FEF2F2", text: "#B91C1C", icon: "close-circle-outline", label: "Cancelled" },
-    CANCELLED: { bg: "#FEF2F2", text: "#B91C1C", icon: "close-circle-outline", label: "Cancelled" },
-    Missing: { bg: "#FEF3C7", text: "#D97706", icon: "alert-circle-outline", label: "Missing" },
-    MISSING: { bg: "#FEF3C7", text: "#D97706", icon: "alert-circle-outline", label: "Missing" },
+    Pending: { bg: "#FEF3C7", text: "#D97706", icon: "clock-outline", label: "Pending" },
+    PENDING: { bg: "#FEF3C7", text: "#D97706", icon: "clock-outline", label: "Pending" },
+    Broadcasted: { bg: "#F3E8FF", text: "#7C3AED", icon: "broadcast", label: "Open" },
+    BROADCASTED: { bg: "#F3E8FF", text: "#7C3AED", icon: "broadcast", label: "Open" },
+    ACCEPTED: { bg: "#D1FAE5", text: "#059669", icon: "check-circle-outline", label: "Accepted" },
+    Confirmed: { bg: "#D1FAE5", text: "#047857", icon: "check-decagram", label: "Confirmed" },
+    Active: { bg: "#D1FAE5", text: "#047857", icon: "radio-tower", label: "Active" },
+    IN_PROGRESS: { bg: "#DBEAFE", text: "#2563EB", icon: "map-marker-path", label: "In Progress" },
+    Completed: { bg: "#E0F2FE", text: "#0284C7", icon: "star-circle", label: "Completed" },
+    COMPLETED: { bg: "#E0F2FE", text: "#0284C7", icon: "star-circle", label: "Completed" },
+    Cancelled: { bg: "#FEE2E2", text: "#DC2626", icon: "close-circle-outline", label: "Cancelled" },
+    CANCELLED: { bg: "#FEE2E2", text: "#DC2626", icon: "close-circle-outline", label: "Cancelled" },
+    Missing: { bg: "#FFEDD5", text: "#EA580C", icon: "alert-circle-outline", label: "Missing" },
+    MISSING: { bg: "#FFEDD5", text: "#EA580C", icon: "alert-circle-outline", label: "Missing" },
 };
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL?.replace('/api', '') || 'https://api.a1carehospital.in';
@@ -130,11 +130,11 @@ const BookingCard = memo(({
                 onPress={onNavigateCard}
             >
                 <View style={styles.cardHeader}>
-                    <View>
+                    <View style={{ flex: 1, paddingRight: 10 }}>
                         <Text style={styles.patientName}>{b.patientName || 'Guest Patient'}</Text>
-                        <View style={styles.serviceRow}>
+                        <View style={[styles.serviceRow, { flexShrink: 1 }]}>
                             <MaterialCommunityIcons name={b.bookingType === 'Doctor' ? 'stethoscope' : 'flask-outline'} size={14} color='#64748B' />
-                            <Text style={styles.serviceText}>{b.serviceType}</Text>
+                            <Text style={styles.serviceText} numberOfLines={1} ellipsizeMode="tail">{b.serviceType}</Text>
                         </View>
                     </View>
                     <View style={[styles.statusBadge, { backgroundColor: statusColors[b.status]?.bg || '#F1F5F9' }]}>
@@ -142,31 +142,39 @@ const BookingCard = memo(({
                         <Text style={[styles.statusText, { color: statusColors[b.status]?.text || '#64748B' }]}>{statusColors[b.status]?.label || b.status}</Text>
                     </View>
                 </View>
-                <View style={styles.divider} />
-                <View style={styles.detailsRow}>
-                    <View style={styles.detailItem}>
-                         <Clock size={16} color='#64748B' />
-                         <Text style={styles.detailText}>{b.date ? `${formatDate(b.date)} | ` : ''}{b.timeSlot || 'Anytime'}</Text>
+                
+                <View style={styles.premiumDetailsBox}>
+                    <View style={[styles.detailItemPremium, { flex: 1.5 }]}>
+                         <View style={styles.detailIconBox}><Clock size={16} color='#0F172A' /></View>
+                         <View style={{ flex: 1 }}>
+                             <Text style={styles.premiumLabel}>SCHEDULED FOR</Text>
+                             <Text style={styles.detailText}>{b.date ? `${formatDate(b.date)} • ` : ''}{b.timeSlot || 'Anytime'}</Text>
+                         </View>
                     </View>
-                    <View style={styles.detailItem}>
-                        <CreditCard size={16} color='#2D935C' />
-                        <View>
-                            <Text style={[styles.detailText, { fontWeight: '800', color: '#1E293B' }]}>₹{b.totalAmount || 0}</Text>
-                            {b.paymentMode === 'OFFLINE' && <Text style={{ fontSize: 8, color: '#F59E0B', fontWeight: '900' }}>CASH PAYMENT</Text>}
+                    
+                    <View style={styles.detailDivider} />
+
+                    <View style={[styles.detailItemPremium, { flex: 1 }]}>
+                        <View style={[styles.detailIconBox, { backgroundColor: '#ECFDF5' }]}><CreditCard size={16} color='#059669' /></View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.premiumLabel}>AMOUNT</Text>
+                            <Text style={[styles.detailText, { color: '#059669', fontSize: 18 }]}>₹{b.totalAmount || 0}</Text>
+                            {b.paymentMode === 'OFFLINE' && <Text style={{ fontSize: 9, color: '#F59E0B', fontWeight: '900', marginTop: 2, letterSpacing: 0.5 }}>CASH PAYMENT</Text>}
                          </View>
                     </View>
                 </View>
-                <View style={styles.addressRow}>
-                    <MapPin size={16} color='#EF4444' />
-                    <Text style={styles.addressText} numberOfLines={1}>{b.location?.address || 'Location not provided'}</Text>
+
+                <View style={styles.infoPill}>
+                    <MapPin size={20} color='#0F172A' />
+                    <Text style={styles.infoPillText} numberOfLines={1}>{b.location?.address || 'Location not provided'}</Text>
                 </View>
-                <View style={[styles.addressRow, { marginTop: 4 }]}>
-                    <MaterialCommunityIcons name='clock-in' size={16} color='#64748B' />
-                    <Text style={[styles.addressText, { color: '#64748B', fontSize: 12 }]} numberOfLines={1}>Received: {b.createdAt ? formatDateTime(b.createdAt) : 'N/A'}</Text>
+                <View style={[styles.infoPill, { marginTop: -6, backgroundColor: 'transparent', borderWidth: 0, paddingTop: 0 }]}>
+                    <MaterialCommunityIcons name='clock-outline' size={16} color='#94A3B8' />
+                    <Text style={[styles.infoPillText, { color: '#94A3B8', fontSize: 12 }]} numberOfLines={1}>Received: {b.createdAt ? formatDateTime(b.createdAt) : 'N/A'}</Text>
                 </View>
             </TouchableOpacity>
             <View style={styles.actionsContainer}>
-                {b.status?.toLowerCase?.() === 'broadcasted' && (
+                {(b.status?.toLowerCase?.() === 'broadcasted' || (b.status?.toUpperCase?.() === 'PENDING' && b.bookingType === 'Service')) && (
                      <View style={{ flex: 1 }}>
                         <Text style={{ fontSize: 11, color: '#7C3AED', fontWeight: '600', marginBottom: 6 }}>📢 Open to all partners — first to accept gets it</Text>
                         {!hasActiveSub && <Text style={{ fontSize: 11, color: '#EF4444', fontWeight: '600', marginBottom: 4 }}>⚠️ Active subscription required to claim jobs</Text>}
@@ -188,7 +196,7 @@ const BookingCard = memo(({
                         </View>
                     </View>
                 )}
-                {b.status === 'Pending' && (
+                {(b.status === 'Pending' || (b.status === 'PENDING' && b.bookingType === 'Doctor')) && (
                     <View style={styles.dualActions}>
                         <TouchableOpacity style={[styles.mainBtn, { flex: 1 }]} onPress={() => onUpdateStatus('Confirmed')}><Text style={styles.mainBtnText}>Confirm Visit</Text></TouchableOpacity>
                         <TouchableOpacity style={styles.declineBtn} onPress={() => onUpdateStatus('Cancelled')}><Ionicons name='close' size={20} color='#EF4444' /></TouchableOpacity>
@@ -204,17 +212,29 @@ const BookingCard = memo(({
                             </View>
                         )}
                         {isFutureDate ? (
-                            <View style={{ backgroundColor: '#FEF2F2', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 8 }}><Text style={{ color: '#EF4444', fontWeight: 'bold', fontSize: 13 }}>🕒 Action Locked: Available on {new Date(b.date).toLocaleDateString()}</Text></View>
+                            <View style={{ backgroundColor: '#FEF2F2', padding: 12, borderRadius: 8, alignItems: 'center', marginTop: 8 }}>
+                                <Text style={{ color: '#EF4444', fontWeight: 'bold', fontSize: 13 }}>🕒 Action Locked: Available on {new Date(b.date).toLocaleDateString()}</Text>
+                            </View>
                         ) : (
-                        <View style={styles.activeActions}>
-                            {isTracking !== b._id ? (
-                                <TouchableOpacity style={[styles.mainBtn, { backgroundColor: '#3B82F6', flex: 1.2 }]} onPress={onStartTracking}><Navigation size={18} color='#FFF' /><Text style={styles.mainBtnText}>Navigate</Text></TouchableOpacity>
-                            ) : (
-                                <TouchableOpacity style={[styles.mainBtn, { backgroundColor: '#EF4444', flex: 1.2 }]} onPress={onStopTracking}><Text style={styles.mainBtnText}>Stop Track</Text></TouchableOpacity>
-                            )}
-                            <TouchableOpacity style={[styles.mainBtn, { flex: 1.2 }]} onPress={onComplete}><Text style={styles.mainBtnText}>Complete</Text></TouchableOpacity>
-                            <TouchableOpacity style={styles.commBtn} onPress={onNavigateChat}><MessageCircle size={22} color='#2D935C' />{unreadCount > 0 && <View style={styles.chatDot} />}</TouchableOpacity>
-                        </View>
+                            <View style={styles.activeActions}>
+                                {isTracking !== b._id ? (
+                                    <TouchableOpacity style={[styles.mainBtn, styles.secondaryBtn, { flex: 1.2 }]} onPress={onStartTracking}>
+                                        <Navigation size={18} color='#0F172A' />
+                                        <Text style={[styles.mainBtnText, { color: '#0F172A' }]}>Navigate</Text>
+                                    </TouchableOpacity>
+                                ) : (
+                                    <TouchableOpacity style={[styles.mainBtn, { backgroundColor: '#EF4444', flex: 1.2 }]} onPress={onStopTracking}>
+                                        <Text style={styles.mainBtnText}>Stop Track</Text>
+                                    </TouchableOpacity>
+                                )}
+                                <TouchableOpacity style={[styles.mainBtn, { flex: 1.2 }]} onPress={onComplete}>
+                                    <Text style={styles.mainBtnText}>Complete</Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity style={styles.commBtn} onPress={onNavigateChat}>
+                                    <MessageCircle size={22} color='#059669' />
+                                    {unreadCount > 0 && <View style={styles.chatDot} />}
+                                </TouchableOpacity>
+                            </View>
                         )}
                     </View>
                 )}
@@ -584,47 +604,50 @@ export default function BookingsScreen() {
 }
 
 const styles = StyleSheet.create({
-    container: { flex: 1, backgroundColor: "#F8FAFC" },
+    container: { flex: 1, backgroundColor: "#F4F7FC" },
     header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 20 },
-    title: { fontSize: 28, fontWeight: "900", color: "#1E293B", letterSpacing: -0.5 },
-    sub: { fontSize: 13, color: "#64748B", marginTop: 2, fontWeight: '600' },
-    refreshBtn: { width: 44, height: 44, borderRadius: 14, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', elevation: 3, shadowColor: '#000', shadowOpacity: 0.1, shadowRadius: 5 },
-    backBtnSmall: { width: 40, height: 40, borderRadius: 10, backgroundColor: '#FFF', justifyContent: 'center', alignItems: 'center', elevation: 2, shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 5 },
-    tabsWrapper: { height: 64, backgroundColor: '#F8FAFC' },
-    tabsContent: { paddingHorizontal: 24, alignItems: 'center', gap: 12 },
-    tab: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 15, backgroundColor: "#FFF", borderWidth: 1, borderColor: "#F1F5F9" },
-    tabActive: { backgroundColor: "#2D935C", borderColor: "#2D935C" },
-    tabText: { fontSize: 13, fontWeight: "800", color: "#64748B" },
-    tabTextActive: { color: "#FFF" },
-    scrollContent: { padding: 24, gap: 20, paddingBottom: 100 },
-    loaderBox: { alignItems: 'center', marginTop: 100, gap: 15 },
-    loaderText: { fontSize: 15, color: '#64748B', fontWeight: '700' },
-    empty: { alignItems: "center", marginTop: 60, gap: 16 },
-    emptyIconBox: { width: 100, height: 100, borderRadius: 35, justifyContent: 'center', alignItems: 'center' },
-    emptyText: { fontSize: 18, color: "#475569", fontWeight: "900" },
-    emptySub: { fontSize: 14, color: "#94A3B8", fontWeight: "600" },
-    card: { backgroundColor: "#FFF", borderRadius: 32, padding: 24, elevation: 6, shadowColor: "#1E293B", shadowOpacity: 0.08, shadowRadius: 15, gap: 20, borderWidth: 1, borderColor: '#F8FAFC' },
-    cardInfo: { gap: 16 },
+    title: { fontSize: 28, fontWeight: "900", color: "#0F172A", letterSpacing: -0.5 },
+    sub: { fontSize: 13, color: "#64748B", marginTop: 4, fontWeight: '700' },
+    refreshBtn: { width: 48, height: 48, borderRadius: 16, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', elevation: 4, shadowColor: '#0F172A', shadowOpacity: 0.05, shadowRadius: 8, borderWidth: 1.5, borderColor: '#E2E8F0' },
+    backBtnSmall: { width: 44, height: 44, borderRadius: 16, backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center', elevation: 3, shadowColor: '#0F172A', shadowOpacity: 0.05, shadowRadius: 8, borderWidth: 1.5, borderColor: '#E2E8F0' },
+    tabsWrapper: { height: 64, backgroundColor: '#F4F7FC' },
+    tabsContent: { paddingHorizontal: 24, alignItems: 'center', gap: 14 },
+    tab: { paddingHorizontal: 22, paddingVertical: 12, borderRadius: 20, backgroundColor: "#FFFFFF", borderWidth: 1.5, borderColor: "#E2E8F0", shadowColor: '#0F172A', shadowOpacity: 0.02, shadowRadius: 4, elevation: 1 },
+    tabActive: { backgroundColor: "#059669", borderColor: "#059669", shadowColor: '#059669', shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
+    tabText: { fontSize: 14, fontWeight: "900", color: "#64748B" },
+    tabTextActive: { color: "#FFFFFF" },
+    scrollContent: { padding: 24, gap: 24, paddingBottom: 110 },
+    loaderBox: { alignItems: 'center', marginTop: 100, gap: 16 },
+    loaderText: { fontSize: 15, color: '#64748B', fontWeight: '800' },
+    empty: { alignItems: "center", marginTop: 80, gap: 16 },
+    emptyIconBox: { width: 120, height: 120, borderRadius: 40, justifyContent: 'center', alignItems: 'center', shadowColor: '#0F172A', shadowOpacity: 0.04, shadowRadius: 16, elevation: 2 },
+    emptyText: { fontSize: 20, color: "#0F172A", fontWeight: "900", letterSpacing: -0.3 },
+    emptySub: { fontSize: 14, color: "#64748B", fontWeight: "700" },
+    card: { backgroundColor: "#FFFFFF", borderRadius: 32, padding: 20, elevation: 8, shadowColor: "#0F172A", shadowOpacity: 0.06, shadowRadius: 24, shadowOffset: { width: 0, height: 12 }, gap: 14, marginBottom: 8 },
+    cardInfo: { gap: 14 },
     cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" },
-    patientName: { fontSize: 18, fontWeight: "900", color: "#1E293B" },
-    serviceRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 },
-    serviceText: { fontSize: 13, color: "#64748B", fontWeight: '700' },
-    statusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 12 },
-    statusText: { fontSize: 11, fontWeight: "800", textTransform: 'uppercase' },
-    divider: { height: 1.5, backgroundColor: "#F1F5F9", marginVertical: 4 },
-    detailsRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-    detailItem: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-    detailText: { fontSize: 14, color: "#475569", fontWeight: '600' },
-    addressRow: { flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FFF5F5', padding: 12, borderRadius: 12 },
-    addressText: { fontSize: 13, color: "#B91C1C", fontWeight: '700', flex: 1 },
-    actionsContainer: { width: '100%', gap: 12 },
+    patientName: { fontSize: 22, fontWeight: "900", color: "#0F172A", letterSpacing: -1, marginBottom: 2 },
+    serviceRow: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingRight: 10 },
+    serviceText: { fontSize: 14, color: "#64748B", fontWeight: '800', flexShrink: 1 },
+    statusBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 14, paddingVertical: 8, borderRadius: 14 },
+    statusText: { fontSize: 11, fontWeight: "900", textTransform: 'uppercase', letterSpacing: 0.8 },
+    premiumDetailsBox: { backgroundColor: '#F8FAFC', borderRadius: 20, padding: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', borderWidth: 1, borderColor: '#F1F5F9' },
+    detailItemPremium: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    detailIconBox: { width: 36, height: 36, borderRadius: 10, backgroundColor: '#E2E8F0', justifyContent: 'center', alignItems: 'center' },
+    premiumLabel: { fontSize: 9, fontWeight: '900', color: '#94A3B8', letterSpacing: 1, marginBottom: 2 },
+    detailText: { fontSize: 13, color: "#0F172A", fontWeight: '900', letterSpacing: -0.3 },
+    detailDivider: { width: 1.5, height: 36, backgroundColor: '#E2E8F0', marginHorizontal: 12 },
+    infoPill: { flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFF', paddingHorizontal: 14, paddingVertical: 12, borderRadius: 16, borderWidth: 1, borderColor: '#F1F5F9' },
+    infoPillText: { fontSize: 13, color: "#475569", fontWeight: '800', flex: 1, letterSpacing: 0.3 },
+    actionsContainer: { width: '100%', gap: 12, marginTop: 4 },
     actions: { flexDirection: 'row', gap: 12 },
-    mainBtn: { flex: 2, height: 50, backgroundColor: "#2D935C", borderRadius: 16, flexDirection: 'row', alignItems: "center", justifyContent: "center", gap: 8 },
-    mainBtnText: { fontSize: 14, fontWeight: "800", color: "#fff" },
-    dualActions: { flex: 1, flexDirection: 'row', gap: 10 },
-    activeActions: { flex: 1, flexDirection: 'row', gap: 10 },
-    declineBtn: { width: 50, height: 50, backgroundColor: "#FEF2F2", borderRadius: 16, alignItems: "center", justifyContent: "center" },
-    commsRow: { flexDirection: 'row', gap: 10 },
-    commBtn: { width: 50, height: 50, backgroundColor: '#F0FDF4', borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
-    chatDot: { position: 'absolute', top: 10, right: 10, width: 11, height: 11, borderRadius: 6, backgroundColor: '#22C55E', borderWidth: 2, borderColor: '#FFF' },
+    mainBtn: { flex: 2, height: 50, backgroundColor: "#059669", borderRadius: 16, flexDirection: 'row', alignItems: "center", justifyContent: "center", gap: 8, shadowColor: '#059669', shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 4 },
+    secondaryBtn: { backgroundColor: "#FFFFFF", borderWidth: 1.5, borderColor: "#E2E8F0", shadowOpacity: 0.05, shadowRadius: 6, elevation: 1, shadowColor: "#0F172A" },
+    mainBtnText: { fontSize: 15, fontWeight: "900", color: "#FFFFFF", letterSpacing: 0.3 },
+    dualActions: { flex: 1, flexDirection: 'row', gap: 12 },
+    activeActions: { flex: 1, flexDirection: 'row', gap: 10, marginTop: 8 },
+    declineBtn: { width: 50, height: 50, backgroundColor: "#FEF2F2", borderRadius: 16, alignItems: "center", justifyContent: "center", borderWidth: 1.5, borderColor: '#FECACA' },
+    commsRow: { flexDirection: 'row', gap: 12 },
+    commBtn: { width: 50, height: 50, backgroundColor: '#F0FDF4', borderRadius: 16, justifyContent: 'center', alignItems: 'center', borderWidth: 1.5, borderColor: '#A7F3D0' },
+    chatDot: { position: 'absolute', top: 10, right: 10, width: 12, height: 12, borderRadius: 6, backgroundColor: '#059669', borderWidth: 2, borderColor: '#FFFFFF' },
 });

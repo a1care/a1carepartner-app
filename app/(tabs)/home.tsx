@@ -673,7 +673,7 @@ export default function HomeScreen() {
                         </LinearGradient>
                         <Text style={styles.actionLabel}>Earnings</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.actionItem} onPress={() => router.push("/profile_edit")}>
+                    <TouchableOpacity style={styles.actionItem} onPress={() => router.push("/(tabs)/profile")}>
                         <LinearGradient colors={["#FEF2F2", "#FFF1F1"]} style={styles.actionIconBox}>
                             <MaterialCommunityIcons name="cog" size={28} color="#EF4444" />
                         </LinearGradient>
