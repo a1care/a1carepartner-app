@@ -306,6 +306,14 @@ export default function HomeScreen() {
         enabled: !!token,
     });
 
+    const { data: serviceableAreas = [], isLoading: loadingAreas } = useQuery({
+        queryKey: ["serviceableAreasPublic"],
+        queryFn: async () => {
+            const res = await api.get("/serviceable-areas/public");
+            return res.data?.data || [];
+        }
+    });
+
     const { data: earningsSummary, refetch: refetchEarnings } = useQuery({
         queryKey: ["staff_earnings"],
         queryFn: async () => {
@@ -481,102 +489,132 @@ export default function HomeScreen() {
                             </View>
                         </TouchableOpacity>
 
-                        {/* Area Picker Modal */}
+                        {/* Area Picker Modal - Premium Apollo Style */}
                         <Modal visible={showAreaPicker} transparent animationType="slide" onRequestClose={() => setShowAreaPicker(false)}>
-                            <TouchableOpacity style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} activeOpacity={1} onPress={() => setShowAreaPicker(false)} />
-                            <View style={{ backgroundColor: '#fff', borderTopLeftRadius: 20, borderTopRightRadius: 20, paddingBottom: 32, position: 'absolute', bottom: 0, left: 0, right: 0 }}>
-                                <View style={{ alignItems: 'center', paddingVertical: 12 }}>
-                                    <View style={{ width: 40, height: 4, backgroundColor: '#e0e0e0', borderRadius: 2 }} />
-                                    <Text style={{ fontSize: 16, fontWeight: '700', marginTop: 10, color: '#1a1a1a' }}>Select Your Area</Text>
-                                </View>
-                                <ScrollView style={{ maxHeight: 300 }}>
-                                    {recentAreas.length > 0 && (
-                                        <View>
-                                            <Text style={{ fontSize: 13, fontWeight: '600', color: '#888', paddingHorizontal: 24, paddingVertical: 8, backgroundColor: '#f9f9f9' }}>RECENT</Text>
-                                            {recentAreas.map((area) => (
-                                                <TouchableOpacity
-                                                    key={`recent-${area}`}
-                                                    onPress={async () => {
-                                                        setLocationArea(area);
-                                                        setLocationCity('Hyderabad');
-                                                        cachedLocationArea = area;
-                                                        cachedLocationCity = 'Hyderabad';
-                                                        await AsyncStorage.setItem('last_location_area', area);
-                                                        await AsyncStorage.setItem('last_location_city', 'Hyderabad');
-                                                        
-                                                        let newRecents = [area, ...recentAreas.filter(a => a !== area)].slice(0, 3);
-                                                        setRecentAreas(newRecents);
-                                                        await AsyncStorage.setItem('recent_areas_partner', JSON.stringify(newRecents));
-                                                        
-                                                        setShowAreaPicker(false);
-                                                    }}
-                                                    style={{
-                                                        flexDirection: 'row',
-                                                        alignItems: 'center',
-                                                        paddingHorizontal: 24,
-                                                        paddingVertical: 14,
-                                                        borderBottomWidth: 1,
-                                                        borderBottomColor: '#f0f0f0',
-                                                        backgroundColor: locationArea === area ? '#EBF5FB' : '#fff',
-                                                    }}
-                                                >
-                                                    <Ionicons name="location-sharp" size={16} color="#1A7FD4" style={{ marginRight: 12 }} />
-                                                    <Text style={{ fontSize: 15, color: '#1a1a1a', fontWeight: locationArea === area ? '700' : '400' }}>{area}</Text>
-                                                    {locationArea === area && <Text style={{ marginLeft: 'auto', color: '#1A7FD4', fontSize: 18 }}>✓</Text>}
-                                                </TouchableOpacity>
-                                            ))}
-                                            <Text style={{ fontSize: 13, fontWeight: '600', color: '#888', paddingHorizontal: 24, paddingVertical: 8, backgroundColor: '#f9f9f9' }}>ALL AREAS</Text>
+                            <View style={{ flex: 1, backgroundColor: 'rgba(10,20,50,0.55)', justifyContent: 'flex-end' }}>
+                                <TouchableOpacity style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0 }} activeOpacity={1} onPress={() => setShowAreaPicker(false)} />
+                                <View style={{ backgroundColor: '#fff', borderTopLeftRadius: 32, borderTopRightRadius: 32, overflow: 'hidden', maxHeight: '80%' }}>
+                                    {/* Header */}
+                                    <View style={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: 20, borderBottomWidth: 1, borderBottomColor: '#F1F5F9' }}>
+                                        <View style={{ width: 44, height: 5, backgroundColor: '#E2E8F0', borderRadius: 3, alignSelf: 'center', marginBottom: 20 }} />
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                                            <View style={{ width: 44, height: 44, borderRadius: 14, backgroundColor: '#ECFDF5', justifyContent: 'center', alignItems: 'center' }}>
+                                                <Ionicons name="location-sharp" size={20} color="#059669" />
+                                            </View>
+                                            <View>
+                                                <Text style={{ fontSize: 19, fontWeight: '900', color: '#0F172A', letterSpacing: -0.3 }}>Select Your Area</Text>
+                                                <Text style={{ fontSize: 13, color: '#64748B', fontWeight: '500', marginTop: 2 }}>Hyderabad, Telangana</Text>
+                                            </View>
                                         </View>
-                                    )}
-                                    {[
-                                        'Safilguda',
-                                        'Neredmet',
-                                        'Malkajgiri',
-                                        'Anand Bagh',
-                                        'Dayanand Nagar',
-                                        'Moula Ali',
-                                        'A.S. Rao Nagar',
-                                        'Sainikpuri',
-                                    ].map((area) => (
+                                        {/* GPS Detect Button */}
                                         <TouchableOpacity
-                                            key={area}
-                                            onPress={async () => {
-                                                setLocationArea(area);
-                                                setLocationCity('Hyderabad');
-                                                cachedLocationArea = area;
-                                                cachedLocationCity = 'Hyderabad';
-                                                await AsyncStorage.setItem('last_location_area', area);
-                                                await AsyncStorage.setItem('last_location_city', 'Hyderabad');
-                                                
-                                                let newRecents = [area, ...recentAreas.filter(a => a !== area)].slice(0, 3);
-                                                setRecentAreas(newRecents);
-                                                await AsyncStorage.setItem('recent_areas_partner', JSON.stringify(newRecents));
-                                                
-                                                setShowAreaPicker(false);
-                                            }}
-                                            style={{
-                                                flexDirection: 'row',
-                                                alignItems: 'center',
-                                                paddingHorizontal: 24,
-                                                paddingVertical: 14,
-                                                borderBottomWidth: 1,
-                                                borderBottomColor: '#f0f0f0',
-                                                backgroundColor: locationArea === area ? '#EBF5FB' : '#fff',
-                                            }}
+                                            onPress={() => { setShowAreaPicker(false); setupLocation(); }}
+                                            activeOpacity={0.85}
+                                            style={{ flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16, backgroundColor: '#ECFDF5', borderRadius: 14, paddingHorizontal: 16, paddingVertical: 13, borderWidth: 1, borderColor: '#A7F3D0' }}
                                         >
-                                            <Ionicons name="location-sharp" size={16} color="#1A7FD4" style={{ marginRight: 12 }} />
-                                            <Text style={{ fontSize: 15, color: '#1a1a1a', fontWeight: locationArea === area ? '700' : '400' }}>{area}</Text>
-                                            {locationArea === area && <Text style={{ marginLeft: 'auto', color: '#1A7FD4', fontSize: 18 }}>✓</Text>}
+                                            <View style={{ width: 30, height: 30, borderRadius: 10, backgroundColor: '#059669', justifyContent: 'center', alignItems: 'center' }}>
+                                                <Ionicons name="navigate" size={14} color="#fff" />
+                                            </View>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={{ fontSize: 14, fontWeight: '800', color: '#059669' }}>Use my current location</Text>
+                                                <Text style={{ fontSize: 11, color: '#64748B', fontWeight: '500' }}>Auto-detect via GPS</Text>
+                                            </View>
+                                            <Ionicons name="chevron-forward" size={16} color="#6EE7B7" />
                                         </TouchableOpacity>
-                                    ))}
-                                </ScrollView>
-                                <TouchableOpacity
-                                    onPress={() => { setShowAreaPicker(false); setupLocation(); }}
-                                    style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 14, borderTopWidth: 1, borderTopColor: '#f0f0f0' }}
-                                >
-                                    <Ionicons name="location-sharp" size={16} color="#1A7FD4" style={{ marginRight: 12 }} />
-                                    <Text style={{ fontSize: 15, color: '#1A7FD4', fontWeight: '600' }}>Use my current location</Text>
-                                </TouchableOpacity>
+                                    </View>
+
+                                    {/* Area List */}
+                                    <ScrollView style={{ maxHeight: 340 }} showsVerticalScrollIndicator={false}>
+                                        {recentAreas.length > 0 && (
+                                            <View>
+                                                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 24, paddingTop: 20, paddingBottom: 8 }}>
+                                                    <View style={{ width: 3, height: 14, backgroundColor: '#F59E0B', borderRadius: 2 }} />
+                                                    <Text style={{ fontSize: 11, fontWeight: '900', color: '#94A3B8', letterSpacing: 1.2 }}>RECENTLY SELECTED</Text>
+                                                </View>
+                                                {recentAreas.map((area) => (
+                                                    <TouchableOpacity
+                                                        key={`recent-${area}`}
+                                                        onPress={async () => {
+                                                            setLocationArea(area);
+                                                            setLocationCity('Hyderabad');
+                                                            cachedLocationArea = area;
+                                                            cachedLocationCity = 'Hyderabad';
+                                                            await AsyncStorage.setItem('last_location_area', area);
+                                                            await AsyncStorage.setItem('last_location_city', 'Hyderabad');
+                                                            let newRecents = [area, ...recentAreas.filter(a => a !== area)].slice(0, 3);
+                                                            setRecentAreas(newRecents);
+                                                            await AsyncStorage.setItem('recent_areas_partner', JSON.stringify(newRecents));
+                                                            setShowAreaPicker(false);
+                                                        }}
+                                                        activeOpacity={0.7}
+                                                        style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16, backgroundColor: locationArea === area ? '#F0F7FF' : '#fff', borderBottomWidth: 1, borderBottomColor: '#F8FAFC', gap: 14 }}
+                                                    >
+                                                        <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: locationArea === area ? '#DBEAFE' : '#F8FAFC', justifyContent: 'center', alignItems: 'center' }}>
+                                                            <Ionicons name="location-sharp" size={16} color={locationArea === area ? '#1A7FD4' : '#94A3B8'} />
+                                                        </View>
+                                                        <Text style={{ flex: 1, fontSize: 15, fontWeight: locationArea === area ? '800' : '600', color: locationArea === area ? '#1E3A8A' : '#334155' }}>{area}</Text>
+                                                        {locationArea === area ? (
+                                                            <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: '#1A7FD4', justifyContent: 'center', alignItems: 'center' }}>
+                                                                <Text style={{ color: '#fff', fontSize: 13, fontWeight: '900' }}>✓</Text>
+                                                            </View>
+                                                        ) : (
+                                                            <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: '#F1F5F9' }} />
+                                                        )}
+                                                    </TouchableOpacity>
+                                                ))}
+                                            </View>
+                                        )}
+
+                                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 24, paddingTop: 20, paddingBottom: 8 }}>
+                                            <View style={{ width: 3, height: 14, backgroundColor: '#059669', borderRadius: 2 }} />
+                                            <Text style={{ fontSize: 11, fontWeight: '900', color: '#94A3B8', letterSpacing: 1.2 }}>ALL SERVICEABLE AREAS</Text>
+                                        </View>
+                                        {loadingAreas ? (
+                                            <View style={{ padding: 24, alignItems: 'center' }}>
+                                                <ActivityIndicator size="small" color="#059669" />
+                                            </View>
+                                        ) : serviceableAreas.length === 0 ? (
+                                            <View style={{ padding: 24, alignItems: 'center' }}>
+                                                <Text style={{ color: '#64748B', fontSize: 14 }}>No serviceable areas available</Text>
+                                            </View>
+                                        ) : serviceableAreas.map((areaObj: any) => (
+                                            <TouchableOpacity
+                                                key={areaObj._id}
+                                                onPress={async () => {
+                                                    const area = areaObj.name;
+                                                    setLocationArea(area);
+                                                    setLocationCity(areaObj.city);
+                                                    cachedLocationArea = area;
+                                                    cachedLocationCity = areaObj.city;
+                                                    await AsyncStorage.setItem('last_location_area', area);
+                                                    await AsyncStorage.setItem('last_location_city', areaObj.city);
+                                                    let newRecents = [area, ...recentAreas.filter(a => a !== area)].slice(0, 3);
+                                                    setRecentAreas(newRecents);
+                                                    await AsyncStorage.setItem('recent_areas_partner', JSON.stringify(newRecents));
+                                                    setShowAreaPicker(false);
+                                                }}
+                                                activeOpacity={0.7}
+                                                style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 24, paddingVertical: 16, backgroundColor: locationArea === areaObj.name ? '#F0FDF8' : '#fff', borderBottomWidth: 1, borderBottomColor: '#F8FAFC', gap: 14 }}
+                                            >
+                                                <View style={{ width: 38, height: 38, borderRadius: 12, backgroundColor: locationArea === areaObj.name ? '#D1FAE5' : '#F8FAFC', justifyContent: 'center', alignItems: 'center' }}>
+                                                    <Ionicons name="location-sharp" size={16} color={locationArea === areaObj.name ? '#059669' : '#94A3B8'} />
+                                                </View>
+                                                <View style={{ flex: 1 }}>
+                                                    <Text style={{ fontSize: 15, fontWeight: locationArea === areaObj.name ? '800' : '600', color: locationArea === areaObj.name ? '#064E3B' : '#334155' }}>{areaObj.name}</Text>
+                                                    <Text style={{ fontSize: 11, color: '#64748B', marginTop: 2 }}>{areaObj.city}, {areaObj.state}</Text>
+                                                </View>
+                                                {locationArea === areaObj.name ? (
+                                                    <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: '#059669', justifyContent: 'center', alignItems: 'center' }}>
+                                                        <Text style={{ color: '#fff', fontSize: 13, fontWeight: '900' }}>✓</Text>
+                                                    </View>
+                                                ) : (
+                                                    <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: '#F1F5F9' }} />
+                                                )}
+                                            </TouchableOpacity>
+                                        ))}
+                                        <View style={{ height: 20 }} />
+                                    </ScrollView>
+                                </View>
                             </View>
                         </Modal>
                         <TouchableOpacity style={styles.notificationBtn} onPress={() => router.push("/notifications")}>

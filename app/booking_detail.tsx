@@ -261,9 +261,25 @@ export default function BookingDetailScreen() {
                         </View>
                     </View>
                     {!isFutureDate && (
-                        <TouchableOpacity style={styles.mapBtn} onPress={openMaps}>
+                        <TouchableOpacity style={styles.mapBtn} onPress={() => {
+                            const addr = booking?.address || booking?.addressId;
+                            const coords = addr?.coords || addr?.location || booking?.location;
+                            const lat = coords?.lat;
+                            const lng = coords?.lng;
+                            const locationString = booking.address?.address || booking.address?.street || booking.location?.address || booking.address?.label;
+                            
+                            router.push({
+                                pathname: '/tracking/[id]' as any,
+                                params: {
+                                    id: booking._id,
+                                    address: locationString || '',
+                                    destLat: lat ? String(lat) : '',
+                                    destLng: lng ? String(lng) : ''
+                                }
+                            });
+                        }}>
                             <Navigation size={16} color="#FFF" />
-                            <Text style={styles.mapBtnText}>Start Turn-by-Turn Navigation</Text>
+                            <Text style={styles.mapBtnText}>Start Live Tracking</Text>
                         </TouchableOpacity>
                     )}
                 </TouchableOpacity>

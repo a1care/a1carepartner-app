@@ -42,49 +42,26 @@ export default function PrivacyPolicyScreen() {
                 <TouchableOpacity onPress={() => router.navigate("/(tabs)/profile" as any)} style={styles.backButton}>
                     <Ionicons name="arrow-back" size={24} color="#1E293B" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Privacy Policy</Text>
                 <View style={{ width: 24 }} />
             </View>
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 <View style={styles.card}>
-                    <Text style={styles.lastUpdate}>Effective Date: February 21, 2026</Text>
-
-                    <Text style={styles.intro}>A1Care is committed to protecting the data of our medical partners and the patients you serve.</Text>
-
                     {privacyData?.content ? (
-                        <RenderHtml contentWidth={width - 50} source={{ html: privacyData.content }} tagsStyles={{ p: styles.paragraph, span: styles.paragraph, li: styles.paragraph }} />
-                    ) : (
-                        <>
-                            <Text style={styles.sectionTitle}>1. Introduction</Text>
-                            <Text style={styles.paragraph}>
-                                At A1Care, your privacy is our priority. This Privacy Policy explains how we collect, use, and protect your information when you use our Partner Application.
-                            </Text>
-
-                            <Text style={styles.sectionTitle}>2. Information We Collect</Text>
-                            <Text style={styles.paragraph}>
-                                • Profile Data: Name, mobile number, gender, and profile picture. {"\n"}
-                                • Professional Data: Medical licenses, degrees, and specialization details. {"\n"}
-                                • Financial Data: Bank details and transaction history in your A1Care wallet. {"\n"}
-                                • Location Data: Real-time location to match you with nearby patients.
-                            </Text>
-
-                            <Text style={styles.sectionTitle}>3. How We Use Data</Text>
-                            <Text style={styles.paragraph}>
-                                We use your data to facilitate bookings, verify your professional identity, process your earnings, and improve the overall service matching efficiency.
-                            </Text>
-
-                            <Text style={styles.sectionTitle}>4. Data Sharing</Text>
-                            <Text style={styles.paragraph}>
-                                Your professional name and photo are shared with patients who book your services. We do not sell your personal data to third parties for marketing.
-                            </Text>
-
-                            <Text style={styles.sectionTitle}>5. Security</Text>
-                            <Text style={styles.paragraph}>
-                                We implement industry-standard encryption to protect your sensitive data, including medical licenses and financial information.
-                            </Text>
-                        </>
-                    )}
+                        <RenderHtml 
+                            contentWidth={width - 50} 
+                            source={{ html: privacyData.content }} 
+                            tagsStyles={{ 
+                                p: styles.paragraph, 
+                                span: styles.paragraph, 
+                                li: styles.paragraph,
+                                h1: styles.htmlH1,
+                                h2: styles.htmlH2,
+                                h3: styles.htmlH3,
+                                strong: styles.htmlBold
+                            }} 
+                        />
+                    ) : null}
                 </View>
             </ScrollView>
         </SafeAreaView>
@@ -101,7 +78,11 @@ const styles = StyleSheet.create({
     iconContainer: { width: 64, height: 64, borderRadius: 32, backgroundColor: "#E8F8EF", justifyContent: 'center', alignItems: 'center', alignSelf: 'center', marginBottom: 15 },
     lastUpdate: { fontSize: 13, color: "#94A3B8", fontWeight: "800", marginBottom: 20, textAlign: 'center' },
     sectionTitle: { fontSize: 16, fontWeight: "800", color: "#1E293B", marginTop: 20, marginBottom: 10 },
-    paragraph: { fontSize: 14, lineHeight: 24, color: "#475569", fontWeight: "600", marginBottom: 15 },
+    paragraph: { fontSize: 15, lineHeight: 26, color: "#475569", fontWeight: "500", marginBottom: 15 },
+    htmlH1: { fontSize: 20, fontWeight: '900', color: '#FFFFFF', backgroundColor: '#064E3B', padding: 16, borderRadius: 12, overflow: 'hidden', marginBottom: 20, marginTop: 4, letterSpacing: -0.2, lineHeight: 28 } as any,
+    htmlH2: { fontSize: 20, fontWeight: '800', color: '#0F172A', marginTop: 28, marginBottom: 12, letterSpacing: -0.3 } as any,
+    htmlH3: { fontSize: 16, fontWeight: '800', color: '#334155', marginTop: 16, marginBottom: 8 } as any,
+    htmlBold: { fontWeight: '800', color: '#0F172A' } as any,
     supportLink: { marginTop: 25, padding: 14, backgroundColor: "#E8F8EF", borderRadius: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' },
     supportText: { color: "#2D935C", fontWeight: "800", fontSize: 14 }
 });

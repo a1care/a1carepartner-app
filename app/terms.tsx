@@ -42,45 +42,26 @@ export default function TermsConditionsScreen() {
                 <TouchableOpacity onPress={() => router.navigate("/(tabs)/profile" as any)} style={styles.backButton}>
                     <Ionicons name="arrow-back" size={24} color="#1E293B" />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Terms & Conditions</Text>
+                <View style={{ width: 24 }} />
             </View>
 
             <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
                 <View style={styles.card}>
-                    <Text style={styles.lastUpdate}>Effective Date: February 21, 2026</Text>
-
-                    <Text style={styles.intro}>By joining the A1Care Partner Program, you agree to the following professional terms and conditions.</Text>
-
                     {termsData?.content ? (
-                        <RenderHtml contentWidth={width - 50} source={{ html: termsData.content }} tagsStyles={{ p: styles.paragraph, span: styles.paragraph, li: styles.paragraph }} />
-                    ) : (
-                        <>
-                            <Text style={styles.sectionTitle}>1. Professional Responsibility</Text>
-                            <Text style={styles.paragraph}>
-                                All partners must maintain valid required medical licenses at all times. You agree to provide services with the highest standard of professional care and ethics.
-                            </Text>
-
-                            <Text style={styles.sectionTitle}>2. Service Fulfillment</Text>
-                            <Text style={styles.paragraph}>
-                                Accepting a booking creates a binding agreement to provide services. Failure to show up without valid notice may result in account suspension and service penalty fees.
-                            </Text>
-
-                            <Text style={styles.sectionTitle}>3. Payments & Commission</Text>
-                            <Text style={styles.paragraph}>
-                                A1Care charges a service fee for every successful booking. Net earnings (after commission) will be credited to your wallet. Payouts are processed to the bank account provided in your profile.
-                            </Text>
-
-                            <Text style={styles.sectionTitle}>4. Code of Conduct</Text>
-                            <Text style={styles.paragraph}>
-                                Respectful behavior towards patients is mandatory. A1Care has a zero-tolerance policy for harassment, overcharging patients, or providing unauthorized medical advice.
-                            </Text>
-
-                            <Text style={styles.sectionTitle}>5. Account Termination</Text>
-                            <Text style={styles.paragraph}>
-                                A1Care reserves the right to suspend or terminate accounts that fail to meet verification standards, receive multiple negative ratings, or violate these terms.
-                            </Text>
-                        </>
-                    )}
+                        <RenderHtml 
+                            contentWidth={width - 50} 
+                            source={{ html: termsData.content }} 
+                            tagsStyles={{ 
+                                p: styles.paragraph, 
+                                span: styles.paragraph, 
+                                li: styles.paragraph,
+                                h1: styles.htmlH1,
+                                h2: styles.htmlH2,
+                                h3: styles.htmlH3,
+                                strong: styles.htmlBold
+                            }} 
+                        />
+                    ) : null}
                 </View>
             </ScrollView>
         </SafeAreaView>
@@ -97,7 +78,11 @@ const styles = StyleSheet.create({
     lastUpdate: { fontSize: 13, color: "#94A3B8", fontWeight: "700", marginBottom: 10 },
     intro: { fontSize: 15, fontWeight: "700", color: "#2D935C", marginBottom: 20, lineHeight: 22 },
     sectionTitle: { fontSize: 17, fontWeight: "900", color: "#1E293C", marginTop: 20, marginBottom: 10 },
-    paragraph: { fontSize: 15, lineHeight: 24, color: "#475569", marginBottom: 15 },
+    paragraph: { fontSize: 15, lineHeight: 26, color: "#475569", fontWeight: "500", marginBottom: 15 },
+    htmlH1: { fontSize: 20, fontWeight: '900', color: '#FFFFFF', backgroundColor: '#064E3B', padding: 16, borderRadius: 12, overflow: 'hidden', marginBottom: 20, marginTop: 4, letterSpacing: -0.2, lineHeight: 28 } as any,
+    htmlH2: { fontSize: 20, fontWeight: '800', color: '#0F172A', marginTop: 28, marginBottom: 12, letterSpacing: -0.3 } as any,
+    htmlH3: { fontSize: 16, fontWeight: '800', color: '#334155', marginTop: 16, marginBottom: 8 } as any,
+    htmlBold: { fontWeight: '800', color: '#0F172A' } as any,
     footer: { marginTop: 30, paddingTop: 20, borderTopWidth: 1, borderTopColor: "#F1F5F9" },
     footerText: { fontSize: 13, color: "#94A3B8", textAlign: 'center', fontStyle: 'italic' }
 });

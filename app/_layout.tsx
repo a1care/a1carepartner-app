@@ -1,6 +1,6 @@
 import "../global.css";
 import { useEffect, useRef, useState } from "react";
-import { Slot, useRouter, useSegments } from "expo-router";
+import { Stack, useRouter, useSegments } from "expo-router";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -249,7 +249,7 @@ function AuthGuard() {
 
     return (
         <View style={styles.root}>
-            <Slot />
+            <Stack screenOptions={{ headerShown: false, gestureEnabled: true, fullScreenGestureEnabled: true, animation: 'slide_from_right' }} />
             <View style={styles.overlayLayer} pointerEvents="box-none">
                 <FloatingBookingAlert />
             </View>

@@ -9,10 +9,11 @@ import {
     ActivityIndicator,
     KeyboardAvoidingView,
     Platform,
-    Alert,
+    ImageBackground,
     Modal,
     TouchableWithoutFeedback,
 } from 'react-native';
+import Toast from 'react-native-toast-message';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { useQuery, useMutation } from '@tanstack/react-query';
@@ -120,7 +121,7 @@ export default function BookingChatScreen() {
             setChatMessages(prev => [...prev, newMsg]);
             setTypedMessage('');
         },
-        onError: () => Alert.alert('Error', 'Failed to send message. Please try again.'),
+        onError: () => Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to send message. Please try again.' }),
     });
 
     const handleSend = (msg?: string) => {
@@ -150,7 +151,7 @@ export default function BookingChatScreen() {
                 Linking.openURL(`tel:${patientMobile}`);
             });
         } else {
-            Alert.alert('Not Available', 'Phone number is not available for this patient.');
+            Toast.show({ type: 'error', text1: 'Not Available', text2: 'Phone number is not available for this patient.' });
         }
     };
 
@@ -204,8 +205,8 @@ export default function BookingChatScreen() {
             {/* ── Chat Body ── */}
             <KeyboardAvoidingView
                 style={{ flex: 1 }}
-                behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+                behavior="padding"
+                keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
             >
                 <View style={{ flex: 1 }}>
                 <View style={[StyleSheet.absoluteFillObject, { backgroundColor: BG_CHAT }]} />

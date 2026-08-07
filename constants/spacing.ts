@@ -14,7 +14,7 @@ export const Spacing = {
 // The bottom tab bar is position:absolute, so screens must add this as
 // paddingBottom on their ScrollView contentContainerStyle to avoid content
 // being hidden behind the tab bar.
-export const TAB_BAR_HEIGHT = 95;
+export const TAB_BAR_HEIGHT = 90;
 
 export const BorderRadius = {
     sm: 8,

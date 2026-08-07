@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, ScrollView, TouchableOpacity, TextInput, Activi
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useLocalSearchParams } from "expo-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 
@@ -16,12 +16,16 @@ export default function RaiseTicketScreen() {
     });
     const [isRaising, setIsRaising] = useState(false);
     const params = useLocalSearchParams<{ autoOpen?: string }>();
+    const hasAutoOpened = useRef(false);
 
     useEffect(() => {
-        if (params?.autoOpen === "true") {
+        if (params?.autoOpen === "true" && !hasAutoOpened.current) {
             setIsRaising(true);
+            hasAutoOpened.current = true;
+            // Optionally clear the param so it doesn't re-trigger
+            router.setParams({ autoOpen: undefined });
         }
-    }, [params]);
+    }, [params?.autoOpen]);
 
     useEffect(() => {
         const backAction = () => {

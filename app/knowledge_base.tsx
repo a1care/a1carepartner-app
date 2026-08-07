@@ -14,8 +14,26 @@ if (Platform.OS === "android" && UIManager.setLayoutAnimationEnabledExperimental
 
 // Tolerant field access — admin stores knowledgeBase as a free-form array.
 const getTitle = (item: any) => item?.title || item?.heading || item?.question || item?.name || "Untitled";
-const getBody = (item: any) => item?.content || item?.body || item?.answer || item?.description || item?.text || "";
+const getRawBody = (item: any) => item?.content || item?.body || item?.answer || item?.description || item?.text || "";
 const getCategory = (item: any) => item?.category || item?.tag || null;
+
+// Strip HTML tags and decode common HTML entities
+const stripHtml = (html: string): string => {
+    if (!html) return '';
+    return html
+        .replace(/<\/?(p|div|br|li|h[1-6]|tr|td|th)(\s[^>]*)?>\s*/gi, '\n') // block elements → newline
+        .replace(/<[^>]+>/g, '')                                              // remove remaining tags
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/\n{3,}/g, '\n\n')                                           // collapse excess blank lines
+        .trim();
+};
+
+const getBody = (item: any) => stripHtml(getRawBody(item));
 
 export default function KnowledgeBaseScreen() {
     const router = useRouter();

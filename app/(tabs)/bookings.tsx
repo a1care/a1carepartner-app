@@ -446,14 +446,23 @@ export default function BookingsScreen() {
         import('react-native').then(({ Linking }) => Linking.openURL(url));
     };
 
-    const startTracking = async (id: string, address?: string) => {
+    const startTracking = async (id: string, address?: string, destLat?: number, destLng?: number) => {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
             CustomAlert.show("Permission", "Please allow location to track your journey.");
             return;
         }
 
-        if (address) openMaps(address);
+        // Navigate to the new tracking screen
+        router.push({
+            pathname: '/tracking/[id]' as any,
+            params: {
+                id,
+                address: address || '',
+                destLat: destLat ? String(destLat) : '',
+                destLng: destLng ? String(destLng) : ''
+            }
+        });
 
         setIsTracking(id);
         if (trackingInterval.current) clearInterval(trackingInterval.current);
@@ -523,7 +532,12 @@ export default function BookingsScreen() {
                         await updateStatusMutation.mutateAsync({ id: b._id, status: "IN_PROGRESS", bookingType: b.bookingType });
                     } catch { /* ignore */ }
                 }
-                startTracking(b._id, b.location?.address);
+                const addr = b?.address || b?.addressId;
+                const coords = addr?.coords || addr?.location || b?.location;
+                const lat = coords?.lat;
+                const lng = coords?.lng;
+                const locationString = b.address?.address || b.address?.street || b.location?.address || b.address?.label;
+                startTracking(b._id, locationString, lat, lng);
             }}
             onStopTracking={stopTracking}
             onComplete={async () => {
