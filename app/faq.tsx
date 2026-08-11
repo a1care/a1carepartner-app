@@ -68,7 +68,7 @@ export default function FAQScreen() {
                 </View>
 
                 {faqItems.length > 0 ? (
-                    faqItems.map((faq, index) => (
+                    faqItems.map((faq: any, index: number) => (
                         <TouchableOpacity
                             key={index}
                             style={[

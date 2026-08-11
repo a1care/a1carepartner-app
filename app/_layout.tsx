@@ -107,7 +107,7 @@ function AuthGuard() {
         const inAuth = currentSegment === "(auth)";
         const isInReviewStatus = currentSubSegment === "review-status";
         const inOnboarding = currentSegment === "onboarding";
-        const isPolicyPage = currentSegment === "privacy" || currentSegment === "terms";
+        const isPolicyPage = currentSegment === "privacy" || currentSegment === "terms" || currentSegment === "faq";
         const inRegister = currentSubSegment === "register";
 
         if (config?.maintenanceMode) {

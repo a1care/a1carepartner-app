@@ -37,7 +37,7 @@ const roleLabels: Record<string, string> = {
 
 const LoginScreen = () => {
     const router = useRouter();
-    const { role } = useLocalSearchParams<{ role: string }>();
+    const { role, specialization } = useLocalSearchParams<{ role: string, specialization?: string }>();
     const { setAuth } = useAuthStore();
     const [mobile, setMobile] = useState("");
     const [otp, setOtp] = useState("");
@@ -166,7 +166,7 @@ const LoginScreen = () => {
             if (needsKycUpload(userData, partnerRole)) {
                 router.replace({
                     pathname: "/(auth)/register",
-                    params: { role: partnerRole, token: authToken }
+                    params: { role: partnerRole, token: authToken, specialization }
                 });
             } else if (userData.status === "Pending") {
                 router.replace("/(auth)/review-status");
