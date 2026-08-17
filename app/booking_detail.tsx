@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from "react";
 import { Toast } from '../components/CustomToast';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Linking, Image, Alert, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -35,7 +36,7 @@ const statusColors: Record<string, { bg: string; text: string; label: string }> 
 };
 
 const getStatusLabel = (status: string) =>
-    statusColors[status]?.label || status.replace(/_/g, ' ');
+    statusColors[status]?.label || (typeof status === 'string' ? status.replace(/_/g, ' ') : 'Unknown');
 
 export default function BookingDetailScreen() {
     const router = useRouter();
@@ -77,6 +78,26 @@ export default function BookingDetailScreen() {
             Toast.show({ type: 'error', text1: "Error", text2: err?.response?.data?.message || "Could not mark cash as collected" });
         }
     });
+
+    // Alert the partner when a broadcasted booking expires (timer runs out or no one accepts)
+    const [prevStatus, setPrevStatus] = useState<string | undefined>(undefined);
+    useEffect(() => {
+        if (booking?.status) {
+            if (
+                prevStatus && 
+                (prevStatus === 'BROADCASTED' || prevStatus === 'Pending' || prevStatus === 'PENDING') && 
+                (booking.status === 'RETURNED_TO_ADMIN' || booking.status === 'Cancelled' || booking.status === 'CANCELLED')
+            ) {
+                CustomAlert.show(
+                    "⏰ Booking Expired",
+                    "This booking received no response in time and has expired or was removed.",
+                    [{ text: "OK", onPress: () => router.push("/(tabs)/home" as any) }],
+                    { type: "error" }
+                );
+            }
+            setPrevStatus(booking.status);
+        }
+    }, [booking?.status]);
 
     const updateStatus = useMutation({
         mutationFn: (status: string) => partnerBookingService.updateStatus(String(id), status, bookingType),
@@ -208,14 +229,16 @@ export default function BookingDetailScreen() {
                             <Image source={{ uri: resolvePhoto(booking.patient.profileImage) }} style={styles.avatar} />
                         ) : (
                             <View style={styles.avatarFallback}>
-                                <Text style={styles.avatarLetter}>{(booking.patient?.name || "P").charAt(0).toUpperCase()}</Text>
+                                <Text style={styles.avatarLetter}>{String(booking.patient?.name || "P").charAt(0).toUpperCase()}</Text>
                             </View>
                         )}
                         <View style={{ flex: 1 }}>
-                            <Text style={styles.patientName}>{booking.patient?.name || "Patient"}</Text>
+                            <Text style={styles.patientName}>{String(booking.patient?.name || "Patient")}</Text>
                             <View style={styles.serviceRow}>
                                 <MaterialCommunityIcons name={bookingType === "Doctor" ? "stethoscope" : "flask-outline"} size={14} color="#64748B" />
-                                <Text style={styles.serviceText}>{booking.childServiceId?.name || booking.serviceName}</Text>
+                                <Text style={styles.serviceText}>
+                                    {String(booking.childServiceId?.name || (typeof booking.serviceName === 'object' ? booking.serviceName?.name : booking.serviceName) || "Service")}
+                                </Text>
                             </View>
                         </View>
                         {booking.patient?.mobile && !isFutureDate && (
@@ -254,13 +277,13 @@ export default function BookingDetailScreen() {
                                 return (
                                     <>
                                         <Text style={styles.addressLabel}>ADDRESS</Text>
-                                        <Text style={styles.addressText}>{locationString}</Text>
+                                        <Text style={styles.addressText}>{String(locationString)}</Text>
                                     </>
                                 );
                             })()}
                         </View>
                     </View>
-                    {!isFutureDate && (
+                    {!isFutureDate && (isActive || isPartnerAssigned) && (
                         <TouchableOpacity style={styles.mapBtn} onPress={() => {
                             const addr = booking?.address || booking?.addressId;
                             const coords = addr?.coords || addr?.location || booking?.location;
@@ -290,8 +313,8 @@ export default function BookingDetailScreen() {
                     <View style={styles.card}>
                         <Text style={styles.sectionTitle}>Notes from Patient</Text>
                         <View style={styles.notesRow}>
-                            <FileText size={16} color="#64748B" />
-                            <Text style={styles.notesText}>{booking.notes}</Text>
+                            <FileText size={20} color="#92400E" />
+                            <Text style={styles.notesText}>{String(booking.notes)}</Text>
                         </View>
                     </View>
                 ) : null}
@@ -420,9 +443,9 @@ function Row({ icon, label, value, valueBold }: { icon: React.ReactNode; label: 
         <View style={styles.row}>
             <View style={styles.rowLeft}>
                 <View style={styles.rowIconBox}>{icon}</View>
-                <Text style={styles.rowLabel}>{label}</Text>
+                <Text style={styles.rowLabel}>{String(label)}</Text>
             </View>
-            <Text style={[styles.rowValue, valueBold && { fontWeight: "900", color: PRIMARY, fontSize: 17 }]}>{value}</Text>
+            <Text style={[styles.rowValue, valueBold && { fontWeight: "900", color: PRIMARY, fontSize: 17 }]}>{String(value)}</Text>
         </View>
     );
 }
@@ -432,11 +455,11 @@ function TimelineItem({ label, time, active, last }: { label: string; time?: str
         <View style={styles.tlRow}>
             <View style={styles.tlLeft}>
                 <View style={[styles.tlDot, active && { backgroundColor: PRIMARY }]} />
-                {!last && <View style={styles.tlLine} />}
+                {!last && <View style={[styles.tlLine, active && { backgroundColor: PRIMARY }]} />}
             </View>
-            <View style={{ paddingBottom: last ? 0 : 16 }}>
-                <Text style={styles.tlLabel}>{label}</Text>
-                {time ? <Text style={styles.tlTime}>{new Date(time).toLocaleString()}</Text> : null}
+            <View style={{ flex: 1, paddingBottom: last ? 0 : 20 }}>
+                <Text style={styles.tlLabel}>{String(label)}</Text>
+                {time ? <Text style={styles.tlTime}>{String(new Date(time).toLocaleString())}</Text> : null}
             </View>
         </View>
     );

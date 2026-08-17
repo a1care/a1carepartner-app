@@ -134,12 +134,14 @@ const BookingCard = memo(({
                         <Text style={styles.patientName}>{b.patientName || 'Guest Patient'}</Text>
                         <View style={[styles.serviceRow, { flexShrink: 1 }]}>
                             <MaterialCommunityIcons name={b.bookingType === 'Doctor' ? 'stethoscope' : 'flask-outline'} size={14} color='#64748B' />
-                            <Text style={styles.serviceText} numberOfLines={1} ellipsizeMode="tail">{b.serviceType}</Text>
+                            <Text style={styles.serviceText} numberOfLines={1} ellipsizeMode="tail">
+                                {typeof b.serviceType === 'object' ? (b.serviceType?.name || 'Service') : (b.serviceType || 'Service')}
+                            </Text>
                         </View>
                     </View>
                     <View style={[styles.statusBadge, { backgroundColor: statusColors[b.status]?.bg || '#F1F5F9' }]}>
                         <MaterialCommunityIcons name={(statusColors[b.status]?.icon || 'help-circle-outline') as any} size={14} color={statusColors[b.status]?.text || '#64748B'} style={{marginRight: 4}} />
-                        <Text style={[styles.statusText, { color: statusColors[b.status]?.text || '#64748B' }]}>{statusColors[b.status]?.label || b.status}</Text>
+                        <Text style={[styles.statusText, { color: statusColors[b.status]?.text || '#64748B' }]}>{statusColors[b.status]?.label || String(b.status || 'Unknown')}</Text>
                     </View>
                 </View>
                 
@@ -217,16 +219,7 @@ const BookingCard = memo(({
                             </View>
                         ) : (
                             <View style={styles.activeActions}>
-                                {isTracking !== b._id ? (
-                                    <TouchableOpacity style={[styles.mainBtn, styles.secondaryBtn, { flex: 1.2 }]} onPress={onStartTracking}>
-                                        <Navigation size={18} color='#0F172A' />
-                                        <Text style={[styles.mainBtnText, { color: '#0F172A' }]}>Navigate</Text>
-                                    </TouchableOpacity>
-                                ) : (
-                                    <TouchableOpacity style={[styles.mainBtn, { backgroundColor: '#EF4444', flex: 1.2 }]} onPress={onStopTracking}>
-                                        <Text style={styles.mainBtnText}>Stop Track</Text>
-                                    </TouchableOpacity>
-                                )}
+
                                 <TouchableOpacity style={[styles.mainBtn, { flex: 1.2 }]} onPress={onComplete}>
                                     <Text style={styles.mainBtnText}>Complete</Text>
                                 </TouchableOpacity>
@@ -556,15 +549,15 @@ export default function BookingsScreen() {
                         status: b.bookingType === 'Doctor' ? "Completed" : "COMPLETED",
                         bookingType: b.bookingType
                     });
-                    router.push({ pathname: '/booking_feedback' as any, params: { bookingId: b._id, patientName: b.patientName || 'Patient', type: b.bookingType } });
+                    router.push({ pathname: '/booking_feedback' as any, params: { bookingId: String(b._id), patientName: String(b.patientName || 'Patient'), type: String(b.bookingType) } });
                 } catch { /* ignore */ }
             }}
             onNavigateCard={() => {
                 if (!["CANCELLED", "Cancelled", "Missing", "RETURNED_TO_ADMIN"].includes(b.status)) {
-                    router.push({ pathname: '/booking_detail' as any, params: { bookingId: b._id, bookingType: b.bookingType } });
+                    router.push({ pathname: '/booking_detail' as any, params: { bookingId: String(b._id), bookingType: String(b.bookingType) } });
                 }
             }}
-            onNavigateChat={() => router.push({ pathname: '/booking_chat' as any, params: { id: b._id, name: b.patientName || 'Patient' } })}
+            onNavigateChat={() => router.push({ pathname: '/booking_chat' as any, params: { id: String(b._id), name: String(b.patientName || 'Patient') } })}
             onNavigateSubscriptions={() => router.push("/subscriptions" as any)}
         />
     ), [hasActiveSub, unreadByBooking, isTracking, acceptServiceMutation, rejectServiceMutation, updateStatusMutation, collectCashMutation, router, startTracking, stopTracking]);

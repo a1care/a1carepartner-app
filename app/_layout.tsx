@@ -10,6 +10,7 @@ import { focusManager } from "@tanstack/react-query";
 import { useAuthStore } from "../stores/auth";
 import { useConfigStore } from "../stores/config.store";
 import { ToastProvider } from '../components/CustomToast';
+import Toast from 'react-native-toast-message';
 import { needsKycUpload, roleFromPartner } from "../lib/partnerOnboarding";
 import { connectSocket, disconnectSocket } from "../lib/socket";
 
@@ -68,7 +69,7 @@ const queryClient = new QueryClient({
 });
 
 function AuthGuard() {
-    const { token, user, isLoading, loadFromStorage } = useAuthStore();
+    const { token, user, isLoading, loadFromStorage, hasSeenOnboarding } = useAuthStore();
     const { fetchConfig, config } = useConfigStore();
     const segments = useSegments();
     const router = useRouter();
@@ -102,22 +103,37 @@ function AuthGuard() {
     useEffect(() => {
         if (!isAppReady || isLoading) return;
 
-        const currentSegment = segments[0] as string;
-        const currentSubSegment = segments[1] as string;
-        const inAuth = currentSegment === "(auth)";
-        const isInReviewStatus = currentSubSegment === "review-status";
-        const inOnboarding = currentSegment === "onboarding";
-        const isPolicyPage = currentSegment === "privacy" || currentSegment === "terms" || currentSegment === "faq";
-        const inRegister = currentSubSegment === "register";
+        const currentSegment = segments[0] as string | undefined;
+        const currentSubSegment = segments[1] as string | undefined;
+        const isMaintenancePage = currentSegment === 'maintenance';
 
         if (config?.maintenanceMode) {
-            if (currentSegment !== 'maintenance') {
+            if (!isMaintenancePage) {
                 router.replace('/maintenance' as any);
+            }
+            return;
+        } else if (isMaintenancePage) {
+            router.replace('/' as any);
+            return;
+        }
+
+        const isAtRoot = !segments.length || currentSegment === 'index';
+        const inOnboarding = currentSegment === 'onboarding';
+        const inAuthGroup = currentSegment === '(auth)';
+        const inRegister = currentSubSegment === 'register';
+        const isInReviewStatus = currentSubSegment === 'review-status';
+        const isPolicyPage = ['privacy', 'terms', 'faq'].includes(currentSegment || '');
+
+        if (!hasSeenOnboarding) {
+            if (!inOnboarding) {
+                router.replace('/onboarding');
             }
             return;
         }
 
-        if (token && (inOnboarding || inAuth)) {
+        // Onboarding is completed
+        if (token && user) {
+            // Authenticated partner
             if (needsKycUpload(user, user?.role)) {
                 if (!inRegister) {
                     router.replace({
@@ -125,26 +141,23 @@ function AuthGuard() {
                         params: { role: roleFromPartner(user, user?.role) }
                     } as any);
                 }
-            } else if (user?.status === "Pending" || user?.status === "Rejected") {
+            } else if (user.status === "Pending" || user.status === "Rejected") {
                 if (!isInReviewStatus) {
                     router.replace("/(auth)/review-status" as any);
                 }
             } else {
-                router.replace("/(tabs)/home" as any);
+                // Active partner
+                if (isAtRoot || inAuthGroup || inOnboarding) {
+                    router.replace("/(tabs)/home" as any);
+                }
             }
-            return;
+        } else {
+            // Unauthenticated returning partner
+            if (!inAuthGroup && !isPolicyPage) {
+                router.replace("/(auth)/role-select" as any);
+            }
         }
-
-        // C4+C6: block Pending/Rejected partners even if they reach tabs
-        if (token && user && (user.status === "Pending" || user.status === "Rejected") && !inAuth && !isPolicyPage) {
-            router.replace("/(auth)/review-status" as any);
-            return;
-        }
-
-        if (!token && !inAuth && !inOnboarding && !isPolicyPage) {
-            router.replace("/(auth)/role-select");
-        }
-    }, [token, isAppReady, isLoading, segments, config?.maintenanceMode, user?.isRegistered, user?.status, user?.documents, user?.role]);
+    }, [token, isAppReady, isLoading, hasSeenOnboarding, segments, config?.maintenanceMode, user?.isRegistered, user?.status, user?.documents, user?.role]);
 
     // Socket: connect when logged in, disconnect on logout
     useEffect(() => {

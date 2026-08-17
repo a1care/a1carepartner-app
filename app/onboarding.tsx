@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { useAuthStore } from "../stores/auth";
 
 const { width, height } = Dimensions.get("window");
 
@@ -36,6 +37,7 @@ const slides = [
 
 export default function OnboardingScreen() {
     const router = useRouter();
+    const { setHasSeenOnboarding } = useAuthStore();
     const flatListRef = useRef<FlatList>(null);
     const [currentIndex, setCurrentIndex] = useState(0);
     const scrollX = useRef(new Animated.Value(0)).current;
@@ -61,12 +63,13 @@ export default function OnboardingScreen() {
         ).start();
     }, [pulseAnim]);
 
-    const handleNext = () => {
+    const handleNext = async () => {
         if (currentIndex < slides.length - 1) {
             const nextIdx = currentIndex + 1;
             flatListRef.current?.scrollToIndex({ index: nextIdx });
             setCurrentIndex(nextIdx);
         } else {
+            await setHasSeenOnboarding(true);
             router.replace("/(auth)/role-select");
         }
     };
@@ -129,7 +132,10 @@ export default function OnboardingScreen() {
 
             {/* Skip button at top right */}
             {currentIndex < slides.length - 1 && (
-                <TouchableOpacity onPress={() => router.replace("/(auth)/role-select")} style={styles.skipButton}>
+                <TouchableOpacity onPress={async () => {
+                    await setHasSeenOnboarding(true);
+                    router.replace("/(auth)/role-select");
+                }} style={styles.skipButton}>
                     <Text style={styles.skipText}>Skip</Text>
                 </TouchableOpacity>
             )}

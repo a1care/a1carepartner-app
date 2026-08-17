@@ -22,18 +22,21 @@ interface AuthState {
     token: string | null;
     user: PartnerUser | null;
     isLoading: boolean;
+    hasSeenOnboarding: boolean;
     confirmationResult: any | null;
     setConfirmationResult: (result: any) => void;
     setAuth: (token: string, user: PartnerUser, refreshToken?: string) => Promise<void>;
     setUser: (user: PartnerUser) => Promise<void>;
     logout: () => Promise<void>;
     loadFromStorage: () => Promise<void>;
+    setHasSeenOnboarding: (val: boolean) => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
     token: null,
     user: null,
     isLoading: true,
+    hasSeenOnboarding: false,
     confirmationResult: null,
     setConfirmationResult: (result: any) => set({ confirmationResult: result }),
     setAuth: async (token, user, refreshToken) => {
@@ -57,7 +60,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     loadFromStorage: async () => {
         const token = await AsyncStorage.getItem("partner_token");
         const userStr = await AsyncStorage.getItem("partner_user");
+        const hasSeenStr = await AsyncStorage.getItem("partner_has_seen_onboarding");
         const user = userStr ? JSON.parse(userStr) : null;
-        set({ token, user, isLoading: false });
+        set({ token, user, hasSeenOnboarding: hasSeenStr === "true", isLoading: false });
     },
+    setHasSeenOnboarding: async (val: boolean) => {
+        await AsyncStorage.setItem("partner_has_seen_onboarding", val ? "true" : "false");
+        set({ hasSeenOnboarding: val });
+    }
 }));

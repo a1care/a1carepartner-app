@@ -23,13 +23,13 @@
       "buildNumber": "9"
     },
     "android": {
-      "usesCleartextTraffic": false,
+      "versionCode": 116,
+      "usesCleartextTraffic": true,
       "adaptiveIcon": {
-        "foregroundImage": "./assets/adaptive-icon.png",
+        "foregroundImage": "./assets/adaptive-icon.jpeg",
         "backgroundColor": "#EBF5FB"
       },
       "package": "com.a1care.partner",
-      "versionCode": 59,
       "googleServicesFile": "./google-services.json",
       "config": {
         "googleMaps": {
@@ -43,8 +43,7 @@
         "READ_EXTERNAL_STORAGE",
         "WRITE_EXTERNAL_STORAGE",
         "POST_NOTIFICATIONS",
-        "android.permission.ACCESS_COARSE_LOCATION",
-        "android.permission.ACCESS_FINE_LOCATION"
+        "com.google.android.gms.permission.AD_ID"
       ]
     },
     "web": {
@@ -54,6 +53,9 @@
     "plugins": [
       "expo-router",
       "expo-secure-store",
+      "./plugins/withPageSizeCompat",
+      "./plugins/withExtractNativeLibs",
+      "./plugins/withLegacyPackaging",
       [
         "expo-location",
         {
@@ -77,9 +79,8 @@
           },
           "android": {
             "compileSdkVersion": 36,
-            "targetSdkVersion": 36,
+            "targetSdkVersion": 35,
             "minSdkVersion": 24,
-            "kotlinVersion": "2.1.20",
             "packagingOptions": {
               "pickFirst": [
                 "lib/x86/libc++_shared.so",
@@ -92,7 +93,8 @@
           }
         }
       ],
-      "./plugins/withAgoraAoslFix"
+      "./plugins/withAgoraAoslFix",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true
@@ -100,9 +102,9 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "eeb0094b-1196-46b9-ae72-5f2afa090aee"
+        "projectId": "54bb3133-531a-4dd1-a7b2-770a042d4b9b"
       }
     },
-    "owner": "a1carea2026s-team"
+    "owner": "a1carenews-team"
   }
 }

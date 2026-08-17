@@ -13,6 +13,7 @@ import { Colors, Shadows } from '../../constants/colors';
 import { FontSize } from '../../constants/spacing';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
 import Map from '../../components/Map';
+import { api } from '../../lib/api';
 
 export default function PartnerTrackingScreen() {
     const { id, destLat, destLng, address } = useLocalSearchParams<{ id: string, destLat?: string, destLng?: string, address?: string }>();

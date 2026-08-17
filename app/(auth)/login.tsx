@@ -203,7 +203,8 @@ const LoginScreen = () => {
             if (err?.response?.data?.message === "ACCOUNT_DELETED") {
                 setShowRestoreModal(true);
             } else {
-                Toast.show({ type: 'error', text1: 'Error', text2: 'Failed to send OTP.' });
+                const msg = err?.response?.data?.message || err?.message || 'Failed to send OTP.';
+                Toast.show({ type: 'error', text1: 'Error', text2: msg });
             }
         } finally {
             setLoading(false);
