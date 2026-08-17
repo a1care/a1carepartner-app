@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     View,
     Text,
     StyleSheet,
     TouchableOpacity,
     ActivityIndicator,
+    AppState,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -20,9 +21,20 @@ export default function PartnerTrackingScreen() {
     const router = useRouter();
     const [liveLocation, setLiveLocation] = useState<any>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [isBackgrounded, setIsBackgrounded] = useState(false);
 
     useEffect(() => {
         let subscription: Location.LocationSubscription;
+
+        const pushLocation = (coords: Location.LocationObjectCoords) => {
+            api.post('/appointment/location/update', {
+                latitude: coords.latitude,
+                longitude: coords.longitude,
+                heading: coords.heading ?? 0,
+                speed: coords.speed ?? 0,
+                isOnline: true,
+            }).catch(() => {});
+        };
 
         const startWatching = async () => {
             const { status } = await Location.requestForegroundPermissionsAsync();
@@ -40,11 +52,17 @@ export default function PartnerTrackingScreen() {
                 (loc) => {
                     setLiveLocation(loc.coords);
                     setIsLoading(false);
+                    pushLocation(loc.coords);
                 }
             );
         };
 
         startWatching();
+
+        // Warn partner when the app is backgrounded mid-tracking
+        const appStateSub = AppState.addEventListener('change', (nextState) => {
+            setIsBackgrounded(nextState === 'background' || nextState === 'inactive');
+        });
 
         return () => {
             if (subscription) {
@@ -54,6 +72,7 @@ export default function PartnerTrackingScreen() {
                     console.log('Error removing location subscription on web', e);
                 }
             }
+            appStateSub.remove();
         };
     }, []);
 
@@ -116,6 +135,11 @@ export default function PartnerTrackingScreen() {
 
     return (
         <SafeAreaView style={styles.container}>
+            {isBackgrounded && (
+                <View style={{ backgroundColor: '#FEF3C7', padding: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ color: '#92400E', fontWeight: '700', fontSize: 12 }}>⚠️ Tracking paused — return to app to continue updating your location</Text>
+                </View>
+            )}
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
                     <Ionicons name="arrow-back" size={24} color={Colors.textPrimary} />

@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Switch, ActivityIndicator, RefreshControl, Image, Platform, NativeModules, Alert, Modal } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Switch, ActivityIndicator, RefreshControl, Image, Platform, NativeModules, Alert, Modal, AppState } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter, useFocusEffect } from "expo-router";
@@ -89,6 +89,21 @@ export default function HomeScreen() {
 
         return unsubscribe;
     }, [token]);
+
+    // Auto-offline when app is backgrounded while partner is marked online
+    useEffect(() => {
+        if (!token) return;
+        const sub = AppState.addEventListener('change', (nextState) => {
+            if (nextState === 'background' || nextState === 'inactive') {
+                if (isOnline) {
+                    api.post('/appointment/location/update', {
+                        latitude: 0, longitude: 0, isOnline: false,
+                    }).catch(() => {});
+                }
+            }
+        });
+        return () => sub.remove();
+    }, [token, isOnline]);
 
     const setupNotifications = async () => {
         if (!messaging) return;
