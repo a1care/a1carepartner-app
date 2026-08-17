@@ -90,6 +90,8 @@ export default function ProfileScreen() {
             await logout();
             router.replace("/onboarding");
         } catch (err: any) {
+            const msg = err?.response?.data?.message || 'Could not submit deletion request. Please try again.';
+            Alert.alert('Request Failed', msg);
             setIsDeleting(false);
         } finally {
             setIsDeleting(false);

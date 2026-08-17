@@ -43,6 +43,8 @@ const ReviewStatusScreen = () => {
             if (staff.status === "Active") {
                 Toast.show({ type: 'success', text1: 'Verified!', text2: 'Welcome to A1Care' });
                 router.replace("/(tabs)/home");
+            } else if (staff.status === "Rejected") {
+                Toast.show({ type: 'error', text1: 'Application Rejected', text2: staff.rejectionReason || 'Please resubmit your application.' });
             } else {
                 Toast.show({ type: 'info', text1: 'Still Under Review', text2: 'Our team is reviewing your profile.' });
             }
@@ -61,11 +63,44 @@ const ReviewStatusScreen = () => {
 
     const missingDocs = missingRequiredDocuments(user, user?.role);
     const hasMissingDocs = missingDocs.length > 0;
+    const isRejected = user?.status === "Rejected";
+
+    if (isRejected) {
+        return (
+            <View style={styles.container}>
+                <LinearGradient colors={["#FEE2E2", "#FEF2F2", "#FFFFFF"]} style={StyleSheet.absoluteFill} />
+                <View style={styles.content}>
+                    <View style={styles.iconWrapper}>
+                        <LinearGradient colors={["#FEE2E2", "#FECACA"]} style={styles.iconBg} />
+                        <Ionicons name="close-circle" size={64} color="#EF4444" />
+                    </View>
+                    <Text style={styles.title}>Application Rejected</Text>
+                    {user?.rejectionReason ? (
+                        <View style={{ backgroundColor: '#FEE2E2', borderRadius: 12, padding: 16, width: '100%', marginBottom: 20 }}>
+                            <Text style={{ fontSize: 13, fontWeight: '700', color: '#991B1B', marginBottom: 4 }}>Reason:</Text>
+                            <Text style={{ fontSize: 14, color: '#7F1D1D', lineHeight: 20 }}>{user.rejectionReason}</Text>
+                        </View>
+                    ) : (
+                        <Text style={styles.desc}>Your application was not approved. Please review your documents and resubmit.</Text>
+                    )}
+                    <TouchableOpacity style={[styles.button, { marginTop: 10 }]} onPress={() => router.replace({ pathname: "/(auth)/register", params: { role: roleFromPartner(user, user?.role), token } } as any)} activeOpacity={0.8}>
+                        <LinearGradient colors={["#EF4444", "#B91C1C"]} style={styles.gradientBtn}>
+                            <Ionicons name="refresh" size={20} color="#FFF" />
+                            <Text style={styles.buttonText}>Resubmit Application</Text>
+                        </LinearGradient>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={styles.logoutBtn} onPress={handleLogout}>
+                        <Text style={styles.logoutText}>Logout</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        );
+    }
 
     return (
         <View style={styles.container}>
             <LinearGradient colors={["#C8E6F9", "#EBF5FB", "#FFFFFF"]} style={StyleSheet.absoluteFill} />
-            
+
             <View style={styles.content}>
                 <View style={styles.iconWrapper}>
                     <LinearGradient colors={["#ECFDF5", "#D1FAE5"]} style={styles.iconBg} />
@@ -74,7 +109,7 @@ const ReviewStatusScreen = () => {
 
                 <Text style={styles.title}>Account Under Review</Text>
                 <Text style={styles.desc}>
-                    We are currently verifying your credentials and documentation. 
+                    We are currently verifying your credentials and documentation.
                     This process usually takes <Text style={{fontWeight:'800', color:'#1A7FD4'}}>24-48 hours</Text>.
                 </Text>
 

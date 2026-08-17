@@ -66,6 +66,7 @@ export default function RegisterScreen() {
     const fieldOffsets = useRef<Record<string, number>>({});
     const role = (rawRole?.toLowerCase() || "doctor");
     const config = roleConfigs[role] || roleConfigs.doctor;
+    const roleApiPrefix = role.includes('nurse') ? 'nurse' : role.includes('ambulance') ? 'ambulance' : role.includes('rental') ? 'rental' : 'doctor';
     const authToken = (token as string) || storedToken;
 
     const [step, setStep] = useState(1);
@@ -108,7 +109,7 @@ export default function RegisterScreen() {
         const hydrateExistingProfile = async () => {
             if (!authToken) return;
             try {
-                const res = await api.get("/doctor/auth/details", { headers: { Authorization: `Bearer ${authToken}` } });
+                const res = await api.get(`/${roleApiPrefix}/auth/details`, { headers: { Authorization: `Bearer ${authToken}` } });
                 const staff = res.data?.data;
                 if (!staff) return;
 
@@ -249,7 +250,7 @@ export default function RegisterScreen() {
                 fd.append('document', { uri: file.uri, name: filename, type: file.mimeType } as any);
             }
             
-            const res = await api.post("/doctor/auth/upload-document", fd, { headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${authToken}` } });
+            const res = await api.post(`/${roleApiPrefix}/auth/upload-document`, fd, { headers: { 'Content-Type': 'multipart/form-data', Authorization: `Bearer ${authToken}` } });
             setDocuments(prev => [...prev.filter(d => d.type !== docType), { type: docType, url: res.data.data.url, uploading: false }]);
         } catch (err: any) {
             setDocuments(prev => prev.filter(d => d.type !== docType));
@@ -285,7 +286,7 @@ export default function RegisterScreen() {
                 homeConsultationFee: form.homeConsultationFee ? Number(form.homeConsultationFee) : undefined,
                 onlineConsultationFee: form.onlineConsultationFee ? Number(form.onlineConsultationFee) : undefined,
             };
-            const res = await api.put("/doctor/auth/register", payload, { headers: { Authorization: `Bearer ${authToken}` } });
+            const res = await api.put(`/${roleApiPrefix}/auth/register`, payload, { headers: { Authorization: `Bearer ${authToken}` } });
             await setAuth(authToken, { ...res.data.data, role: role as PartnerRole });
             router.replace("/(tabs)/home");
         } catch (err: any) { 

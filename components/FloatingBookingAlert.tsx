@@ -199,6 +199,19 @@ export default function FloatingBookingAlert() {
 
     if (!token || !activeAlertBooking || isHideScreen) return null;
 
+    const rejectMutation = useMutation({
+        mutationFn: async (bookingId: string) => {
+            const isDirect = activeAlertBooking?.status?.toUpperCase() === "PARTNER_ASSIGNED";
+            if (isDirect) {
+                return api.post(`/service/booking/reject-assignment/${bookingId}`);
+            }
+            return api.post(`/service/booking/reject/${bookingId}`, { roleId: user?.roleId });
+        },
+        onSettled: () => {
+            queryClient.invalidateQueries({ queryKey: ["bookings"] });
+        },
+    });
+
     const handleDismiss = () => {
         setDismissedTimes(prev => ({ ...prev, [activeAlertBooking._id]: Date.now() }));
         Animated.timing(slideAnim, {
@@ -206,6 +219,7 @@ export default function FloatingBookingAlert() {
             duration: 250,
             useNativeDriver: true,
         }).start();
+        rejectMutation.mutate(activeAlertBooking._id);
     };
 
     const handleAccept = () => {

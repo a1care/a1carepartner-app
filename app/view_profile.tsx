@@ -20,13 +20,15 @@ const getDocUrl = (doc: any) => {
 export default function ViewProfileScreen() {
     const router = useRouter();
     const { user } = useAuthStore() as any;
+    const role: string = user?.role?.toLowerCase?.() ?? 'doctor';
+    const roleApiPrefix = role.includes('nurse') ? 'nurse' : role.includes('ambulance') ? 'ambulance' : role.includes('rental') ? 'rental' : 'doctor';
     const [selectedDoc, setSelectedDoc] = React.useState<any>(null);
     const [showDocModal, setShowDocModal] = React.useState(false);
 
     const { data: staffData, isLoading } = useQuery({
         queryKey: ["profileDetailsView"],
         queryFn: async () => {
-            const res = await api.get("/doctor/auth/details");
+            const res = await api.get(`/${roleApiPrefix}/auth/details`);
             return res.data.data;
         }
     });

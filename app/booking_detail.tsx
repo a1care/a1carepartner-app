@@ -142,6 +142,27 @@ export default function BookingDetailScreen() {
         }
     });
 
+    const cancelAccepted = useMutation({
+        mutationFn: async () => api.patch(`/service/booking/status/${id}`, { status: "CANCELLED" }),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ["bookings"] });
+            queryClient.invalidateQueries({ queryKey: ["booking-detail", id] });
+            Toast.show({ type: 'info', text1: "Booking Cancelled", text2: "The booking has been cancelled and the customer has been notified." });
+            router.back();
+        },
+        onError: (err: any) => {
+            Toast.show({ type: 'error', text1: "Error", text2: err?.response?.data?.message || "Could not cancel booking." });
+        }
+    });
+
+    const handleCantMakeIt = () => {
+        confirmAction(
+            "Can't Make It?",
+            "Are you sure you want to cancel this accepted booking? The customer will be notified and the booking may be reassigned.",
+            () => cancelAccepted.mutate()
+        );
+    };
+
     const call = (mobile?: string | null) => { if (mobile) Linking.openURL(`tel:${mobile}`); };
     const openMaps = () => {
         const locationString = booking.address?.address || booking.address?.street || booking.location?.address || booking.address?.label;
@@ -407,8 +428,28 @@ export default function BookingDetailScreen() {
                     )}
 
                     {isPending && (
-                        <TouchableOpacity style={styles.primaryBtn} onPress={() => updateStatus.mutate("Confirmed")} disabled={updateStatus.isPending}>
-                            <Text style={styles.primaryBtnText}>{updateStatus.isPending ? "..." : "Confirm Visit"}</Text>
+                        <View style={{ flexDirection: 'row', gap: 10 }}>
+                            <TouchableOpacity style={[styles.primaryBtn, { flex: 1 }]} onPress={() => updateStatus.mutate("Confirmed")} disabled={updateStatus.isPending}>
+                                <Text style={styles.primaryBtnText}>{updateStatus.isPending ? "..." : "Confirm Visit"}</Text>
+                            </TouchableOpacity>
+                            {bookingType === "Doctor" && (
+                                <TouchableOpacity
+                                    style={{ width: 52, height: 52, borderRadius: 16, backgroundColor: '#FEF2F2', justifyContent: 'center', alignItems: 'center' }}
+                                    onPress={() => confirmAction(
+                                        "Decline Appointment",
+                                        "Are you sure you want to decline this appointment? The patient will be notified.",
+                                        () => updateStatus.mutate("Cancelled")
+                                    )}
+                                    disabled={updateStatus.isPending}
+                                >
+                                    <Ionicons name="close" size={24} color="#EF4444" />
+                                </TouchableOpacity>
+                            )}
+                        </View>
+                    )}
+                    {isActive && !isPartnerAssigned && bookingType === "Service" && (
+                        <TouchableOpacity onPress={handleCantMakeIt} disabled={cancelAccepted.isPending} style={{ marginBottom: 10, paddingVertical: 10, borderRadius: 12, borderWidth: 1, borderColor: '#FECACA', backgroundColor: '#FEF2F2', alignItems: 'center' }}>
+                            <Text style={{ color: '#DC2626', fontWeight: '700', fontSize: 13 }}>{cancelAccepted.isPending ? "..." : "Can't Make It — Cancel Booking"}</Text>
                         </TouchableOpacity>
                     )}
                     {isActive && !isPartnerAssigned && (

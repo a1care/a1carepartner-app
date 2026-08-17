@@ -76,15 +76,12 @@ export default function EarningsScreen() {
     const [activeTab, setActiveTab] = useState<'PAYOUTS' | 'BOOKINGS'>('PAYOUTS');
 
     const handleVerifyUpi = () => {
-        if (!upiId.trim() || !upiId.includes('@')) {
-            Alert.alert('Invalid UPI', 'Please enter a valid UPI ID format');
+        const upiRegex = /^[\w.\-]+@[\w]+$/;
+        if (!upiId.trim() || !upiRegex.test(upiId.trim())) {
+            Alert.alert('Invalid UPI', 'Please enter a valid UPI ID (e.g. name@upi)');
             return;
         }
-        setUpiVerificationStatus('verifying');
-        setTimeout(() => {
-            setUpiVerificationStatus('verified');
-            setUpiAccountName(staffDetails?.bankDetails?.accountHolderName || 'Partner');
-        }, 1200);
+        setUpiVerificationStatus('verified');
     };
 
     const handleUpiChange = (text: string) => {
@@ -365,9 +362,9 @@ export default function EarningsScreen() {
                                     <Text style={styles.inputLabelBold}>UPI ID / VPA</Text>
                                     <View style={styles.inputBox}>
                                         <TextInput style={styles.inputText} placeholder="e.g. name@upi" placeholderTextColor="#94A3B8" value={upiId} onChangeText={handleUpiChange} autoCapitalize="none" />
-                                        {upiVerificationStatus === 'verifying' ? <ActivityIndicator size="small" color="#059669" /> : upiVerificationStatus === 'verified' ? <Ionicons name="checkmark-circle" size={22} color="#059669" /> : upiId.trim().includes('@') ? <TouchableOpacity onPress={handleVerifyUpi}><Text style={{ color: '#059669', fontWeight: '800', fontSize: 13 }}>Verify</Text></TouchableOpacity> : null}
+                                        {upiVerificationStatus === 'verified' ? <Ionicons name="checkmark-circle" size={22} color="#059669" /> : upiId.trim().includes('@') ? <TouchableOpacity onPress={handleVerifyUpi}><Text style={{ color: '#059669', fontWeight: '800', fontSize: 13 }}>Verify</Text></TouchableOpacity> : null}
                                     </View>
-                                    {upiVerificationStatus === 'verified' && <Text style={{ color: '#059669', fontSize: 12, fontWeight: '700', marginLeft: 4, marginTop: -2 }}>✓ Verified: {upiAccountName}</Text>}
+                                    {upiVerificationStatus === 'verified' && <Text style={{ color: '#059669', fontSize: 12, fontWeight: '700', marginLeft: 4, marginTop: -2 }}>✓ Format valid – will be verified on payout</Text>}
                                 </View>
                             ) : (
                                 staffDetails?.bankDetails?.accountNumber && !useDifferentBank ? (

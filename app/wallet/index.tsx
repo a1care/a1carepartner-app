@@ -63,7 +63,7 @@ const WalletScreen = () => {
     
     const rawRole = typeof user?.role === 'string' ? user.role : (user?.role as any)?.name;
     const role = rawRole?.toLowerCase();
-    const rolePath = role === 'nurse' ? 'nurse' : role === 'ambulance' ? 'ambulance' : 'doctor';
+    const rolePath = role?.includes('nurse') ? 'nurse' : role?.includes('ambulance') ? 'ambulance' : role?.includes('rental') ? 'rental' : 'doctor';
     const [activeTab, setActiveTab] = useState<"Added" | "Withdrawn">("Added");
     const [showTopUp, setShowTopUp] = useState(false);
     const [showWithdraw, setShowWithdraw] = useState(false);
