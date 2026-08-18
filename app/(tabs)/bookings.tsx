@@ -15,7 +15,7 @@ import { CustomAlert } from "../../stores/alert.store";
 
 const { width } = Dimensions.get("window");
 
-const TABS = ["Pending", "Missing", "Confirmed", "Completed", "Cancelled"];
+const TABS = ["New", "Missing", "Confirmed", "Completed", "Cancelled"];
 
 const confirmAction = (title: string, message: string, onConfirm: () => void) => {
     CustomAlert.show(title, message, [
@@ -26,8 +26,8 @@ const confirmAction = (title: string, message: string, onConfirm: () => void) =>
 
 // Map API statuses to tab names so no booking goes missing
 const STATUS_TO_TAB: Record<string, string> = {
-    Pending: "Pending", PENDING: "Pending",
-    PARTNER_ASSIGNED: "Pending", BROADCASTED: "Pending", Broadcasted: "Pending",
+    Pending: "New", PENDING: "New",
+    PARTNER_ASSIGNED: "New", BROADCASTED: "New", Broadcasted: "New",
     ACCEPTED: "Confirmed", Confirmed: "Confirmed",
     IN_PROGRESS: "Confirmed", Active: "Confirmed",
     COMPLETED: "Completed", Completed: "Completed",
@@ -68,8 +68,8 @@ const formatDateTime = (dateString?: string) => {
 };
 
 const statusColors: Record<string, { bg: string; text: string; icon: string; label: string }> = {
-    Pending: { bg: "#FEF3C7", text: "#D97706", icon: "clock-outline", label: "Pending" },
-    PENDING: { bg: "#FEF3C7", text: "#D97706", icon: "clock-outline", label: "Pending" },
+    Pending: { bg: "#FEF3C7", text: "#D97706", icon: "clock-outline", label: "New" },
+    PENDING: { bg: "#FEF3C7", text: "#D97706", icon: "clock-outline", label: "New" },
     Broadcasted: { bg: "#F3E8FF", text: "#7C3AED", icon: "broadcast", label: "Open" },
     BROADCASTED: { bg: "#F3E8FF", text: "#7C3AED", icon: "broadcast", label: "Open" },
     ACCEPTED: { bg: "#D1FAE5", text: "#059669", icon: "check-circle-outline", label: "Accepted" },
@@ -242,7 +242,7 @@ export default function BookingsScreen() {
     const router = useRouter();
     const { user, token } = useAuthStore();
     const { status } = useLocalSearchParams<{ status?: string }>();
-    const [activeTab, setActiveTab] = useState("Pending");
+    const [activeTab, setActiveTab] = useState("New");
     const primaryColor = "#2D935C";
 
     const pulseAnim = useRef(new Animated.Value(0.3)).current;
@@ -288,10 +288,17 @@ export default function BookingsScreen() {
         };
     }, []);
 
-    // Client-side tab filtering using the STATUS_TO_TAB map so nothing is ever silently dropped
-    const bookings = allBookings.filter((b: any) =>
-        (STATUS_TO_TAB[b.status] ?? "Pending") === activeTab
-    ).sort((a: any, b: any) => {
+    const bookings = allBookings.filter((b: any) => {
+        const tab = STATUS_TO_TAB[b.status] ?? "New";
+        if (tab === "New" && b.date) {
+            const bDate = new Date(b.date);
+            bDate.setHours(0, 0, 0, 0);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            if (bDate < today) return false;
+        }
+        return tab === activeTab;
+    }).sort((a: any, b: any) => {
         const aIsFuture = !!(a.date && new Date(new Date(a.date).setHours(0,0,0,0)) > new Date(new Date().setHours(0,0,0,0)));
         const bIsFuture = !!(b.date && new Date(new Date(b.date).setHours(0,0,0,0)) > new Date(new Date().setHours(0,0,0,0)));
 

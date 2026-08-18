@@ -117,7 +117,7 @@ export default function BookingChatScreen() {
     const sendMutation = useMutation({
         mutationFn: (msg: string) => partnerBookingService.sendMessage(id!, msg),
         onSuccess: (newMsg: any) => {
-            socketRef.current?.emit('send_message', { ...newMsg, roomId: id, senderType: 'Partner' });
+            socketRef.current?.emit('send_message', { ...newMsg, roomId: id, senderType: 'Staff' });
             setChatMessages(prev => [...prev, newMsg]);
             setTypedMessage('');
         },
@@ -235,7 +235,7 @@ export default function BookingChatScreen() {
                         )}
 
                         {chatMessages.map((msg: any, idx: number) => {
-                            const isMe = msg.senderType === 'Partner';
+                            const isMe = msg.senderType === 'Partner' || msg.senderType === 'Staff';
                             const showDay = idx === 0 || !isSameDay(msg.createdAt, chatMessages[idx - 1]?.createdAt);
                             const isLast = idx === chatMessages.length - 1;
 

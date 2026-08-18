@@ -226,7 +226,7 @@ export default function BookingDetailScreen() {
 
     const sc = statusColors[booking.status] || { bg: "#F1F5F9", text: "#64748B" };
     const isActive = ["Confirmed", "ACCEPTED", "IN_PROGRESS", "Active"].includes(booking.status);
-    const isPending = booking.status === "Pending";
+    const isPending = booking.status === "Pending" || booking.status?.toUpperCase?.() === "PENDING";
     const isBroadcasted = booking.status?.toLowerCase?.() === "broadcasted";
     const isPartnerAssigned = booking.status === "PARTNER_ASSIGNED";
     const isFutureDate = !!(booking.date && new Date(new Date(booking.date).setHours(0,0,0,0)) > new Date(new Date().setHours(0,0,0,0)));

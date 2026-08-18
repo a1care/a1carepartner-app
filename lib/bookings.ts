@@ -31,7 +31,7 @@ export const partnerBookingService = {
     },
 
     getMessages: async (bookingId: string) => {
-        const res = await api.get(`/chat/${bookingId}`);
+        const res = await api.get(`/chat/${bookingId}?cb=${Date.now()}`);
         return res.data.data || [];
     },
 

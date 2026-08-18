@@ -1,13 +1,11 @@
 import React from 'react';
-import { View, Text, StyleSheet, Modal, TouchableOpacity, useWindowDimensions } from 'react-native';
-import Animated, { FadeIn, FadeOut, SlideInDown, SlideOutDown } from 'react-native-reanimated';
+import { View, Text, StyleSheet, Modal, TouchableOpacity } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { Ionicons } from '@expo/vector-icons';
 import { useAlertStore, AlertAction } from '../stores/alert.store';
 
 export default function GlobalAlert() {
     const { isOpen, title, message, type, actions, cancelable, hide } = useAlertStore();
-    const { width } = useWindowDimensions();
 
     if (!isOpen) return null;
 
@@ -32,68 +30,58 @@ export default function GlobalAlert() {
         <Modal
             visible={isOpen}
             transparent={true}
-            animationType="none"
+            animationType="fade"
             onRequestClose={() => {
                 if (cancelable) hide();
             }}
         >
-            <View style={StyleSheet.absoluteFill}>
-                <Animated.View 
-                    entering={FadeIn.duration(200)} 
-                    exiting={FadeOut.duration(200)} 
-                    style={styles.overlay}
-                >
-                    {/* Blur background for premium feel */}
-                    <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill}>
-                        <TouchableOpacity 
-                            style={StyleSheet.absoluteFill} 
-                            activeOpacity={1} 
-                            onPress={() => cancelable && hide()} 
-                        />
-                    </BlurView>
+            <View style={styles.overlay}>
+                {/* Blur background for premium feel */}
+                <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill}>
+                    <TouchableOpacity 
+                        style={StyleSheet.absoluteFill} 
+                        activeOpacity={1} 
+                        onPress={() => cancelable && hide()} 
+                    />
+                </BlurView>
 
-                    <Animated.View 
-                        entering={SlideInDown.springify().damping(20).stiffness(200)} 
-                        exiting={SlideOutDown.duration(200)}
-                        style={[styles.alertBox, { width: width * 0.85 }]}
-                    >
-                        <View style={styles.iconContainer}>
-                            {getIcon()}
-                        </View>
-                        
-                        <Text style={styles.title}>{title}</Text>
-                        {message ? <Text style={styles.message}>{message}</Text> : null}
+                <View style={styles.alertBox}>
+                    <View style={styles.iconContainer}>
+                        {getIcon()}
+                    </View>
+                    
+                    <Text style={styles.title}>{title}</Text>
+                    {message ? <Text style={styles.message}>{message}</Text> : null}
 
-                        <View style={styles.buttonContainer}>
-                            {actions.map((action, index) => {
-                                const isPrimary = action.style !== 'cancel' && action.style !== 'destructive' && index === actions.length - 1;
-                                const isDestructive = action.style === 'destructive';
-                                
-                                return (
-                                    <TouchableOpacity 
-                                        key={index} 
-                                        style={[
-                                            styles.button, 
-                                            isPrimary ? styles.primaryButton : styles.secondaryButton,
-                                            isDestructive && !isPrimary && styles.destructiveButtonOutline,
-                                            isDestructive && isPrimary && styles.destructiveButton
-                                        ]} 
-                                        onPress={() => handleActionPress(action)}
-                                    >
-                                        <Text style={[
-                                            styles.buttonText,
-                                            isPrimary ? styles.primaryButtonText : styles.secondaryButtonText,
-                                            isDestructive && !isPrimary && styles.destructiveButtonTextOutline,
-                                            isDestructive && isPrimary && styles.primaryButtonText
-                                        ]}>
-                                            {action.text}
-                                        </Text>
-                                    </TouchableOpacity>
-                                );
-                            })}
-                        </View>
-                    </Animated.View>
-                </Animated.View>
+                    <View style={styles.buttonContainer}>
+                        {actions.map((action, index) => {
+                            const isPrimary = action.style !== 'cancel' && action.style !== 'destructive' && index === actions.length - 1;
+                            const isDestructive = action.style === 'destructive';
+                            
+                            return (
+                                <TouchableOpacity 
+                                    key={index} 
+                                    style={[
+                                        styles.button, 
+                                        isPrimary ? styles.primaryButton : styles.secondaryButton,
+                                        isDestructive && !isPrimary && styles.destructiveButtonOutline,
+                                        isDestructive && isPrimary && styles.destructiveButton
+                                    ]} 
+                                    onPress={() => handleActionPress(action)}
+                                >
+                                    <Text style={[
+                                        styles.buttonText,
+                                        isPrimary ? styles.primaryButtonText : styles.secondaryButtonText,
+                                        isDestructive && !isPrimary && styles.destructiveButtonTextOutline,
+                                        isDestructive && isPrimary && styles.primaryButtonText
+                                    ]}>
+                                        {action.text}
+                                    </Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+                </View>
             </View>
         </Modal>
     );
@@ -107,6 +95,8 @@ const styles = StyleSheet.create({
         backgroundColor: 'rgba(15, 23, 42, 0.4)', // dark slate transparent overlay fallback
     },
     alertBox: {
+        width: '85%',
+        maxWidth: 400,
         backgroundColor: '#FFFFFF',
         borderRadius: 28,
         padding: 24,

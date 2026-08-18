@@ -124,9 +124,20 @@ export default function FloatingBookingAlert() {
 
     // Mutation to accept booking
     const acceptMutation = useMutation({
-        mutationKey: ["acceptBookingRequest"],
-        mutationFn: async (bookingId: string) => {
-            return partnerBookingService.acceptServiceRequest(bookingId, user?.roleId);
+        mutationFn: async (id: string) => {
+            if (activeAlertBooking.bookingType === 'Doctor') {
+                return await partnerBookingService.updateStatus(id, 'Confirmed', 'Doctor');
+            }
+            return await partnerBookingService.acceptServiceRequest(id, user?.roleId);
+        },
+        onMutate: async (id) => {
+            await queryClient.cancelQueries({ queryKey: ["bookings"] });
+            const previousBookings = queryClient.getQueryData(["bookings"]);
+            queryClient.setQueryData(["bookings"], (old: any) => {
+                if (!old) return old;
+                return old.map((b: any) => b._id === id ? { ...b, status: activeAlertBooking.bookingType === 'Doctor' ? "Confirmed" : "ACCEPTED" } : b);
+            });
+            return { previousBookings };
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ["bookings"] });
