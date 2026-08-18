@@ -82,8 +82,9 @@ export default function BookingChatScreen() {
     });
 
     useEffect(() => {
-        if (initialData?.length > 0) {
-            setChatMessages(initialData);
+        if (initialData) {
+            const dataArr = Array.isArray(initialData) ? initialData : (initialData.messages || initialData.data || []);
+            setChatMessages(dataArr);
         }
     }, [initialData]);
 
@@ -235,7 +236,8 @@ export default function BookingChatScreen() {
                         )}
 
                         {chatMessages.map((msg: any, idx: number) => {
-                            const isMe = msg.senderType === 'Partner' || msg.senderType === 'Staff';
+                            const sender = msg.senderType?.toLowerCase() || '';
+                            const isMe = sender === 'partner' || sender === 'staff' || sender === 'provider';
                             const showDay = idx === 0 || !isSameDay(msg.createdAt, chatMessages[idx - 1]?.createdAt);
                             const isLast = idx === chatMessages.length - 1;
 
@@ -249,7 +251,7 @@ export default function BookingChatScreen() {
                                     <View style={[styles.msgRow, isMe ? styles.rowMe : styles.rowThem]}>
                                         <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleThem]}>
                                             <Text style={[styles.msgText, { color: isMe ? MY_BUBBLE_TEXT : THEIR_TEXT }]}>
-                                                {msg.message}
+                                                {msg.message || msg.text || msg.content || ''}
                                             </Text>
                                             <View style={styles.metaRow}>
                                                 <Text style={[styles.msgTime, { color: isMe ? 'rgba(255,255,255,0.8)' : '#94A3B8' }]}>{formatMsgTime(msg.createdAt)}</Text>
