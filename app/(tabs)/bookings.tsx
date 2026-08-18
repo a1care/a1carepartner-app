@@ -110,6 +110,7 @@ const BookingCard = memo(({
     hasActiveSub,
     unreadCount,
     isTracking,
+    isActionPending,
     onAccept,
     onReject,
     onUpdateStatus,
@@ -181,10 +182,10 @@ const BookingCard = memo(({
                         <Text style={{ fontSize: 11, color: '#7C3AED', fontWeight: '600', marginBottom: 6 }}>📢 Open to all partners — first to accept gets it</Text>
                         {!hasActiveSub && <Text style={{ fontSize: 11, color: '#EF4444', fontWeight: '600', marginBottom: 4 }}>⚠️ Active subscription required to claim jobs</Text>}
                         <View style={styles.dualActions}>
-                            <TouchableOpacity style={[styles.mainBtn, { flex: 1, backgroundColor: hasActiveSub ? '#8B5CF6' : '#94A3B8' }]} onPress={() => { if (!hasActiveSub) { CustomAlert.show('Subscription Required', 'You need an active subscription to accept jobs.', [{ text: 'View Plans', onPress: onNavigateSubscriptions }, { text: 'Cancel', style: 'cancel' }], { type: 'warning' }); return; } onAccept(); }}>
+                            <TouchableOpacity disabled={isActionPending} style={[styles.mainBtn, { flex: 1, backgroundColor: isActionPending ? '#94A3B8' : hasActiveSub ? '#8B5CF6' : '#94A3B8' }]} onPress={() => { if (!hasActiveSub) { CustomAlert.show('Subscription Required', 'You need an active subscription to accept jobs.', [{ text: 'View Plans', onPress: onNavigateSubscriptions }, { text: 'Cancel', style: 'cancel' }], { type: 'warning' }); return; } onAccept(); }}>
                                 <Text style={styles.mainBtnText}>⚡ Accept</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.declineBtn} onPress={onReject}><Ionicons name='close' size={20} color='#EF4444' /></TouchableOpacity>
+                            <TouchableOpacity disabled={isActionPending} style={styles.declineBtn} onPress={onReject}><Ionicons name='close' size={20} color={isActionPending ? '#94A3B8' : '#EF4444'} /></TouchableOpacity>
                         </View>
                      </View>
                 )}
@@ -192,16 +193,16 @@ const BookingCard = memo(({
                     <View style={{ flex: 1 }}>
                         <Text style={{ fontSize: 11, color: '#2D935C', fontWeight: '600', marginBottom: 6 }}>📋 Admin assigned this job to you</Text>
                         <View style={styles.dualActions}>
-                            <TouchableOpacity style={[styles.mainBtn, { flex: 1, backgroundColor: '#2D935C' }]} onPress={onAccept}><Text style={styles.mainBtnText}>✅ Accept Job</Text></TouchableOpacity>
-                            <TouchableOpacity style={styles.declineBtn} onPress={onReject}><Ionicons name='close' size={20} color='#EF4444' /></TouchableOpacity>
+                            <TouchableOpacity disabled={isActionPending} style={[styles.mainBtn, { flex: 1, backgroundColor: isActionPending ? '#94A3B8' : '#2D935C' }]} onPress={onAccept}><Text style={styles.mainBtnText}>✅ Accept Job</Text></TouchableOpacity>
+                            <TouchableOpacity disabled={isActionPending} style={styles.declineBtn} onPress={onReject}><Ionicons name='close' size={20} color={isActionPending ? '#94A3B8' : '#EF4444'} /></TouchableOpacity>
                             {!isFutureDate && <TouchableOpacity style={styles.commBtn} onPress={onNavigateChat}><MessageCircle size={22} color='#2D935C' />{unreadCount > 0 && <View style={styles.chatDot} />}</TouchableOpacity>}
                         </View>
                     </View>
                 )}
                 {(b.status === 'Pending' || (b.status === 'PENDING' && b.bookingType === 'Doctor')) && (
                     <View style={styles.dualActions}>
-                        <TouchableOpacity style={[styles.mainBtn, { flex: 1 }]} onPress={() => onUpdateStatus('Confirmed')}><Text style={styles.mainBtnText}>Confirm Visit</Text></TouchableOpacity>
-                        <TouchableOpacity style={styles.declineBtn} onPress={() => onUpdateStatus('Cancelled')}><Ionicons name='close' size={20} color='#EF4444' /></TouchableOpacity>
+                        <TouchableOpacity disabled={isActionPending} style={[styles.mainBtn, { flex: 1, opacity: isActionPending ? 0.5 : 1 }]} onPress={() => onUpdateStatus('Confirmed')}><Text style={styles.mainBtnText}>Confirm Visit</Text></TouchableOpacity>
+                        <TouchableOpacity disabled={isActionPending} style={styles.declineBtn} onPress={() => onUpdateStatus('Cancelled')}><Ionicons name='close' size={20} color={isActionPending ? '#94A3B8' : '#EF4444'} /></TouchableOpacity>
                         {!isFutureDate && <TouchableOpacity style={styles.commBtn} onPress={onNavigateChat}><MessageCircle size={22} color='#2D935C' />{unreadCount > 0 && <View style={styles.chatDot} />}</TouchableOpacity>}
                     </View>
                 )}
@@ -220,7 +221,7 @@ const BookingCard = memo(({
                         ) : (
                             <View style={styles.activeActions}>
 
-                                <TouchableOpacity style={[styles.mainBtn, { flex: 1.2 }]} onPress={onComplete}>
+                                <TouchableOpacity disabled={isActionPending} style={[styles.mainBtn, { flex: 1.2, opacity: isActionPending ? 0.5 : 1 }]} onPress={onComplete}>
                                     <Text style={styles.mainBtnText}>Complete</Text>
                                 </TouchableOpacity>
                                 <TouchableOpacity style={styles.commBtn} onPress={onNavigateChat}>
@@ -511,6 +512,7 @@ export default function BookingsScreen() {
             hasActiveSub={hasActiveSub}
             unreadCount={unreadByBooking[b._id] || 0}
             isTracking={isTracking}
+            isActionPending={acceptServiceMutation.isPending || rejectServiceMutation.isPending || updateStatusMutation.isPending}
             onAccept={() => acceptServiceMutation.mutate(b._id)}
             onReject={() => rejectServiceMutation.mutate(b._id)}
             onUpdateStatus={(status: string) => updateStatusMutation.mutate({ id: b._id, status, bookingType: b.bookingType })}
