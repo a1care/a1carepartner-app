@@ -92,17 +92,20 @@ export default function EarningsScreen() {
 
     const { data: summary, isLoading, refetch } = useQuery({
         queryKey: ['staff_earnings'],
-        queryFn: async () => { const res = await api.get(`/${getRolePath()}/earnings/summary`); return res.data.data; }
+        queryFn: async () => { const res = await api.get(`/${getRolePath()}/earnings/summary`); return res.data.data; },
+        refetchInterval: 60000,
     });
 
     const { data: payouts, refetch: refetchPayouts } = useQuery({
         queryKey: ['staff_payouts'],
-        queryFn: async () => { const res = await api.get(`/${getRolePath()}/earnings/payouts`); return res.data.data; }
+        queryFn: async () => { const res = await api.get(`/${getRolePath()}/earnings/payouts`); return res.data.data; },
+        refetchInterval: 60000,
     });
 
     const { data: bookingHistory, refetch: refetchHistory } = useQuery({
         queryKey: ['staff_booking_earnings'],
-        queryFn: async () => { const res = await api.get(`/${getRolePath()}/earnings/history`); return res.data.data; }
+        queryFn: async () => { const res = await api.get(`/${getRolePath()}/earnings/history`); return res.data.data; },
+        refetchInterval: 60000,
     });
 
     const { data: staffDetails } = useQuery({
