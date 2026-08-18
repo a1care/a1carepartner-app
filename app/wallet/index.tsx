@@ -340,15 +340,14 @@ const WalletScreen = () => {
                             <Text style={styles.modalLabel}>Enter Amount (Min ₹500)</Text>
                             <View style={styles.inputContainer}>
                                 <Text style={styles.currencySymbol}>₹</Text>
-                                <TextInput 
-                                    style={styles.inputField} 
-                                    placeholder="0" 
-                                    keyboardType="numeric" 
+                                <TextInput
+                                    placeholder="0"
+                                    keyboardType="numeric"
                                     value={amount}
                                     onChangeText={setAmount}
                                     autoFocus
                                     // @ts-ignore
-                                    style={[styles.inputField, { outlineStyle: 'none' }]}
+                                    style={[styles.inputField, { outlineStyle: 'none' as any }]}
                                 />
                             </View>
                             <Text style={styles.modalInfo}>Max Withdrawable: ₹{summary?.balance || 0}</Text>
@@ -375,15 +374,14 @@ const WalletScreen = () => {
                             <Text style={styles.modalLabel}>Deposit Amount</Text>
                             <View style={styles.inputContainer}>
                                 <Text style={styles.currencySymbol}>₹</Text>
-                                <TextInput 
-                                    style={styles.inputField} 
-                                    placeholder="0" 
-                                    keyboardType="numeric" 
+                                <TextInput
+                                    placeholder="0"
+                                    keyboardType="numeric"
                                     value={amount}
                                     onChangeText={setAmount}
                                     autoFocus
                                     // @ts-ignore
-                                    style={[styles.inputField, { outlineStyle: 'none' }]}
+                                    style={[styles.inputField, { outlineStyle: 'none' as any }]}
                                 />
                             </View>
                             <View style={styles.quickAmts}>

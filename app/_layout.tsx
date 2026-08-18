@@ -104,7 +104,7 @@ function AuthGuard() {
         if (!isAppReady || isLoading) return;
 
         const currentSegment = segments[0] as string | undefined;
-        const currentSubSegment = segments[1] as string | undefined;
+        const currentSubSegment = (segments as string[])[1] as string | undefined;
         const isMaintenancePage = currentSegment === 'maintenance';
 
         if (config?.maintenanceMode) {

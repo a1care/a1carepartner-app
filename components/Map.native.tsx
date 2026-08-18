@@ -25,6 +25,7 @@ export default function Map({ location, destLatNum, destLngNum }: any) {
                 markerRef.current.animateMarkerToCoordinate(location, 1000);
             }
         } else {
+            // @ts-ignore — AnimatedRegion.timing types require toValue but RN Maps overloads it
             coordinate.timing({
                 latitude: location.latitude,
                 longitude: location.longitude,

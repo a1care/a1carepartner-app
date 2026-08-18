@@ -13,6 +13,7 @@ import * as Location from 'expo-location';
 import { Colors, Shadows } from '../../constants/colors';
 import { FontSize } from '../../constants/spacing';
 import { Ionicons, FontAwesome5 } from '@expo/vector-icons';
+// @ts-ignore — Map resolves to Map.native.tsx / Map.web.tsx at runtime; no shared .tsx stub
 import Map from '../../components/Map';
 import { api } from '../../lib/api';
 
