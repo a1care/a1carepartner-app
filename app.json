@@ -23,7 +23,7 @@
       "buildNumber": "9"
     },
     "android": {
-      "versionCode": 116,
+      "versionCode": 119,
       "usesCleartextTraffic": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.jpeg",
